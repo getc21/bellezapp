@@ -33,21 +33,37 @@ class OrderListPageState extends State<OrderListPage> {
     });
   }
 
+  // Método público para refrescar la lista desde fuera
+  Future<void> refreshOrders() async {
+    await _loadOrders();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Obx(() => Scaffold(
       backgroundColor: Utils.colorFondo,
       body: _orders.isEmpty
-          ? Center(child: Text('No hay órdenes disponibles'))
-          : ListView.builder(
-              itemCount: _orders.length,
-              itemBuilder: (context, index) {
-                final order = _orders[index];
-                final orderDate = DateFormat('yyyy-MM-dd')
-                    .format(DateTime.parse(order['order_date']));
-                return Card(
-                  color: Utils.colorFondoCards,
-                  margin: EdgeInsets.all(10),
+          ? RefreshIndicator(
+              onRefresh: _loadOrders,
+              child: SingleChildScrollView(
+                physics: AlwaysScrollableScrollPhysics(),
+                child: Container(
+                  height: MediaQuery.of(context).size.height * 0.8,
+                  child: Center(child: Text('No hay órdenes disponibles')),
+                ),
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _loadOrders,
+              child: ListView.builder(
+                itemCount: _orders.length,
+                itemBuilder: (context, index) {
+                  final order = _orders[index];
+                  final orderDate = DateFormat('yyyy-MM-dd')
+                      .format(DateTime.parse(order['order_date']));
+                  return Card(
+                    color: Utils.colorFondoCards,
+                    margin: EdgeInsets.all(10),
                   child: Padding(
                     padding: EdgeInsets.all(10),
                     child: Column(
@@ -100,10 +116,16 @@ class OrderListPageState extends State<OrderListPage> {
                 );
               },
             ),
+          ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: Utils.colorBotones,
-        onPressed: () {
-          Get.to(AddOrderPage());
+        onPressed: () async {
+          // Navegar y esperar el resultado
+          final result = await Get.to(AddOrderPage());
+          // Si se procesó una venta, recargar la lista
+          if (result == true) {
+            _loadOrders();
+          }
         },
         child: const Icon(Icons.add, color: Colors.white),
       ),

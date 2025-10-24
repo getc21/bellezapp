@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:bellezapp/pages/home_page.dart';
+import 'package:bellezapp/controllers/current_store_controller.dart';
 import 'package:bellezapp/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:bellezapp/database/database_helper.dart';
@@ -81,24 +81,39 @@ class AddProductPageState extends State<AddProductPage> {
   }
 
   void _loadCategories() async {
-    final categories = await DatabaseHelper().getCategories();
-    setState(() {
-      _categories = categories;
-    });
+    final currentStoreController = Get.find<CurrentStoreController>();
+    final currentStore = currentStoreController.currentStore;
+    
+    if (currentStore != null) {
+      final categories = await DatabaseHelper().getCategories(storeId: currentStore.id);
+      setState(() {
+        _categories = categories;
+      });
+    }
   }
 
   void _loadSuppliers() async {
-    final suppliers = await DatabaseHelper().getSuppliers();
-    setState(() {
-      _suppliers = suppliers;
-    });
+    final currentStoreController = Get.find<CurrentStoreController>();
+    final currentStore = currentStoreController.currentStore;
+    
+    if (currentStore != null) {
+      final suppliers = await DatabaseHelper().getSuppliers(storeId: currentStore.id);
+      setState(() {
+        _suppliers = suppliers;
+      });
+    }
   }
 
   void _loadLocations() async {
-    final locations = await DatabaseHelper().getLocations();
-    setState(() {
-      _locations = locations;
-    });
+    final currentStoreController = Get.find<CurrentStoreController>();
+    final currentStore = currentStoreController.currentStore;
+    
+    if (currentStore != null) {
+      final locations = await DatabaseHelper().getLocations(storeId: currentStore.id);
+      setState(() {
+        _locations = locations;
+      });
+    }
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -461,6 +476,14 @@ class AddProductPageState extends State<AddProductPage> {
               SizedBox(height: 20),
               Utils.elevatedButton('Guardar', Utils.colorBotones, () async {
                 if (formKey.currentState?.validate() ?? false) {
+                  final currentStoreController = Get.find<CurrentStoreController>();
+                  final currentStore = currentStoreController.currentStore;
+                  
+                  if (currentStore == null) {
+                    Get.snackbar('Error', 'No hay tienda seleccionada');
+                    return;
+                  }
+
                   final newProduct = {
                     'name': _nameController.text,
                     'description': _descriptionController.text,
@@ -473,12 +496,14 @@ class AddProductPageState extends State<AddProductPage> {
                     'location_id': _selectedLocationId,
                     'expirity_date': _expirityDateController.text,
                     'foto': _fotoController.text,
+                    'store_id': currentStore.id, // Agregar store_id
                   };
 
                   // Guardar en la base de datos local
                   await DatabaseHelper().insertProduct(newProduct);
 
-                  Get.to(HomePage()); // Cerrar el diálogo
+                  // Regresar con resultado exitoso
+                  Get.back(result: true);
                 }
               }),
             ],

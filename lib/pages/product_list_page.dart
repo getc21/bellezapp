@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:bellezapp/controllers/loading_controller.dart';
 import 'package:bellezapp/controllers/theme_controller.dart';
+import 'package:bellezapp/controllers/product_controller.dart';
 import 'package:bellezapp/database/database_helper.dart';
 import 'package:bellezapp/pages/add_product_page.dart';
 import 'package:bellezapp/pages/edit_product_page.dart';
@@ -26,83 +27,17 @@ class ProductListPage extends StatefulWidget {
 }
 
 class ProductListPageState extends State<ProductListPage> {
-  List<Map<String, dynamic>> _filteredProducts = [];
-  List<Map<String, dynamic>> _allProducts = [];
   final dbHelper = DatabaseHelper();
   bool _isExpanded = false;
   final TextEditingController _searchController = TextEditingController();
   final loadingC = Get.find<LoadingController>();
   final themeController = Get.find<ThemeController>();
+  final productController = Get.find<ProductController>();
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadProducts();
-    });
-  }
-
-  void _loadProducts() async {
-    loadingC.setOnLoading();
-    try {
-      final products = await dbHelper.getProducts();
-      log(products.toString());
-      setState(() {
-        _allProducts = products;
-        _filteredProducts = products;
-      });
-    } catch (e) {
-      log('Error loading products: $e');
-    } finally {
-      loadingC.setOffLoading();
-    }
-  }
-
-  void _filterProducts(String searchText) {
-    setState(() {
-      if (searchText.isNotEmpty) {
-        _filteredProducts = _allProducts.where((product) {
-          final name = product['name'].toLowerCase();
-          final description = product['description'].toLowerCase();
-          final category = product['category_name']?.toLowerCase() ?? '';
-          final supplier = product['supplier_name']?.toLowerCase() ?? '';
-          final location = product['location_name']?.toLowerCase() ?? '';
-          final searchLower = searchText.toLowerCase();
-          return name.contains(searchLower) ||
-              description.contains(searchLower) ||
-              category.contains(searchLower) ||
-              supplier.contains(searchLower) ||
-              location.contains(searchLower);
-        }).toList();
-      } else {
-        _filteredProducts = _allProducts;
-      }
-    });
-  }
-
-  void _showAllProducts() {
-    setState(() {
-      _filteredProducts = _allProducts;
-    });
-  }
-
-  void _showNearExpiryProducts() {
-    setState(() {
-      _filteredProducts = _allProducts.where((product) {
-        final expiryDate = DateTime.tryParse(product['expirity_date'] ?? '');
-        return expiryDate != null &&
-            expiryDate.difference(DateTime.now()).inDays <= 30;
-      }).toList();
-    });
-  }
-
-  void _showLowStockProducts() {
-    setState(() {
-      _filteredProducts = _allProducts.where((product) {
-        final stock = product['stock'] ?? 0;
-        return stock < 10;
-      }).toList();
-    });
+    // Ya no necesitamos cargar productos aquí, el controller lo maneja
   }
 
   void _deleteProduct(int id) async {
@@ -112,14 +47,10 @@ class ProductListPageState extends State<ProductListPage> {
       '¿Estás seguro de que deseas eliminar este producto?',
     );
     if (confirmed) {
-      loadingC.setOnLoading();
       try {
-        await dbHelper.deleteProduct(id);
-        _loadProducts();
+        await productController.deleteProduct(id);
       } catch (e) {
         log('Error deleting product: $e');
-      } finally {
-        loadingC.setOffLoading();
       }
     }
   }
@@ -156,16 +87,12 @@ class ProductListPageState extends State<ProductListPage> {
               Navigator.of(context).pop();
             }),
             Utils.elevatedButton('Añadir', Utils.yes, () async {
-              loadingC.setOnLoading();
               try {
                 final int stockToAdd = int.parse(stockController.text);
-                await dbHelper.addProductStock(productId, stockToAdd);
-                _loadProducts();
+                await productController.addProductStock(productId, stockToAdd);
+                Navigator.of(context).pop();
               } catch (e) {
                 log('Error adding stock: $e');
-              } finally {
-                loadingC.setOffLoading();
-                Navigator.of(context).pop();
               }
             }),
           ],
@@ -174,44 +101,129 @@ class ProductListPageState extends State<ProductListPage> {
     );
   }
 
+  Widget _buildImprovedFilterChip(String label, String value, IconData icon, Color color) {
+    return Obx(() {
+      final isActive = productController.activeFilter == value;
+      return GestureDetector(
+        onTap: () {
+          switch (value) {
+            case 'todos':
+              productController.showAllProducts();
+              break;
+            case 'stock':
+              productController.showLowStockProducts();
+              break;
+            case 'expiry':
+              productController.showNearExpiryProducts();
+              break;
+          }
+        },
+        child: AnimatedContainer(
+          duration: Duration(milliseconds: 200),
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: isActive ? color : Colors.white,
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(
+              color: color,
+              width: 1.5,
+            ),
+            boxShadow: isActive ? [
+              BoxShadow(
+                color: color.withOpacity(0.3),
+                spreadRadius: 1,
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
+            ] : [],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: isActive ? Colors.white : color,
+              ),
+              SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isActive ? Colors.white : color,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Obx(
       () => LoadingOverlay(
         progressIndicator: Utils.loadingCustom(),
         color: Colors.white.withOpacity(0.6),
-        isLoading: loadingC.getLoading,
+        isLoading: productController.isLoading,
         child: Scaffold(
           backgroundColor: Utils.colorFondo,
           body: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Utils.elevatedButton('Todos', Utils.colorBotones, () {
-                      _showAllProducts();
-                    }),
-                    Utils.elevatedButton('Caducidad prox.', Utils.colorBotones,
-                        () {
-                      _showNearExpiryProducts();
-                    }),
-                    Utils.elevatedButton('Stock bajo', Utils.colorBotones, () {
-                      _showLowStockProducts();
-                    }),
+                    // Título de sección
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Filtros rápidos',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Utils.colorGnav,
+                          ),
+                        ),
+                        Obx(() => Text(
+                          '${productController.filteredProducts.length} productos',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        )),
+                      ],
+                    ),
+                    SizedBox(height: 5),
+                    // Chips de filtro mejorados
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildImprovedFilterChip('Todos', 'todos', Icons.inventory_2_outlined, Colors.blue),
+                          SizedBox(width: 8),
+                          _buildImprovedFilterChip('Stock bajo', 'stock', Icons.warning_amber_outlined, Colors.red),
+                          SizedBox(width: 8),
+                          _buildImprovedFilterChip('Prox. vencer', 'expiry', Icons.schedule_outlined, Colors.orange),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
               Expanded(
                 child: Stack(
                   children: [
-                    SingleChildScrollView(
+                    Obx(() => SingleChildScrollView(
                       padding: const EdgeInsets.all(8),
                       child: Wrap(
                         spacing: 8, // Espaciado horizontal entre elementos
                         runSpacing: 8, // Espaciado vertical entre filas
-                        children: _filteredProducts.map((product) {
+                        children: productController.filteredProducts.map((product) {
                           final stock = product['stock'] ?? 0;
                           final expiryDate =
                               DateTime.tryParse(product['expirity_date'] ?? '');
@@ -434,7 +446,7 @@ class ProductListPageState extends State<ProductListPage> {
                           );
                         }).toList(),
                       ),
-                    ),
+                    )),
                     Padding(
                       padding: EdgeInsets.only(left: 10, top: 10),
                       child: Align(
@@ -467,6 +479,10 @@ class ProductListPageState extends State<ProductListPage> {
                                   onPressed: () {
                                     setState(() {
                                       _isExpanded = !_isExpanded;
+                                      if (!_isExpanded) {
+                                        _searchController.clear();
+                                        productController.filterProducts('');
+                                      }
                                     });
                                   },
                                 ),
@@ -480,7 +496,7 @@ class ProductListPageState extends State<ProductListPage> {
                                   child: _isExpanded
                                       ? TextField(
                                           controller: _searchController,
-                                          onChanged: _filterProducts,
+                                          onChanged: (text) => productController.filterProducts(text),
                                           decoration: InputDecoration(
                                             hintText: 'Buscar un producto...',
                                             border: InputBorder.none,
@@ -502,7 +518,11 @@ class ProductListPageState extends State<ProductListPage> {
           floatingActionButton: FloatingActionButton(
             backgroundColor: Utils.colorBotones,
             onPressed: () async {
-              Get.to(AddProductPage());
+              final result = await Get.to(AddProductPage());
+              if (result == true) {
+                // Refrescar la lista cuando se agregue un producto
+                productController.refreshProducts();
+              }
             },
             child: const Icon(
               Icons.add,

@@ -1,4 +1,4 @@
-import 'package:bellezapp/pages/home_page.dart';
+import 'package:bellezapp/controllers/current_store_controller.dart';
 import 'package:bellezapp/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:bellezapp/database/database_helper.dart';
@@ -218,6 +218,14 @@ class AddSupplierPageState extends State<AddSupplierPage> {
               SizedBox(height: 20),
               Utils.elevatedButton('Guardar', Utils.colorBotones, () async {
                 if (formKey.currentState?.validate() ?? false) {
+                  final currentStoreController = Get.find<CurrentStoreController>();
+                  final currentStore = currentStoreController.currentStore;
+                  
+                  if (currentStore == null) {
+                    Get.snackbar('Error', 'No hay tienda seleccionada');
+                    return;
+                  }
+
                   final newSupplier = {
                     'name': _nameController.text,
                     'contact_name': _contactNameController.text,
@@ -225,12 +233,14 @@ class AddSupplierPageState extends State<AddSupplierPage> {
                     'contact_phone': _contactPhoneController.text,
                     'address': _addressController.text,
                     'foto': _fotoController.text,
+                    'store_id': currentStore.id, // Agregar store_id
                   };
 
                   // Guardar en la base de datos local
                   await DatabaseHelper().insertSupplier(newSupplier);
 
-                  Get.to(HomePage()); // Cerrar la página
+                  // Regresar con resultado exitoso
+                  Get.back(result: true);
                 }
               }),
             ],

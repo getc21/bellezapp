@@ -1,4 +1,4 @@
-import 'package:bellezapp/pages/home_page.dart';
+import 'package:bellezapp/controllers/current_store_controller.dart';
 import 'package:bellezapp/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:bellezapp/database/database_helper.dart';
@@ -141,19 +141,29 @@ class AddCategoryPageState extends State<AddCategoryPage> {
               ),
               SizedBox(height: 20),
 
-              Utils.elevatedButton('Guardar',Utils.colorBotones, () async {
+              Utils.elevatedButton('Guardar', Utils.colorBotones, () async {
                 if (formKey.currentState?.validate() ?? false) {
-                    final newCategory = {
-                      'name': _nameController.text,
-                      'description': _descriptionController.text,
-                      'foto': _fotoController.text,
-                    };
-
-                    // Guardar en la base de datos local
-                    await DatabaseHelper().insertCategory(newCategory);
-
-                    Get.to(HomePage()); // Cerrar la página
+                  final currentStoreController = Get.find<CurrentStoreController>();
+                  final currentStore = currentStoreController.currentStore;
+                  
+                  if (currentStore == null) {
+                    Get.snackbar('Error', 'No hay tienda seleccionada');
+                    return;
                   }
+
+                  final newCategory = {
+                    'name': _nameController.text,
+                    'description': _descriptionController.text,
+                    'foto': _fotoController.text,
+                    'store_id': currentStore.id, // Agregar store_id
+                  };
+
+                  // Guardar en la base de datos local
+                  await DatabaseHelper().insertCategory(newCategory);
+
+                  // Regresar con resultado exitoso
+                  Get.back(result: true);
+                }
               }),
             ],
           ),

@@ -1,9 +1,12 @@
+import 'dart:convert';
+
 import 'package:bellezapp/controllers/theme_controller.dart';
-import 'package:bellezapp/database/database_helper.dart';
+import 'package:bellezapp/controllers/location_controller.dart';
 import 'package:bellezapp/pages/add_location_page.dart';
 import 'package:bellezapp/pages/edit_location_page.dart';
 import 'package:bellezapp/pages/location_products_page.dart';
 import 'package:bellezapp/utils/utils.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -15,21 +18,13 @@ class LocationListPage extends StatefulWidget {
 }
 
 class LocationListPageState extends State<LocationListPage> {
-  List<Map<String, dynamic>> _locations = [];
-  final dbHelper = DatabaseHelper();
   final themeController = Get.find<ThemeController>();
+  final locationController = Get.find<LocationController>();
 
   @override
   void initState() {
     super.initState();
-    _loadLocations();
-  }
-
-  void _loadLocations() async {
-    final locations = await dbHelper.getLocations();
-    setState(() {
-      _locations = locations;
-    });
+    // Ya no necesitamos cargar ubicaciones aquí, el controller lo maneja
   }
 
   void _deleteLocation(int id) async {
@@ -39,111 +34,109 @@ class LocationListPageState extends State<LocationListPage> {
       '¿Estás seguro de que deseas eliminar esta ubicación?',
     );
     if (confirmed) {
-      await dbHelper.deleteLocation(id);
-      _loadLocations();
+      try {
+        await locationController.deleteLocation(id);
+      } catch (e) {
+        Get.snackbar('Error', 'No se pudo eliminar la ubicación: $e');
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() => Scaffold(
+    return Scaffold(
       backgroundColor: Utils.colorFondo,
-      body: ListView.builder(
-        itemCount: _locations.length,
-        itemBuilder: (context, index) {
-          final location = _locations[index];
-          return GestureDetector(
-            onTap: () {
-              Get.to(LocationProductsPage(
-                locationId: location['id'],
-                locationName: location['name'],
-              ));
-            },
-            child: Card(
-              color: Utils.colorFondoCards, // Color de fondo del Card
-              margin: const EdgeInsets.symmetric(
-                  vertical: 8.0, horizontal: 12.0), // Márgenes del Card
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16.0), // Bordes redondeados
+      body: Obx(() {
+        if (locationController.isLoading) {
+          return Center(child: Utils.loadingCustom());
+        }
+        
+        return ListView.builder(
+          itemCount: locationController.locations.length,
+          itemBuilder: (context, index) {
+            final location = locationController.locations[index];
+            final fotoBase64 = location['foto'] ?? '';
+
+            Uint8List? imageBytes;
+            if (fotoBase64.isNotEmpty) {
+              try {
+                imageBytes = base64Decode(fotoBase64);
+              } catch (e) {
+                imageBytes = null;
+              }
+            }
+
+            return Container(
+              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              decoration: BoxDecoration(
+                color: Utils.colorFondoCards,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.2),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              elevation: 4, // Sombra para el Card
-              child: Padding(
-                padding: const EdgeInsets.only(
-                    left: 12.0), // Espaciado interno del Card
-                child: Row(
+              child: ListTile(
+                leading: CircleAvatar(
+                  radius: 30,
+                  backgroundColor: Colors.grey.shade200,
+                  backgroundImage: imageBytes != null ? MemoryImage(imageBytes) : null,
+                  child: imageBytes == null
+                      ? Icon(Icons.location_on, color: Colors.grey.shade600)
+                      : null,
+                ),
+                title: Utils.textTitle(location['name']),
+                subtitle: Utils.textDescription(location['description'] ?? ''),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: Column(
-                        children: [
-                          Text(
-                            location['name'] ?? 'Sin datos',
-                            style: const TextStyle(
-                              fontSize: 18.0,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8.0),
-                          Text(
-                            location['description'] ?? 'Sin datos',
-                            style: TextStyle(
-                              fontSize: 14.0,
-                              color: Utils.colorTexto,
-                            ),
-                          ),
-                        ],
-                      ),
+                    IconButton(
+                      onPressed: () async {
+                        final result = await Get.to(EditLocationPage(location: location));
+                        if (result == true) {
+                          locationController.refreshLocations();
+                        }
+                      },
+                      icon: const Icon(Icons.edit),
+                      color: Utils.edit,
                     ),
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Utils.edit, // Color de fondo
-                            borderRadius: BorderRadius.only(
-                                topRight:
-                                    Radius.circular(16)), // Bordes redondeados
-                          ), // Espaciado interno
-                          child: IconButton(
-                            onPressed: () {
-                              Get.to(EditLocationPage(location: location));
-                            },
-                            icon: const Icon(Icons.edit),
-                            color: Colors.white, // Color del ícono
-                          ),
-                        ),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Utils.delete,
-                            borderRadius: BorderRadius.only(
-                                bottomRight: Radius.circular(16)),
-                          ),
-                          child: IconButton(
-                            onPressed: () {
-                              _deleteLocation(location['id']);
-                            },
-                            icon: const Icon(Icons.delete),
-                            color: Colors.white, // Color del ícono
-                          ),
-                        ),
-                      ],
+                    IconButton(
+                      onPressed: () {
+                        _deleteLocation(location['id']);
+                      },
+                      icon: const Icon(Icons.delete),
+                      color: Utils.delete,
                     ),
                   ],
                 ),
+                onTap: () {
+                  Get.to(LocationProductsPage(
+                    locationName: location['name'],
+                    locationId: location['id'],
+                  ));
+                },
               ),
-            ),
-          );
-        },
-      ),
+            );
+          },
+        );
+      }),
       floatingActionButton: FloatingActionButton(
         backgroundColor: Utils.colorBotones,
         onPressed: () async {
-          Get.to(AddLocationPage());
+          final result = await Get.to(AddLocationPage());
+          if (result == true) {
+            locationController.refreshLocations();
+          }
         },
         child: const Icon(
           Icons.add,
           color: Colors.white,
         ),
       ),
-    )); // Cerrar Obx
+    );
   }
 }
