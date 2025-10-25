@@ -1,8 +1,12 @@
 import 'package:bellezapp/controllers/indexpage_controller.dart';
 import 'package:bellezapp/controllers/loading_controller.dart';
 import 'package:bellezapp/controllers/theme_controller.dart';
+import 'package:bellezapp/controllers/cash_controller.dart';
+import 'package:bellezapp/controllers/auth_controller.dart';
 import 'package:bellezapp/pages/home_page.dart';
+import 'package:bellezapp/pages/login_page.dart';
 import 'package:bellezapp/utils/utils.dart';
+import 'package:bellezapp/utils/admin_user_setup.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -10,10 +14,15 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Inicializar controladores básicos
+  // Inicializar controladores
   Get.put(ThemeController());
   Get.put(IndexPageController());
   Get.put(LoadingController());
+  Get.put(CashController()); // Cambiar de lazyPut a put directo
+  Get.put(AuthController()); // Agregar controlador de autenticación
+  
+  // Verificar y crear usuario admin si no existe
+  await AdminUserSetup.checkDatabaseIntegrity();
   
   runApp(BeautyStoreApp());
 }
@@ -64,12 +73,23 @@ class BeautyStoreAppState extends State<BeautyStoreApp> {
 
   Widget _buildInitialScreen() {
     final themeController = Get.find<ThemeController>();
+    final authController = Get.find<AuthController>();
     
     if (!themeController.isInitialized) {
       return _buildLoadingScreen();
     }
     
-    return HomePage();
+    return Obx(() {
+      if (authController.isLoading) {
+        return _buildLoadingScreen();
+      }
+      
+      if (authController.isLoggedIn) {
+        return HomePage();
+      } else {
+        return LoginPage();
+      }
+    });
   }
 
   Widget _buildLoadingScreen() {

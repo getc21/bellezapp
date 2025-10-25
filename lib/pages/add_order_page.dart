@@ -26,7 +26,7 @@ class AddOrderPage extends StatefulWidget {
 class AddOrderPageState extends State<AddOrderPage> {
   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
   QRViewController? controller;
-  List<Map<String, dynamic>> _products = [];
+  final List<Map<String, dynamic>> _products = [];
   final dbHelper = DatabaseHelper();
   final ipc = Get.find<IndexPageController>();
   late CashController cashController;
@@ -215,10 +215,8 @@ class AddOrderPageState extends State<AddOrderPage> {
       });
       
       // Si no hay cliente reciente, usar el que tiene más puntos
-      if (suggestedCustomer == null) {
-        suggestedCustomer = customerController.customers
+      suggestedCustomer ??= customerController.customers
             .reduce((prev, curr) => curr.loyaltyPoints > prev.loyaltyPoints ? curr : prev);
-      }
     }
 
     // Mostrar diálogo con sugerencia

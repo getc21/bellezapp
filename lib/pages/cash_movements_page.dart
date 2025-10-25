@@ -7,6 +7,8 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
 class CashMovementsPage extends StatefulWidget {
+  const CashMovementsPage({super.key});
+
   @override
   _CashMovementsPageState createState() => _CashMovementsPageState();
 }
@@ -399,7 +401,7 @@ class _CashMovementsPageState extends State<CashMovementsPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DropdownButtonFormField<String>(
-                      value: selectedType,
+                      initialValue: selectedType,
                       decoration: InputDecoration(
                         labelText: 'Tipo de movimiento',
                         border: OutlineInputBorder(

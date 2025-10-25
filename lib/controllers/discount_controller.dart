@@ -34,12 +34,8 @@ class DiscountController extends GetxController {
     try {
       isLoading.value = true;
       final discountList = await _databaseHelper.getDiscounts();
-      
-      // Convertir Map<String, dynamic> a List<Discount>
-      final discountObjects = discountList.map((map) => Discount.fromMap(map)).toList();
-      
-      discounts.value = discountObjects;
-      filteredDiscounts.value = discountObjects;
+      discounts.value = discountList;
+      filteredDiscounts.value = discountList;
     } catch (e) {
       Get.snackbar(
         'Error',
@@ -73,8 +69,7 @@ class DiscountController extends GetxController {
         await loadDiscounts();
       } else {
         final searchResults = await _databaseHelper.searchDiscounts(query);
-        final discountObjects = searchResults.map((map) => Discount.fromMap(map)).toList();
-        filteredDiscounts.value = discountObjects;
+        filteredDiscounts.value = searchResults;
       }
     } catch (e) {
       Get.snackbar(
@@ -140,10 +135,12 @@ class DiscountController extends GetxController {
       );
       
       // Insertar en base de datos
-      await _databaseHelper.insertDiscount(discount.toMap());
+      final id = await _databaseHelper.insertDiscount(discount);
       
-      // Recargar la lista para obtener el discount con ID
-      await loadDiscounts();
+      // Agregar a la lista local
+      final newDiscount = discount.copyWith(id: id);
+      discounts.add(newDiscount);
+      filterDiscounts();
       
       Get.snackbar(
         'Éxito',
@@ -218,7 +215,7 @@ class DiscountController extends GetxController {
       );
       
       // Actualizar en base de datos
-      await _databaseHelper.updateDiscount(updatedDiscount.toMap());
+      await _databaseHelper.updateDiscount(updatedDiscount);
       
       // Actualizar en lista local
       final index = discounts.indexWhere((d) => d.id == id);
@@ -313,7 +310,7 @@ class DiscountController extends GetxController {
       if (discount == null) return false;
 
       final updatedDiscount = discount.copyWith(isActive: !discount.isActive);
-      await _databaseHelper.updateDiscount(updatedDiscount.toMap());
+      await _databaseHelper.updateDiscount(updatedDiscount);
 
       final index = discounts.indexWhere((d) => d.id == id);
       if (index != -1) {
@@ -344,6 +341,7 @@ class DiscountController extends GetxController {
   }
 
   // Refrescar datos
+  @override
   Future<void> refresh() async {
     await loadDiscounts();
   }

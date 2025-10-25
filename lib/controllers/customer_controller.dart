@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../models/customer.dart';
 import '../database/database_helper.dart';
-import 'current_store_controller.dart';
 
 class CustomerController extends GetxController {
   final DatabaseHelper _databaseHelper = DatabaseHelper();
-  final CurrentStoreController _currentStoreController = Get.find<CurrentStoreController>();
   
   // Lista observable de customers
   final RxList<Customer> customers = <Customer>[].obs;
@@ -30,12 +28,6 @@ class CustomerController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    
-    // Escuchar cambios en la tienda actual
-    ever(_currentStoreController.currentStoreObservable, (_) {
-      loadCustomers();
-    });
-    
     loadCustomers();
     
     // Escuchar cambios en la búsqueda
@@ -46,59 +38,19 @@ class CustomerController extends GetxController {
   Future<void> loadCustomers() async {
     try {
       isLoading.value = true;
-      
-      final currentStore = _currentStoreController.currentStore;
-      if (currentStore == null) {
-        customers.clear();
-        filteredCustomers.clear();
-        return;
-      }
-
-      final customerList = await _databaseHelper.getCustomers(storeId: currentStore.id);
-      
-      // Convertir Map<String, dynamic> a List<Customer>
-      final customerObjects = customerList.map((map) => Customer.fromMap(map)).toList();
-      
-      customers.value = customerObjects;
-      filteredCustomers.value = customerObjects;
+      final customerList = await _databaseHelper.getCustomers();
+      customers.value = customerList;
+      filteredCustomers.value = customerList;
       
       // Actualizar estadísticas
       await updateStatistics();
       
     } catch (e) {
-      print('Error loading customers: $e');
-      
-      // Si el error es por columna faltante, ofrecer recrear base de datos
-      if (e.toString().contains('no such column: store_id')) {
-        Get.dialog(
-          AlertDialog(
-            title: const Text('Error de Base de Datos'),
-            content: const Text(
-              'La estructura de la base de datos no es compatible. ¿Desea recrear la base de datos?\n\n'
-              'Esto eliminará todos los datos existentes.'
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Get.back(),
-                child: const Text('Cancelar'),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  Get.back();
-                  await _recreateDatabaseAndReload();
-                },
-                child: const Text('Recrear'),
-              ),
-            ],
-          ),
-        );
-      } else {
-        Get.snackbar(
-          'Error',
-          'Error al cargar clientes: $e',
-          snackPosition: SnackPosition.BOTTOM,
-        );
-      }
+      Get.snackbar(
+        'Error',
+        'Error al cargar clientes: $e',
+        snackPosition: SnackPosition.BOTTOM,
+      );
     } finally {
       isLoading.value = false;
     }
@@ -128,8 +80,7 @@ class CustomerController extends GetxController {
         await loadCustomers();
       } else {
         final searchResults = await _databaseHelper.searchCustomers(query);
-        final customerObjects = searchResults.map((map) => Customer.fromMap(map)).toList();
-        filteredCustomers.value = customerObjects;
+        filteredCustomers.value = searchResults;
       }
     } catch (e) {
       Get.snackbar(
@@ -151,12 +102,6 @@ class CustomerController extends GetxController {
     String? notes,
   }) async {
     try {
-      final currentStore = _currentStoreController.currentStore;
-      if (currentStore == null) {
-        Get.snackbar('Error', 'No hay tienda seleccionada');
-        return false;
-      }
-
       // Validar datos
       if (name.trim().isEmpty) {
         Get.snackbar('Error', 'El nombre es requerido');
@@ -168,7 +113,7 @@ class CustomerController extends GetxController {
         return false;
       }
       
-      // Verificar si ya existe un customer con el mismo teléfono EN LA MISMA TIENDA
+      // Verificar si ya existe un customer con el mismo teléfono
       final exists = await _databaseHelper.customerExistsByPhone(phone.trim());
       if (exists) {
         Get.snackbar(
@@ -181,21 +126,24 @@ class CustomerController extends GetxController {
         return false;
       }
       
-      // Crear nuevo customer con store_id
+      // Crear nuevo customer
       final customer = Customer(
         name: name.trim(),
         phone: phone.trim(),
         email: email?.trim().isEmpty == true ? null : email?.trim(),
         address: address?.trim().isEmpty == true ? null : address?.trim(),
         notes: notes?.trim().isEmpty == true ? null : notes?.trim(),
-        storeId: currentStore.id, // Agregar store_id
       );
       
       // Insertar en base de datos
-      await _databaseHelper.insertCustomer(customer.toMap());
+      final id = await _databaseHelper.insertCustomer(customer);
       
-      // Recargar la lista para obtener el customer con ID
-      await loadCustomers();
+      // Agregar a la lista local
+      final newCustomer = customer.copyWith(id: id);
+      customers.add(newCustomer);
+      filterCustomers();
+      
+      await updateStatistics();
       
       Get.snackbar(
         'Éxito',
@@ -262,7 +210,7 @@ class CustomerController extends GetxController {
       );
       
       // Actualizar en base de datos
-      await _databaseHelper.updateCustomer(updatedCustomer.toMap());
+      await _databaseHelper.updateCustomer(updatedCustomer);
       
       // Actualizar en lista local
       final index = customers.indexWhere((c) => c.id == id);
@@ -347,8 +295,7 @@ class CustomerController extends GetxController {
   // Obtener top customers
   Future<List<Customer>> getTopCustomers({int limit = 10}) async {
     try {
-      final customerMaps = await _databaseHelper.getTopCustomers(limit: limit);
-      return customerMaps.map((map) => Customer.fromMap(map)).toList();
+      return await _databaseHelper.getTopCustomers(limit: limit);
     } catch (e) {
       print('Error al obtener top clientes: $e');
       return [];
@@ -358,8 +305,7 @@ class CustomerController extends GetxController {
   // Obtener customers recientes
   Future<List<Customer>> getRecentCustomers({int limit = 10}) async {
     try {
-      final customerMaps = await _databaseHelper.getRecentCustomers(limit: limit);
-      return customerMaps.map((map) => Customer.fromMap(map)).toList();
+      return await _databaseHelper.getRecentCustomers(limit: limit);
     } catch (e) {
       print('Error al obtener clientes recientes: $e');
       return [];
@@ -369,8 +315,7 @@ class CustomerController extends GetxController {
   // Obtener customers activos
   Future<List<Customer>> getActiveCustomers({int daysAgo = 30}) async {
     try {
-      final customerMaps = await _databaseHelper.getActiveCustomers(daysAgo: daysAgo);
-      return customerMaps.map((map) => Customer.fromMap(map)).toList();
+      return await _databaseHelper.getActiveCustomers(daysAgo: daysAgo);
     } catch (e) {
       print('Error al obtener clientes activos: $e');
       return [];
@@ -452,44 +397,11 @@ class CustomerController extends GetxController {
 
   // Obtener top customers por puntos
   Future<List<Customer>> getTopCustomersByPoints({int limit = 10}) async {
-    final customerMaps = await _databaseHelper.getTopCustomersByPoints(limit: limit);
-    return customerMaps.map((map) => Customer.fromMap(map)).toList();
-  }
-
-  // Recrear base de datos y recargar
-  Future<void> _recreateDatabaseAndReload() async {
-    try {
-      isLoading.value = true;
-      
-      Get.snackbar(
-        'Recreando',
-        'Recreando base de datos...',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      
-      await _databaseHelper.recreateDatabase();
-      
-      Get.snackbar(
-        'Éxito',
-        'Base de datos recreada correctamente',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      
-      // Recargar datos
-      await loadCustomers();
-      
-    } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Error al recrear la base de datos: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-    } finally {
-      isLoading.value = false;
-    }
+    return await _databaseHelper.getTopCustomersByPoints(limit: limit);
   }
 
   // Refrescar datos
+  @override
   Future<void> refresh() async {
     await loadCustomers();
   }

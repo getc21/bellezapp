@@ -5,211 +5,336 @@ import 'package:bellezapp/utils/utils.dart';
 class FinancialChartPage extends StatelessWidget {
   final List<Map<String, dynamic>> financialData;
 
-  FinancialChartPage({required this.financialData});
+  const FinancialChartPage({super.key, required this.financialData});
 
-  Widget _buildBarChart() {
-    List<BarChartGroupData> barGroups = financialData.map((data) {
-      final month = int.tryParse(data['month']) ?? 0;
-      final totalIncome = data['totalIncome'] ?? 0.0;
-      final totalExpense = data['totalExpense'] ?? 0.0;
+  Widget _buildModernBarChart() {
+    List<BarChartGroupData> barGroups = financialData.asMap().entries.map((entry) {
+      int index = entry.key;
+      var data = entry.value;
+      final month = int.tryParse(data['month']?.toString() ?? '0') ?? (index + 1);
+      final totalIncome = (data['totalIncome'] ?? 0).toDouble();
+      final totalExpense = (data['totalExpense'] ?? 0).toDouble();
 
       return BarChartGroupData(
         x: month,
         barRods: [
           BarChartRodData(
             toY: totalIncome,
-            color: Colors.blue,
-            width: 15,
+            color: Colors.green.shade600,
+            width: 12,
+            borderRadius: BorderRadius.circular(6),
+            borderSide: BorderSide(color: Colors.green.shade800, width: 1),
           ),
           BarChartRodData(
             toY: totalExpense,
-            color: Colors.red,
-            width: 15,
+            color: Colors.red.shade600,
+            width: 12,
+            borderRadius: BorderRadius.circular(6),
+            borderSide: BorderSide(color: Colors.red.shade800, width: 1),
           ),
         ],
       );
     }).toList();
-    return Padding(
-      padding: EdgeInsets.only(top:50),
-      child: Container(
-        height: 500,  
+
+    return Container(
+      height: 400,
+      margin: EdgeInsets.symmetric(horizontal: 20),
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
         color: Colors.white,
-        padding: EdgeInsets.all(10),
-        child: BarChart(
-          BarChartData(
-            barGroups: barGroups,
-            titlesData: FlTitlesData(
-              leftTitles: AxisTitles(
-                sideTitles: SideTitles(showTitles: false), // Ocultar títulos del eje izquierdo
-              ),
-              rightTitles: AxisTitles(
-                sideTitles: SideTitles(showTitles: true, reservedSize: 50), // Mostrar títulos del eje derecho
-              ),
-              topTitles: AxisTitles(
-                sideTitles: SideTitles(showTitles: false), // Ocultar títulos del eje superior
-              ),
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  getTitlesWidget: (double value, TitleMeta meta) {
-                    const style = TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    );
-                    String text;
-                    switch (value.toInt()) {
-                      case 1:
-                        text = 'Ene';
-                        break;
-                      case 2:
-                        text = 'Feb';
-                        break;
-                      case 3:
-                        text = 'Mar';
-                        break;
-                      case 4:
-                        text = 'Abr';
-                        break;
-                      case 5:
-                        text = 'May';
-                        break;
-                      case 6:
-                        text = 'Jun';
-                        break;
-                      case 7:
-                        text = 'Jul';
-                        break;
-                      case 8:
-                        text = 'Ago';
-                        break;
-                      case 9:
-                        text = 'Sep';
-                        break;
-                      case 10:
-                        text = 'Oct';
-                        break;
-                      case 11:
-                        text = 'Nov';
-                        break;
-                      case 12:
-                        text = 'Dic';
-                        break;
-                      default:
-                        text = '';
-                        break;
-                    }
-                    return SideTitleWidget(
-                      meta: meta,
-                      space: 4,
-                      child: Text(text, style: style),
-                    );
-                  },
-                ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: BarChart(
+        BarChartData(
+          barGroups: barGroups,
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 50,
+                getTitlesWidget: (value, meta) {
+                  return Text(
+                    '\$${(value / 1000).toStringAsFixed(0)}K',
+                    style: TextStyle(
+                      color: Utils.colorTexto.withOpacity(0.7),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  );
+                },
               ),
             ),
-            borderData: FlBorderData(show: false),
-            gridData: FlGridData(show: false),
-             barTouchData: BarTouchData(
+            rightTitles: AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            topTitles: AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (double value, TitleMeta meta) {
+                  const style = TextStyle(
+                    color: Colors.black87,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                  );
+                  String text = _getMonthName(value.toInt(), short: true);
+                  return SideTitleWidget(
+                    meta: meta,
+                    space: 8,
+                    child: Text(text, style: style),
+                  );
+                },
+              ),
+            ),
+          ),
+          borderData: FlBorderData(show: false),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: 10000,
+            getDrawingHorizontalLine: (value) {
+              return FlLine(
+                color: Colors.grey.shade300,
+                strokeWidth: 1,
+                dashArray: [5, 5],
+              );
+            },
+          ),
+          barTouchData: BarTouchData(
             touchTooltipData: BarTouchTooltipData(
-              getTooltipColor: (tooltipItem) => const Color.fromARGB(255, 243, 243, 243),
+              getTooltipColor: (group) => Utils.colorGnav.withOpacity(0.9),
+              tooltipPadding: EdgeInsets.all(12),
               getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                String month;
-                switch (group.x.toInt()) {
-                  case 1:
-                    month = 'Enero';
-                    break;
-                  case 2:
-                    month = 'Febrero';
-                    break;
-                  case 3:
-                    month = 'Marzo';
-                    break;
-                  case 4:
-                    month = 'Abril';
-                    break;
-                  case 5:
-                    month = 'Mayo';
-                    break;
-                  case 6:
-                    month = 'Junio';
-                    break;
-                  case 7:
-                    month = 'Julio';
-                    break;
-                  case 8:
-                    month = 'Agosto';
-                    break;
-                  case 9:
-                    month = 'Septiembre';
-                    break;
-                  case 10:
-                    month = 'Octubre';
-                    break;
-                  case 11:
-                    month = 'Noviembre';
-                    break;
-                  case 12:
-                    month = 'Diciembre';
-                    break;
-                  default:
-                    month = '';
-                    break;
-                }
+                String month = _getMonthName(group.x.toInt());
+                String type = rodIndex == 0 ? 'Ingresos' : 'Gastos';
                 return BarTooltipItem(
-                  '$month\n',
+                  '$month\n$type: \$${rod.toY.toStringAsFixed(0)}',
                   TextStyle(
-                    color: Colors.black,
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
+                    fontSize: 12,
                   ),
-                  children: <TextSpan>[
-                    TextSpan(
-                      text: '${rod.toY}Bs.',
-                      style: TextStyle(
-                        color: rod.color,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
                 );
               },
             ),
           ),
-          ),
+          maxY: _getMaxValue() * 1.2,
         ),
       ),
     );
   }
 
-  Widget _buildLegend() {
+  Widget _buildModernLegend() {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildLegendItem('Ingresos', Colors.green.shade600, Icons.trending_up),
+          Container(width: 1, height: 30, color: Colors.grey.shade300),
+          _buildLegendItem('Gastos', Colors.red.shade600, Icons.trending_down),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegendItem(String label, Color color, IconData icon) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
-          children: [
-            Container(
-              width: 16,
-              height: 16,
-              color: Colors.blue,
-            ),
-            SizedBox(width: 4),
-            Text('Entradas', style: TextStyle(fontSize: 14)),
-          ],
+        Container(
+          padding: EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(icon, color: color, size: 16),
         ),
-        SizedBox(width: 16),
-        Row(
-          children: [
-            Container(
-              width: 16,
-              height: 16,
-              color: Colors.red,
-            ),
-            SizedBox(width: 4),
-            Text('Salidas', style: TextStyle(fontSize: 14)),
-          ],
+        SizedBox(width: 8),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Utils.colorTexto,
+          ),
         ),
       ],
     );
+  }
+
+  Widget _buildInsights() {
+    if (financialData.isEmpty) return SizedBox.shrink();
+
+    // Calculate insights
+    double totalIncome = 0;
+    double totalExpenses = 0;
+    String bestMonth = '';
+    double bestBalance = double.negativeInfinity;
+    
+    for (var data in financialData) {
+      double income = (data['totalIncome'] ?? 0).toDouble();
+      double expense = (data['totalExpense'] ?? 0).toDouble();
+      double balance = income - expense;
+      
+      totalIncome += income;
+      totalExpenses += expense;
+      
+      if (balance > bestBalance) {
+        bestBalance = balance;
+        bestMonth = _getMonthName(int.tryParse(data['month']?.toString() ?? '0') ?? 0);
+      }
+    }
+
+    double averageIncome = totalIncome / financialData.length;
+    double averageExpenses = totalExpenses / financialData.length;
+
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Utils.colorFondoCards,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            spreadRadius: 2,
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.lightbulb_outline, color: Utils.colorGnav, size: 24),
+              SizedBox(width: 12),
+              Text(
+                'Insights Financieros',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Utils.colorTexto,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          _buildInsightCard(
+            'Mejor Mes',
+            bestMonth,
+            'Mayor balance positivo',
+            Icons.star,
+            Colors.amber,
+          ),
+          SizedBox(height: 12),
+          _buildInsightCard(
+            'Promedio Ingresos',
+            '\$${averageIncome.toStringAsFixed(0)}',
+            'Por mes en el período',
+            Icons.trending_up,
+            Colors.green,
+          ),
+          SizedBox(height: 12),
+          _buildInsightCard(
+            'Promedio Gastos',
+            '\$${averageExpenses.toStringAsFixed(0)}',
+            'Por mes en el período',
+            Icons.trending_down,
+            Colors.orange,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInsightCard(String title, String value, String subtitle, IconData icon, Color color) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Utils.colorTexto.withOpacity(0.7),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Utils.colorTexto,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Utils.colorTexto.withOpacity(0.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getMonthName(int month, {bool short = false}) {
+    const months = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+    const shortMonths = [
+      'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+      'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
+    ];
+    
+    if (month < 1 || month > 12) return '';
+    return short ? shortMonths[month - 1] : months[month - 1];
+  }
+
+  double _getMaxValue() {
+    double max = 0;
+    for (var data in financialData) {
+      double income = (data['totalIncome'] ?? 0).toDouble();
+      double expense = (data['totalExpense'] ?? 0).toDouble();
+      if (income > max) max = income;
+      if (expense > max) max = expense;
+    }
+    return max;
   }
 
   @override
@@ -217,19 +342,236 @@ class FinancialChartPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Utils.colorFondo,
       appBar: AppBar(
-        title: Text('Gráfico Financiero'),
+        title: Text(
+          'Análisis Financiero',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
         backgroundColor: Utils.colorGnav,
         foregroundColor: Colors.white,
+        elevation: 0,
       ),
-      body: Padding(
-        padding: EdgeInsets.all(20),
-        child: Column(
-          children: [
-            _buildBarChart(),
-            SizedBox(height: 20),
-            _buildLegend(),
+      body: financialData.isEmpty
+          ? _buildEmptyChartState()
+          : SingleChildScrollView(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildChartHeader(),
+                  SizedBox(height: 24),
+                  _buildChartContainer(),
+                  SizedBox(height: 24),
+                  _buildInsights(),
+                ],
+              ),
+            ),
+    );
+  }
+
+  Widget _buildEmptyChartState() {
+    return Center(
+      child: Container(
+        padding: EdgeInsets.all(32),
+        margin: EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Utils.colorFondoCards,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              spreadRadius: 2,
+              blurRadius: 10,
+              offset: Offset(0, 4),
+            ),
           ],
         ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.show_chart,
+              size: 64,
+              color: Utils.colorGnav.withOpacity(0.5),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Sin datos para mostrar',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Utils.colorTexto,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'El gráfico aparecerá cuando\ntengas datos financieros',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Utils.colorTexto.withOpacity(0.7),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChartHeader() {
+    double totalIncome = 0;
+    double totalExpenses = 0;
+    
+    for (var data in financialData) {
+      totalIncome += (data['totalIncome'] ?? 0).toDouble();
+      totalExpenses += (data['totalExpense'] ?? 0).toDouble();
+    }
+
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Utils.colorGnav, Utils.colorBotones],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Utils.colorGnav.withOpacity(0.3),
+            spreadRadius: 2,
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.trending_up, color: Colors.white, size: 24),
+              SizedBox(width: 12),
+              Text(
+                'Resumen del Período',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildHeaderMetric(
+                  'Total Ingresos',
+                  '\$${totalIncome.toStringAsFixed(0)}',
+                  Icons.arrow_upward,
+                  Colors.green.shade300,
+                ),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: _buildHeaderMetric(
+                  'Total Gastos',
+                  '\$${totalExpenses.toStringAsFixed(0)}',
+                  Icons.arrow_downward,
+                  Colors.red.shade300,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderMetric(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 20),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChartContainer() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Utils.colorFondoCards,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            spreadRadius: 2,
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Icon(Icons.bar_chart, color: Utils.colorGnav, size: 24),
+                SizedBox(width: 12),
+                Text(
+                  'Comparativa Mensual',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Utils.colorTexto,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _buildModernBarChart(),
+          Padding(
+            padding: EdgeInsets.all(20),
+            child: _buildModernLegend(),
+          ),
+        ],
       ),
     );
   }

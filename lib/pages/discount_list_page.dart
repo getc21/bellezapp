@@ -8,14 +8,14 @@ import 'add_discount_page.dart';
 class DiscountListPage extends StatelessWidget {
   final DiscountController discountController = Get.put(DiscountController());
 
-  DiscountListPage({Key? key}) : super(key: key);
+  DiscountListPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Gestión de Descuentos'),
-        backgroundColor: Utils.colorBotones,
+        backgroundColor: Utils.colorGnav,
         elevation: 0,
         actions: [
           IconButton(

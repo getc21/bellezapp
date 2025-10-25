@@ -1,12 +1,9 @@
-import 'dart:convert';
-
 import 'package:bellezapp/controllers/theme_controller.dart';
-import 'package:bellezapp/controllers/location_controller.dart';
+import 'package:bellezapp/database/database_helper.dart';
 import 'package:bellezapp/pages/add_location_page.dart';
 import 'package:bellezapp/pages/edit_location_page.dart';
 import 'package:bellezapp/pages/location_products_page.dart';
 import 'package:bellezapp/utils/utils.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -18,13 +15,41 @@ class LocationListPage extends StatefulWidget {
 }
 
 class LocationListPageState extends State<LocationListPage> {
+  final RxList<Map<String, dynamic>> _locations = <Map<String, dynamic>>[].obs;
+  final RxList<Map<String, dynamic>> _filteredLocations = <Map<String, dynamic>>[].obs;
+  final TextEditingController _searchController = TextEditingController();
+  final dbHelper = DatabaseHelper();
   final themeController = Get.find<ThemeController>();
-  final locationController = Get.find<LocationController>();
 
   @override
   void initState() {
     super.initState();
-    // Ya no necesitamos cargar ubicaciones aquí, el controller lo maneja
+    _loadLocations();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _loadLocations() async {
+    final locations = await dbHelper.getLocations();
+    _locations.value = locations;
+    _filteredLocations.value = locations;
+  }
+
+  void _filterLocations(String searchText) {
+    if (searchText.isEmpty) {
+      _filteredLocations.value = List.from(_locations);
+    } else {
+      _filteredLocations.value = _locations.where((location) {
+        final name = (location['name'] ?? '').toString().toLowerCase();
+        final description = (location['description'] ?? '').toString().toLowerCase();
+        final searchLower = searchText.toLowerCase();
+        return name.contains(searchLower) || description.contains(searchLower);
+      }).toList();
+    }
   }
 
   void _deleteLocation(int id) async {
@@ -34,109 +59,269 @@ class LocationListPageState extends State<LocationListPage> {
       '¿Estás seguro de que deseas eliminar esta ubicación?',
     );
     if (confirmed) {
-      try {
-        await locationController.deleteLocation(id);
-      } catch (e) {
-        Get.snackbar('Error', 'No se pudo eliminar la ubicación: $e');
-      }
+      await dbHelper.deleteLocation(id);
+      _loadLocations();
     }
+  }
+
+  Widget _buildCompactActionButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+    required String tooltip,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.3),
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Icon(
+            icon,
+            color: Colors.white,
+            size: 18,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Obx(() => Scaffold(
       backgroundColor: Utils.colorFondo,
-      body: Obx(() {
-        if (locationController.isLoading) {
-          return Center(child: Utils.loadingCustom());
-        }
-        
-        return ListView.builder(
-          itemCount: locationController.locations.length,
-          itemBuilder: (context, index) {
-            final location = locationController.locations[index];
-            final fotoBase64 = location['foto'] ?? '';
-
-            Uint8List? imageBytes;
-            if (fotoBase64.isNotEmpty) {
-              try {
-                imageBytes = base64Decode(fotoBase64);
-              } catch (e) {
-                imageBytes = null;
-              }
-            }
-
-            return Container(
-              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-              decoration: BoxDecoration(
-                color: Utils.colorFondoCards,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade300),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.2),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: ListTile(
-                leading: CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.grey.shade200,
-                  backgroundImage: imageBytes != null ? MemoryImage(imageBytes) : null,
-                  child: imageBytes == null
-                      ? Icon(Icons.location_on, color: Colors.grey.shade600)
-                      : null,
+      body: Column(
+        children: [
+          // Header moderno con búsqueda
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
                 ),
-                title: Utils.textTitle(location['name']),
-                subtitle: Utils.textDescription(location['description'] ?? ''),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      onPressed: () async {
-                        final result = await Get.to(EditLocationPage(location: location));
-                        if (result == true) {
-                          locationController.refreshLocations();
-                        }
-                      },
-                      icon: const Icon(Icons.edit),
-                      color: Utils.edit,
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Campo de búsqueda prominente
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: _filterLocations,
+                    decoration: InputDecoration(
+                      hintText: 'Buscar ubicaciones...',
+                      hintStyle: TextStyle(color: Colors.grey[500]),
+                      prefixIcon: Icon(Icons.search, color: Utils.colorBotones),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(Icons.clear, color: Colors.grey),
+                              onPressed: () {
+                                _searchController.clear();
+                                _filterLocations('');
+                              },
+                            )
+                          : null,
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),
-                    IconButton(
-                      onPressed: () {
-                        _deleteLocation(location['id']);
-                      },
-                      icon: const Icon(Icons.delete),
-                      color: Utils.delete,
+                  ),
+                ),
+                SizedBox(height: 12),
+                // Header con contador
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Ubicaciones',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Utils.colorBotones.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${_filteredLocations.length} ubicaciones',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Utils.colorBotones,
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                onTap: () {
-                  Get.to(LocationProductsPage(
-                    locationName: location['name'],
-                    locationId: location['id'],
-                  ));
-                },
-              ),
-            );
-          },
-        );
-      }),
+                SizedBox(height: 6),
+              ],
+            ),
+          ),
+          // Lista de ubicaciones
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _filteredLocations.length,
+              itemBuilder: (context, index) {
+                final location = _filteredLocations[index];
+                
+                return Container(
+                  margin: EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Utils.colorFondoCards,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade200),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.08),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () {
+                        Get.to(LocationProductsPage(
+                          locationId: location['id'],
+                          locationName: location['name'],
+                        ));
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            // Ícono de ubicación
+                            Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                color: Utils.colorBotones.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              child: Icon(
+                                Icons.location_on,
+                                color: Utils.colorBotones,
+                                size: 32,
+                              ),
+                            ),
+                            SizedBox(width: 16),
+                            // Contenido de la ubicación
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Nombre de la ubicación
+                                  Text(
+                                    location['name'] ?? 'Sin nombre',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Utils.colorGnav,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  SizedBox(height: 8),
+                                  // Descripción
+                                  Text(
+                                    location['description'] ?? 'Sin descripción',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[600],
+                                    ),
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  SizedBox(height: 12),
+                                  // Indicador de navegación
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.arrow_forward_ios,
+                                        size: 12,
+                                        color: Utils.colorBotones,
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Ver productos',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Utils.colorBotones,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Botones de acción
+                            Column(
+                              children: [
+                                _buildCompactActionButton(
+                                  icon: Icons.edit,
+                                  color: Utils.edit,
+                                  onTap: () => Get.to(EditLocationPage(location: location)),
+                                  tooltip: 'Editar ubicación',
+                                ),
+                                SizedBox(height: 8),
+                                _buildCompactActionButton(
+                                  icon: Icons.delete,
+                                  color: Utils.delete,
+                                  onTap: () => _deleteLocation(location['id']),
+                                  tooltip: 'Eliminar ubicación',
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: Utils.colorBotones,
         onPressed: () async {
           final result = await Get.to(AddLocationPage());
-          if (result == true) {
-            locationController.refreshLocations();
+          if (result != null) {
+            _loadLocations();
           }
         },
-        child: const Icon(
-          Icons.add,
-          color: Colors.white,
-        ),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
-    );
+    ));
   }
 }

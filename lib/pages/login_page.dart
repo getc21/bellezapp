@@ -223,40 +223,11 @@ class _LoginPageState extends State<LoginPage> {
                             : const SizedBox.shrink()),
                         const SizedBox(height: 24),
                         
-                        // Botones para recrear base de datos y reparar admin
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            TextButton.icon(
-                              onPressed: () async {
-                                await authController.fixAdminUser();
-                              },
-                              icon: const Icon(Icons.person_add),
-                              label: const Text('Reparar Admin'),
-                              style: TextButton.styleFrom(
-                                foregroundColor: colorScheme.secondary,
-                              ),
-                            ),
-                            TextButton.icon(
-                              onPressed: () async {
-                                await authController.recreateDatabase();
-                              },
-                              icon: const Icon(Icons.refresh),
-                              label: const Text('Recrear BD'),
-                              style: TextButton.styleFrom(
-                                foregroundColor: colorScheme.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        
-                        const SizedBox(height: 16),
-                        
                         // Información de usuario por defecto
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: colorScheme.surfaceVariant.withOpacity(0.5),
+                            color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Column(

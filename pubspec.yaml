@@ -53,10 +53,10 @@ dependencies:
   shared_preferences: ^2.5.3
   url_launcher: ^6.3.2
   crypto: ^3.0.3
-  path: ^1.9.1
-  intl: ^0.20.2
-  image: ^4.3.0
 
+  path: any
+  image: any
+  intl: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

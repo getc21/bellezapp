@@ -2,7 +2,6 @@ import 'package:bellezapp/controllers/indexpage_controller.dart';
 import 'package:bellezapp/controllers/loading_controller.dart';
 import 'package:bellezapp/controllers/theme_controller.dart';
 import 'package:bellezapp/controllers/auth_controller.dart';
-import 'package:bellezapp/controllers/current_store_controller.dart';
 import 'package:bellezapp/pages/cash_register_page.dart';
 import 'package:bellezapp/pages/category_list_page.dart';
 import 'package:bellezapp/pages/customer_list_page.dart';
@@ -16,16 +15,15 @@ import 'package:bellezapp/pages/sales_history_page.dart';
 import 'package:bellezapp/pages/supplier_list_page.dart';
 import 'package:bellezapp/pages/theme_settings_page.dart';
 import 'package:bellezapp/pages/user_management_page.dart';
-import 'package:bellezapp/pages/store_list_page.dart';
-import 'package:bellezapp/widgets/store_selector.dart';
 import 'package:bellezapp/utils/utils.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
 import 'dart:io';
 
 class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
   @override
   HomePageState createState() => HomePageState();
 }
@@ -35,78 +33,6 @@ class HomePageState extends State<HomePage> {
   final loadingC = Get.find<LoadingController>();
   final themeController = Get.find<ThemeController>();
   final authController = Get.find<AuthController>();
-  final currentStoreController = Get.find<CurrentStoreController>();
-  
-  // Función para mostrar información de la tienda actual
-  void _showStoreInfo() {
-    final currentStore = currentStoreController.currentStore;
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Utils.colorFondoCards,
-        title: Row(
-          children: [
-            Icon(Icons.store, color: Utils.colorGnav),
-            SizedBox(width: 8),
-            Text('Información de Tienda'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (currentStore != null) ...[
-              Text('Nombre: ${currentStore.name}'),
-              if (currentStore.address.isNotEmpty)
-                Text('Dirección: ${currentStore.address}'),
-              if (currentStore.phone?.isNotEmpty == true)
-                Text('Teléfono: ${currentStore.phone}'),
-              SizedBox(height: 16),
-              if (authController.currentUser?.role == 'admin')
-                Text(
-                  'Como administrador, puedes cambiar de tienda desde el menú lateral.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-            ] else ...[
-              Text(
-                'No hay tienda seleccionada actualmente.',
-                style: TextStyle(
-                  color: Colors.orange[600],
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              SizedBox(height: 16),
-              Text(
-                'Estado del sistema:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text('Usuario: ${authController.currentUser?.fullName ?? 'Desconocido'}'),
-              Text('Rol: ${authController.currentUser?.role ?? 'Desconocido'}'),
-              Text('Tiendas disponibles: ${currentStoreController.availableStores.length}'),
-              SizedBox(height: 16),
-              if (authController.currentUser?.role == 'admin')
-                Text(
-                  'Ve al menú lateral para seleccionar una tienda.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.blue[600],
-                  ),
-                ),
-            ],
-          ],
-        ),
-        actions: [
-          Utils.elevatedButton('Cerrar', Utils.no, () {
-            Navigator.pop(context);
-          }),
-        ],
-      ),
-    );
-  }
   
   // Función para mostrar confirmación de salida
   Future<bool> _showExitConfirmation() async {
@@ -179,231 +105,480 @@ class HomePageState extends State<HomePage> {
       child: Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
+          elevation: 0,
+          flexibleSpace: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Utils.colorGnav,
+                  Utils.colorBotones,
+                ],
+              ),
+            ),
+          ),
           foregroundColor: Colors.white,
-          backgroundColor: Utils.colorGnav,
           title: Row(
             children: [
-              // Ícono de tienda al lado izquierdo del título
-              Obx(() {
-                final currentStore = currentStoreController.currentStore;
-                final hasStore = currentStore != null;
-                
-                return Stack(
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.inventory_2_outlined,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    IconButton(
-                      icon: Icon(
-                        Icons.store, 
-                        color: hasStore ? Colors.white : Colors.orange[300],
+                    Text(
+                      'BellezApp',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
                       ),
-                      onPressed: () => _showStoreInfo(),
-                      tooltip: currentStore?.name ?? 'Sin tienda seleccionada - Toca para más info',
                     ),
-                    if (!hasStore)
-                      Positioned(
-                        right: 8,
-                        top: 8,
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: Colors.orange,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
+                    Text(
+                      'Control de Almacenes',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
                       ),
+                    ),
                   ],
-                );
-              }),
-              SizedBox(width: 8),
-              Text('Control de Almacenes'),
-              Spacer(),
+                ),
+              ),
             ],
           ),
-          centerTitle: false,
           actions: [
-            // Botón de configuración de temas
-            IconButton(
-              icon: Icon(Icons.palette_outlined),
-              onPressed: () {
-                Get.to(() => ThemeSettingsPage());
-              },
-              tooltip: 'Configurar Temas',
+            // Botón de notificaciones
+            Container(
+              margin: EdgeInsets.only(right: 8),
+              child: Stack(
+                children: [
+                  IconButton(
+                    icon: Container(
+                      padding: EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.notifications_outlined,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    onPressed: () {
+                      // TODO: Mostrar notificaciones
+                    },
+                    tooltip: 'Notificaciones',
+                  ),
+                  // Badge de notificaciones
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      constraints: BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        '3',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
+            // Botón de configuración de temas
+            Container(
+              margin: EdgeInsets.only(right: 8),
+              child: IconButton(
+                icon: Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.palette_outlined,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                onPressed: () {
+                  Get.to(() => ThemeSettingsPage());
+                },
+                tooltip: 'Configurar Temas',
+              ),
+            ),
+            // Botón del drawer de estadísticas
             Builder(
               builder: (context) {
-                return IconButton(
-                  icon: Icon(Icons.bar_chart),
-                  onPressed: () {
-                    Scaffold.of(context).openEndDrawer();
-                  },
-                  tooltip: 'Estadísticas',
+                return Container(
+                  margin: EdgeInsets.only(right: 16),
+                  child: IconButton(
+                    icon: Container(
+                      padding: EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.analytics_outlined,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    onPressed: () {
+                      Scaffold.of(context).openEndDrawer();
+                    },
+                    tooltip: 'Panel de Control',
+                  ),
                 );
               },
             ),
           ],
         ),
-        endDrawer: Drawer(
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              DrawerHeader(
-                decoration: BoxDecoration(
-                  color: Utils.colorGnav,
-                ),
-                child: Text(
-                  'Estadísticas',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                  ),
+        endDrawer: Container(
+          width: 320,
+          child: Drawer(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Utils.colorGnav.withOpacity(0.1),
+                    Colors.white,
+                  ],
                 ),
               ),
-              // Información de tienda actual
-              Container(
-                color: Colors.grey[50],
-                child: Padding(
-                  padding: EdgeInsets.all(8.0),
-                  child: StoreSelector(showInDrawer: true),
-                ),
-              ),
-              Divider(height: 1),
-              ListTile(
-                leading: Icon(Icons.account_balance_wallet),
-                title: Text('Sistema de Caja'),
-                onTap: () {
-                  Navigator.pop(context); // Cierra el drawer
-                  Get.to(() => CashRegisterPage());
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.people),
-                title: Text('Clientes'),
-                onTap: () {
-                  Navigator.pop(context); // Cierra el drawer
-                  Get.to(() => CustomerListPage());
-                },
-              ),
-              if (authController.canManageUsers())
-                ListTile(
-                  leading: Icon(Icons.people),
-                  title: Text('Gestión de Usuarios'),
-                  onTap: () {
-                    Navigator.pop(context); // Cierra el drawer
-                    Get.to(() => UserManagementPage());
-                  },
-                ),
-              if (authController.isAdmin)
-                ListTile(
-                  leading: Icon(Icons.store),
-                  title: Text('Gestión de Tiendas'),
-                  onTap: () {
-                    Navigator.pop(context); // Cierra el drawer
-                    Get.to(() => StoreListPage());
-                  },
-                ),
-              ListTile(
-                leading: Icon(Icons.local_offer),
-                title: Text('Descuentos'),
-                onTap: () {
-                  Navigator.pop(context); // Cierra el drawer
-                  Get.to(() => DiscountListPage());
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.insert_chart),
-                title: Text('Reporte de Rotación de Productos'),
-                onTap: () {
-                  Navigator.pop(context); // Cierra el drawer
-                  Get.to(ReportPage());
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.monetization_on),
-                title: Text('Reporte de ventas'),
-                onTap: () {
-                  Navigator.pop(context); // Cierra el drawer
-                  Get.to(SalesHistoryPage());
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.monetization_on),
-                title: Text('Reporte financiero'),
-                onTap: () {
-                  Navigator.pop(context); // Cierra el drawer
-                  Get.to(FinancialReportPage());
-                },
-              ),
-              Divider(),
-              ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: themeController.currentTheme.lightTheme.colorScheme.primary,
-                  child: Text(
-                    authController.currentUser?.initials ?? 'U',
-                    style: TextStyle(
-                      color: themeController.currentTheme.lightTheme.colorScheme.onPrimary,
-                      fontWeight: FontWeight.bold,
+              child: Column(
+                children: [
+                  // Header del drawer
+                  Container(
+                    height: 160,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Utils.colorGnav,
+                          Utils.colorBotones,
+                        ],
+                      ),
+                    ),
+                    child: SafeArea(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Container(
+                                  padding: EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Icon(
+                                    Icons.analytics_rounded,
+                                    color: Colors.white,
+                                    size: 32,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.close_rounded,
+                                    color: Colors.white,
+                                    size: 24,
+                                  ),
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                  },
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Panel de Control',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Gestión y Estadísticas',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
-                title: Text(authController.currentUser?.fullName ?? 'Usuario'),
-                subtitle: Text(authController.currentUser?.role.displayName ?? ''),
-                onTap: () {
-                  // TODO: Ir a perfil de usuario
-                },
+                  // Contenido del drawer
+                  Expanded(
+                    child: ListView(
+                      padding: EdgeInsets.all(16),
+                      children: [
+                        // Sección de Gestión Principal
+                        _buildSectionHeader('Gestión Principal'),
+                        _buildModernDrawerTile(
+                          'Sistema de Caja',
+                          'Control de ventas y pagos',
+                          Icons.account_balance_wallet_outlined,
+                          Colors.green,
+                          () {
+                            Navigator.pop(context);
+                            Get.to(() => CashRegisterPage());
+                          },
+                        ),
+                        _buildModernDrawerTile(
+                          'Clientes',
+                          'Gestión de clientes',
+                          Icons.people_outline,
+                          Colors.blue,
+                          () {
+                            Navigator.pop(context);
+                            Get.to(() => CustomerListPage());
+                          },
+                        ),
+                        if (authController.canManageUsers())
+                          _buildModernDrawerTile(
+                            'Gestión de Usuarios',
+                            'Administrar usuarios del sistema',
+                            Icons.admin_panel_settings_outlined,
+                            Colors.purple,
+                            () {
+                              Navigator.pop(context);
+                              Get.to(() => UserManagementPage());
+                            },
+                          ),
+                        _buildModernDrawerTile(
+                          'Descuentos',
+                          'Configurar promociones',
+                          Icons.local_offer_outlined,
+                          Colors.orange,
+                          () {
+                            Navigator.pop(context);
+                            Get.to(() => DiscountListPage());
+                          },
+                        ),
+                        
+                        SizedBox(height: 16),
+                        
+                        // Sección de Reportes
+                        _buildSectionHeader('Reportes y Análisis'),
+                        _buildModernDrawerTile(
+                          'Rotación de Productos',
+                          'Análisis de movimiento de inventario',
+                          Icons.insert_chart_outlined,
+                          Colors.indigo,
+                          () {
+                            Navigator.pop(context);
+                            Get.to(ReportPage());
+                          },
+                        ),
+                        _buildModernDrawerTile(
+                          'Reporte de Ventas',
+                          'Historial y estadísticas de ventas',
+                          Icons.trending_up_outlined,
+                          Colors.green,
+                          () {
+                            Navigator.pop(context);
+                            Get.to(SalesHistoryPage());
+                          },
+                        ),
+                        _buildModernDrawerTile(
+                          'Reporte Financiero',
+                          'Análisis financiero completo',
+                          Icons.monetization_on_outlined,
+                          Colors.teal,
+                          () {
+                            Navigator.pop(context);
+                            Get.to(FinancialReportPage());
+                          },
+                        ),
+                        
+                        SizedBox(height: 16),
+                        
+                        // Sección de Usuario
+                        _buildSectionHeader('Mi Cuenta'),
+                        Container(
+                          margin: EdgeInsets.symmetric(vertical: 8),
+                          padding: EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Utils.colorGnav.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Utils.colorGnav.withOpacity(0.2),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 24,
+                                backgroundColor: Utils.colorGnav,
+                                child: Text(
+                                  authController.currentUser?.initials ?? 'U',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      authController.currentUser?.fullName ?? 'Usuario',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        color: Utils.colorTexto,
+                                      ),
+                                    ),
+                                    Text(
+                                      authController.currentUser?.role.displayName ?? '',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Utils.colorTexto.withOpacity(0.7),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        _buildModernDrawerTile(
+                          'Configurar Temas',
+                          'Personalizar apariencia',
+                          Icons.palette_outlined,
+                          Colors.pink,
+                          () {
+                            Navigator.pop(context);
+                            Get.to(() => ThemeSettingsPage());
+                          },
+                        ),
+                        
+                        _buildModernDrawerTile(
+                          'Cerrar Sesión',
+                          'Salir del sistema',
+                          Icons.logout_outlined,
+                          Colors.red,
+                          () async {
+                            Navigator.pop(context);
+                            await _showLogoutConfirmation();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              ListTile(
-                leading: Icon(Icons.logout),
-                title: Text('Cerrar Sesión'),
-                onTap: () async {
-                  Navigator.pop(context); // Cierra el drawer primero
-                  await _showLogoutConfirmation();
-                },
-              ),
-              Divider(),
-              ListTile(
-                leading: Icon(Icons.palette),
-                title: Text('Configurar Temas'),
-                onTap: () {
-                  Navigator.pop(context); // Cierra el drawer
-                  Get.to(() => ThemeSettingsPage());
-                },
-              ),
-            ],
+            ),
           ),
         ),
         body: widgetOptions.elementAt(ipc.getIndexPage),
         bottomNavigationBar: SafeArea(
           child: Container(
-            color: Utils.colorGnav,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Utils.colorGnav.withOpacity(0.95),
+                  Utils.colorGnav,
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 20,
+                  offset: Offset(0, -5),
+                ),
+              ],
+            ),
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 15.0, vertical: 10.0),
+              padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
               child: GNav(
-                backgroundColor: Utils.colorGnav,
-                color: Colors.white,
+                backgroundColor: Colors.transparent,
+                rippleColor: Colors.white.withOpacity(0.1),
+                hoverColor: Colors.white.withOpacity(0.05),
+                haptic: true,
+                tabBorderRadius: 12,
+                tabActiveBorder: Border.all(
+                  color: Colors.white.withOpacity(0.2),
+                  width: 1,
+                ),
+                curve: Curves.easeOutExpo,
+                duration: Duration(milliseconds: 300),
+                gap: 6,
+                color: Colors.white.withOpacity(0.7),
                 activeColor: Colors.white,
-                tabBackgroundColor: Utils.colorBotones,
-                gap: 4,
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                iconSize: 20,
+                textStyle: TextStyle(
+                  fontSize: 11,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+                tabBackgroundColor: Colors.white.withOpacity(0.15),
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 tabs: [
                   GButton(
-                    icon: Icons.inventory,
+                    icon: Icons.inventory_2_outlined,
                     text: 'Productos',
                   ),
                   GButton(
-                    icon: Icons.category,
+                    icon: Icons.category_outlined,
                     text: 'Categorías',
                   ),
                   GButton(
-                    icon: Icons.local_shipping,
+                    icon: Icons.business_outlined,
                     text: 'Proveedores',
                   ),
                   GButton(
-                    icon: Icons.location_on,
+                    icon: Icons.location_on_outlined,
                     text: 'Ubicaciones',
                   ),
                   GButton(
-                    icon: Icons.receipt_long,
+                    icon: Icons.receipt_long_outlined,
                     text: 'Órdenes',
                   ),
                 ],
@@ -417,5 +592,89 @@ class HomePageState extends State<HomePage> {
         ),
       ),
     )); // Cerrar Obx
+  }
+
+  // Métodos auxiliares para el drawer moderno
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 8),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: Utils.colorTexto.withOpacity(0.7),
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModernDrawerTile(String title, String subtitle, IconData icon, Color iconColor, VoidCallback onTap) {
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 4),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Utils.colorGnav.withOpacity(0.1),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: iconColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: iconColor,
+                    size: 20,
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: Utils.colorTexto,
+                        ),
+                      ),
+                      if (subtitle.isNotEmpty)
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Utils.colorTexto.withOpacity(0.7),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 14,
+                  color: Utils.colorTexto.withOpacity(0.5),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

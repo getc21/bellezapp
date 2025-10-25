@@ -1,14 +1,18 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import 'dart:convert';
-import 'package:crypto/crypto.dart';
+import 'dart:math';
+import '../models/customer.dart';
+import '../models/discount.dart';
+import '../models/user.dart';
+import '../models/user_session.dart';
 
 class DatabaseHelper {
-  static final DatabaseHelper _instance = DatabaseHelper._internal();
-  factory DatabaseHelper() => _instance;
-  DatabaseHelper._internal();
-
+  static final DatabaseHelper _instance = DatabaseHelper._();
   static Database? _database;
+
+  DatabaseHelper._();
+
+  factory DatabaseHelper() => _instance;
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -16,280 +20,690 @@ class DatabaseHelper {
     return _database!;
   }
 
-  // Método para hashear contraseñas
-  String _hashPassword(String password) {
-    final bytes = utf8.encode(password);
-    final digest = sha256.convert(bytes);
-    return digest.toString();
-  }
-
-  // Método para crear usuario admin
-  Future<void> createAdminUser() async {
-    final db = await database;
-    
-    await db.insert('users', {
-      'username': 'admin',
-      'password_hash': _hashPassword('admin123'),
-      'role': 'admin',
-      'full_name': 'Administrador Sistema',
-      'email': 'admin@bellezapp.com',
-      'is_active': 1
-    });
-  }
-
-  // Método para forzar recreación de la base de datos
-  Future<void> recreateDatabase() async {
-    await _database?.close();
-    _database = null;
-    String path = join(await getDatabasesPath(), 'bellezapp.db');
-    await deleteDatabase(path);
-    print('Database forcefully deleted');
-    _database = await _initDatabase();
-    print('Database recreated successfully');
-  }
-
-  // Cerrar la base de datos
-  Future<void> closeDatabase() async {
-    if (_database != null) {
-      await _database!.close();
-      _database = null;
-    }
-  }
-
   Future<Database> _initDatabase() async {
-    String path = join(await getDatabasesPath(), 'bellezapp.db');
-    
-    // Eliminar la base de datos existente para forzar recreación completa
-    print('Database path: $path');
-    bool exists = await databaseExists(path);
-    print('Database exists before delete: $exists');
-    
-    if (exists) {
-      await deleteDatabase(path);
-      print('Database deleted successfully');
-    }
-    
+    String path = join(await getDatabasesPath(), 'beauty_store.db');
     return await openDatabase(
       path,
-      version: 1, // Versión simple sin multi-tienda
+      version: 9, // Incrementar versión para asegurar migración completa
       onCreate: (db, version) async {
-        print('Creating database version $version');
-        
-        // Tabla de usuarios (sin store_id)
-        await db.execute('''
-          CREATE TABLE users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            role TEXT NOT NULL CHECK (role IN ('admin', 'employee')),
-            full_name TEXT,
-            email TEXT,
-            phone TEXT,
-            is_active INTEGER DEFAULT 1,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP
-          )
-        ''');
-
-        // Tabla de categorías
-        await db.execute('''
-          CREATE TABLE categories (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            description TEXT,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP
-          )
-        ''');
-
-        // Tabla de proveedores
-        await db.execute('''
-          CREATE TABLE suppliers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            contact_person TEXT,
-            phone TEXT,
-            email TEXT,
-            address TEXT,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP
-          )
-        ''');
-
-        // Tabla de productos (sin store_id)
-        await db.execute('''
+        db.execute('''
           CREATE TABLE products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            description TEXT,
+            name TEXT,
+            description TEXT,  
             purchase_price REAL,
             sale_price REAL,
-            stock INTEGER DEFAULT 0,
-            min_stock INTEGER DEFAULT 5,
-            category_id INTEGER,
-            supplier_id INTEGER,
-            barcode TEXT,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (category_id) REFERENCES categories (id),
-            FOREIGN KEY (supplier_id) REFERENCES suppliers (id)
+            weight TEXT,
+            category_id INTEGER NOT NULL,
+            supplier_id INTEGER NOT NULL,
+            location_id INTEGER NOT NULL,
+            foto TEXT,
+            stock INTEGER,
+            expirity_date TEXT
           )
         ''');
-
-        // Tabla de clientes (sin store_id)
-        await db.execute('''
-          CREATE TABLE customers (
+        db.execute('''
+          CREATE TABLE categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            phone TEXT,
-            email TEXT,
-            address TEXT,
-            total_spent REAL DEFAULT 0.0,
-            total_orders INTEGER DEFAULT 0,
-            points INTEGER DEFAULT 0,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            name TEXT,
+            description TEXT,
+            foto TEXT
           )
         ''');
-
-        // Tabla de órdenes (sin store_id)
-        await db.execute('''
+        db.execute('''
+          CREATE TABLE suppliers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            foto TEXT,
+            name TEXT NOT NULL,
+            contact_name TEXT,
+            contact_email TEXT,
+            contact_phone TEXT,
+            address TEXT
+          )
+        ''');
+        db.execute('''
           CREATE TABLE orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_date TEXT NOT NULL,
+            totalOrden REAL NOT NULL,
+            payment_method TEXT DEFAULT 'efectivo',
             customer_id INTEGER,
-            total REAL NOT NULL,
-            status TEXT DEFAULT 'completed',
-            payment_method TEXT DEFAULT 'cash',
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (customer_id) REFERENCES customers (id)
           )
         ''');
-
-        // Tabla de items de orden
-        await db.execute('''
+        db.execute('''
+          CREATE TABLE locations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT
+          )
+        ''');
+        db.execute('''
           CREATE TABLE order_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             order_id INTEGER NOT NULL,
             product_id INTEGER NOT NULL,
             quantity INTEGER NOT NULL,
             price REAL NOT NULL,
-            subtotal REAL NOT NULL,
             FOREIGN KEY (order_id) REFERENCES orders (id),
             FOREIGN KEY (product_id) REFERENCES products (id)
           )
         ''');
-
-        // Tabla de ubicaciones
-        await db.execute('''
-          CREATE TABLE locations (
+        db.execute('''
+          CREATE TABLE order_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            description TEXT,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            order_id INTEGER NOT NULL,
+            product_id INTEGER NOT NULL,
+            quantity INTEGER NOT NULL,
+            price REAL NOT NULL,
+            FOREIGN KEY (order_id) REFERENCES orders (id),
+            FOREIGN KEY (product_id) REFERENCES products (id)
           )
         ''');
+        db.execute('''
+          CREATE TABLE financial_transactions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          date TEXT,
+          type TEXT,
+          amount REAL
+        )
+        ''');
+        
+        // Nuevas tablas para sistema de caja
+        db.execute('''
+          CREATE TABLE cash_movements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            type TEXT NOT NULL,
+            amount REAL NOT NULL,
+            description TEXT,
+            order_id INTEGER,
+            user_id TEXT,
+            FOREIGN KEY (order_id) REFERENCES orders (id)
+          )
+        ''');
+        
+        db.execute('''
+          CREATE TABLE cash_registers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            opening_amount REAL NOT NULL,
+            closing_amount REAL,
+            expected_amount REAL,
+            difference REAL,
+            status TEXT NOT NULL,
+            opening_time TEXT,
+            closing_time TEXT,
+            user_id TEXT
+          )
+        ''');
+        
+        db.execute('''
+          CREATE TABLE customers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            phone TEXT NOT NULL,
+            email TEXT,
+            address TEXT,
+            notes TEXT,
+            created_at TEXT NOT NULL,
+            last_purchase TEXT,
+            total_spent REAL DEFAULT 0.0,
+            total_orders INTEGER DEFAULT 0,
+            loyalty_points INTEGER DEFAULT 0
+          )
+        ''');
+        
+        db.execute('''
+          CREATE TABLE discounts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT NOT NULL,
+            type TEXT NOT NULL,
+            value REAL NOT NULL,
+            minimum_amount REAL,
+            maximum_discount REAL,
+            start_date TEXT,
+            end_date TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1
+          )
+        ''');
+        
+        // Tablas para sistema de usuarios y roles
+        db.execute('''
+          CREATE TABLE users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            email TEXT NOT NULL UNIQUE,
+            first_name TEXT NOT NULL,
+            last_name TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            last_login_at TEXT,
+            profile_image_url TEXT,
+            phone TEXT,
+            permissions TEXT
+          )
+        ''');
+        
+        db.execute('''
+          CREATE TABLE user_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            session_token TEXT NOT NULL UNIQUE,
+            created_at TEXT NOT NULL,
+            expires_at TEXT,
+            device_info TEXT NOT NULL,
+            ip_address TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            ended_at TEXT,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+          )
+        ''');
+        
+        await _insertTestData(db);
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        // Migración v1 -> v2: Añadir tablas de cash register
+        if (oldVersion < 2) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS cash_movements (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              date TEXT NOT NULL,
+              type TEXT NOT NULL,
+              amount REAL NOT NULL,
+              description TEXT,
+              order_id INTEGER,
+              user_id TEXT,
+              FOREIGN KEY (order_id) REFERENCES orders (id)
+            )
+          ''');
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS cash_registers (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              date TEXT NOT NULL,
+              opening_amount REAL NOT NULL,
+              closing_amount REAL,
+              expected_amount REAL,
+              difference REAL,
+              status TEXT NOT NULL,
+              opening_time TEXT,
+              closing_time TEXT,
+              user_id TEXT
+            )
+          ''');
+        }
+        
+        // Migración v2 -> v3: Resolver conflictos de schema existente
+        if (oldVersion < 3) {
+          // Verificar y recrear tablas si hay conflictos de schema
+          try {
+            await db.execute('SELECT COUNT(*) FROM cash_movements LIMIT 1');
+          } catch (e) {
+            // La tabla no existe o tiene problemas, recrearla
+            await db.execute('DROP TABLE IF EXISTS cash_movements');
+            await db.execute('''
+              CREATE TABLE cash_movements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date TEXT NOT NULL,
+                type TEXT NOT NULL,
+                amount REAL NOT NULL,
+                description TEXT,
+                order_id INTEGER,
+                user_id TEXT,
+                FOREIGN KEY (order_id) REFERENCES orders (id)
+              )
+            ''');
+          }
+          
+          try {
+            await db.execute('SELECT COUNT(*) FROM cash_registers LIMIT 1');
+          } catch (e) {
+            // La tabla no existe o tiene problemas, recrearla
+            await db.execute('DROP TABLE IF EXISTS cash_registers');
+            await db.execute('''
+              CREATE TABLE cash_registers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date TEXT NOT NULL,
+                opening_amount REAL NOT NULL,
+                closing_amount REAL,
+                expected_amount REAL,
+                difference REAL,
+                status TEXT NOT NULL,
+                opening_time TEXT,
+                closing_time TEXT,
+                user_id TEXT
+              )
+            ''');
+          }
+        }
+        
+        // Migración v3 -> v4: Agregar payment_method a orders
+        if (oldVersion < 4) {
+          try {
+            await db.execute('ALTER TABLE orders ADD COLUMN payment_method TEXT DEFAULT \'efectivo\'');
+          } catch (e) {
+            // La columna ya existe, ignorar error
+            print('Column payment_method already exists or error adding: $e');
+          }
+        }
+        
+        // Migración v4 -> v5: Agregar tabla customers
+        if (oldVersion < 5) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS customers (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              name TEXT NOT NULL,
+              phone TEXT NOT NULL,
+              email TEXT,
+              address TEXT,
+              notes TEXT,
+              created_at TEXT NOT NULL,
+              last_purchase TEXT,
+              total_spent REAL DEFAULT 0.0,
+              total_orders INTEGER DEFAULT 0,
+              loyalty_points INTEGER DEFAULT 0
+            )
+          ''');
+        }
+        
+        // Migración v5 -> v6: Agregar tabla discounts
+        if (oldVersion < 6) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS discounts (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              name TEXT NOT NULL,
+              description TEXT NOT NULL,
+              type TEXT NOT NULL,
+              value REAL NOT NULL,
+              minimum_amount REAL,
+              maximum_discount REAL,
+              start_date TEXT,
+              end_date TEXT,
+              is_active INTEGER NOT NULL DEFAULT 1
+            )
+          ''');
+        }
+        
+        // Migración v6 -> v7: Agregar loyalty_points a customers y customer_id a orders
+        if (oldVersion < 7) {
+          await db.execute('''
+            ALTER TABLE customers ADD COLUMN loyalty_points INTEGER DEFAULT 0
+          ''');
+          await db.execute('''
+            ALTER TABLE orders ADD COLUMN customer_id INTEGER
+          ''');
+        }
+        
+        // Migración v7 -> v8: Agregar sistema de usuarios y roles
+        if (oldVersion < 8) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              username TEXT NOT NULL UNIQUE,
+              email TEXT NOT NULL UNIQUE,
+              first_name TEXT NOT NULL,
+              last_name TEXT NOT NULL,
+              password_hash TEXT NOT NULL,
+              role TEXT NOT NULL,
+              is_active INTEGER NOT NULL DEFAULT 1,
+              created_at TEXT NOT NULL,
+              last_login_at TEXT,
+              profile_image_url TEXT,
+              phone TEXT,
+              permissions TEXT
+            )
+          ''');
+          
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS user_sessions (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              user_id INTEGER NOT NULL,
+              session_token TEXT NOT NULL UNIQUE,
+              created_at TEXT NOT NULL,
+              expires_at TEXT,
+              device_info TEXT NOT NULL,
+              ip_address TEXT,
+              is_active INTEGER NOT NULL DEFAULT 1,
+              ended_at TEXT,
+              FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+          ''');
+          
+          // Crear usuario administrador por defecto
+          // Hash de "admin123" usando SHA256
+          const adminPasswordHash = "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9";
+          
+          await db.insert('users', {
+            'username': 'admin',
+            'email': 'admin@bellezapp.com',
+            'first_name': 'Administrador',
+            'last_name': 'Sistema',
+            'password_hash': adminPasswordHash,
+            'role': 'admin',
+            'is_active': 1,
+            'created_at': DateTime.now().toIso8601String(),
+          });
+        }
 
-        // Insertar datos iniciales
-        await _insertInitialData(db);
+        // Migración v8 -> v9: Verificar y asegurar usuario admin
+        if (oldVersion < 9) {
+          // Verificar si el usuario admin existe
+          final adminExists = await db.query(
+            'users',
+            where: 'username = ?',
+            whereArgs: ['admin'],
+          );
+          
+          if (adminExists.isEmpty) {
+            // Crear usuario admin si no existe
+            const adminPasswordHash = "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9";
+            
+            await db.insert('users', {
+              'username': 'admin',
+              'email': 'admin@bellezapp.com',
+              'first_name': 'Administrador',
+              'last_name': 'Sistema',
+              'password_hash': adminPasswordHash,
+              'role': 'admin',
+              'is_active': 1,
+              'created_at': DateTime.now().toIso8601String(),
+              'permissions': '{"manage_users":true,"manage_products":true,"manage_orders":true,"manage_customers":true,"manage_discounts":true,"view_reports":true,"manage_inventory":true,"manage_cash":true,"manage_settings":true}',
+            });
+          }
+        }
       },
     );
   }
 
-  Future<void> _insertInitialData(Database db) async {
-    print('Inserting initial data...');
+  // Insert products
+  Future<void> _insertTestData(Database db) async {
+    final aleatory = Random();
+    final ahora = DateTime.now();
+    final seisMesesAtras = DateTime(ahora.year, ahora.month - 6, ahora.day);
+    for (int i = 1; i <= 20; i++) {
+      final expirityDate =
+          ahora.add(Duration(days: aleatory.nextInt(60))).toIso8601String();
+      final stockAleatorio =
+          aleatory.nextInt(160); // Genera un número entre 1 y 20
+      final purchasePrice = (i * 2.0) + 5.0; // Precio de compra calculado
+    final salePrice = (i * 2.5) + 10.0; // Precio de venta calculado
+      await db.insert('products', {
+        'name': 'Product $i',
+        'description': 'Description $i',
+        'purchase_price': purchasePrice,
+        'sale_price': salePrice,
+        'weight': '${i}kg',
+        'category_id': (i % 3) + 1,
+        'supplier_id': (i % 3) + 1,
+        'location_id': (i % 3) + 1,
+        'foto': 'foto$i.png',
+        'stock': stockAleatorio, // Asigna el stock aleatorio
+        'expirity_date': expirityDate
+      });
+      
+  final amount = purchasePrice * stockAleatorio;
+  // Calcular una fecha aleatoria entre la fecha actual y 6 meses atrás
+    final diferenciaDias = ahora.difference(seisMesesAtras).inDays;
+    final diasAleatorios = aleatory.nextInt(diferenciaDias);
+    final transactionDate = seisMesesAtras.add(Duration(days: diasAleatorios)).toIso8601String();
 
-    // Insertar usuario admin por defecto
-    await db.insert('users', {
-      'username': 'admin',
-      'password_hash': _hashPassword('admin123'),
-      'role': 'admin',
-      'full_name': 'Administrador',
-      'email': 'admin@bellezapp.com',
-      'is_active': 1,
+  print('Inserting financial transaction - Type: Salida, Amount: $amount');
+  await db.insert('financial_transactions', {
+    'date': transactionDate,
+    'type': 'Salida',
+    'amount': amount,
+  });
+    }
+
+    // Insert categories
+    await db.insert('categories', {
+      'name': 'Category 1',
+      'description': 'Description 1',
+      'foto': 'foto1.png'
+    });
+    await db.insert('categories', {
+      'name': 'Category 2',
+      'description': 'Description 2',
+      'foto': 'foto2.png'
+    });
+    await db.insert('categories', {
+      'name': 'Category 3',
+      'description': 'Description 3',
+      'foto': 'foto3.png'
     });
 
-    // Insertar categorías de ejemplo
-    await db.insert('categories', {'name': 'Shampoo', 'description': 'Productos para el cabello'});
-    await db.insert('categories', {'name': 'Maquillaje', 'description': 'Productos de belleza'});
-    await db.insert('categories', {'name': 'Cuidado de piel', 'description': 'Productos para el cuidado facial'});
-
-    // Insertar proveedores de ejemplo
+    // Insert suppliers
     await db.insert('suppliers', {
-      'name': 'Beauty Supplies Co.',
-      'contact_person': 'Juan Pérez',
-      'phone': '555-0001',
-      'email': 'ventas@beautysupplies.com'
+      'name': 'Supplier 1',
+      'contact_name': 'Contact 1',
+      'contact_email': 'contact1@example.com',
+      'contact_phone': '1234567890',
+      'address': 'Address 1',
+      'foto': 'foto1.png'
+    });
+    await db.insert('suppliers', {
+      'name': 'Supplier 2',
+      'contact_name': 'Contact 2',
+      'contact_email': 'contact2@example.com',
+      'contact_phone': '1234567891',
+      'address': 'Address 2',
+      'foto': 'foto2.png'
+    });
+    await db.insert('suppliers', {
+      'name': 'Supplier 3',
+      'contact_name': 'Contact 3',
+      'contact_email': 'contact3@example.com',
+      'contact_phone': '1234567892',
+      'address': 'Address 3',
+      'foto': 'foto3.png'
     });
 
-    // Insertar productos de ejemplo
-    await db.insert('products', {
-      'name': 'Shampoo Nutritivo',
-      'description': 'Shampoo para cabello seco',
-      'purchase_price': 15.00,
-      'sale_price': 25.00,
-      'stock': 50,
-      'category_id': 1,
-      'supplier_id': 1
-    });
+    // Insert locations
+    await db.insert(
+        'locations', {'name': 'Location 1', 'description': 'Description 1'});
+    await db.insert(
+        'locations', {'name': 'Location 2', 'description': 'Description 2'});
+    await db.insert(
+        'locations', {'name': 'Location 3', 'description': 'Description 3'});
 
-    await db.insert('products', {
-      'name': 'Base de Maquillaje',
-      'description': 'Base líquida para todo tipo de piel',
-      'purchase_price': 20.00,
-      'sale_price': 35.00,
-      'stock': 30,
-      'category_id': 2,
-      'supplier_id': 1
-    });
+    // Insert orders and order_items
+    final random = Random();
+    final now = DateTime.now();
+    for (int i = 0; i < 50; i++) {
+      final orderDate =
+          now.subtract(Duration(days: random.nextInt(180))).toIso8601String();
+      final orderId = await db.insert('orders', {
+        'order_date': orderDate,
+        'totalOrden': 0.0, // Placeholder, will be updated later
+      });
 
-    // Insertar ubicaciones de ejemplo
-    await db.insert('locations', {'name': 'Estante A1', 'description': 'Productos para cabello'});
-    await db.insert('locations', {'name': 'Estante B1', 'description': 'Productos de maquillaje'});
+      double totalOrden = 0.0;
+      final numItems =
+          random.nextInt(5) + 1; // Each order has between 1 and 5 items
+      for (int j = 0; j < numItems; j++) {
+        final productId =
+            random.nextInt(20) + 1; // Assuming there are 3 products
+        final quantity = random.nextInt(10) + 1;
+        final price = (await db
+                .query('products', where: 'id = ?', whereArgs: [productId]))
+            .first['sale_price'] as double;
+        totalOrden += quantity * price;
 
-    print('Initial data inserted successfully');
+        await db.insert('order_items', {
+          'order_id': orderId,
+          'product_id': productId,
+          'quantity': quantity,
+          'price': price,
+        });
+
+        // Update product stock
+        await db.rawUpdate('''
+          UPDATE products
+          SET stock = stock - ?
+          WHERE id = ?
+        ''', [quantity, productId]);
+      }
+
+      // Update totalOrden in orders table
+      await db.rawUpdate('''
+        UPDATE orders
+        SET totalOrden = ?
+        WHERE id = ?
+      ''', [totalOrden, orderId]);
+    }
   }
 
-  // **MÉTODOS DE USUARIOS**
-  Future<Map<String, dynamic>?> getUserByUsername(String username) async {
-    final db = await database;
-    final result = await db.query(
-      'users',
-      where: 'username = ?',
-      whereArgs: [username],
-    );
-    return result.isNotEmpty ? result.first : null;
-  }
-
-  Future<Map<String, dynamic>?> getUserByEmail(String email) async {
-    final db = await database;
-    final result = await db.query(
-      'users',
-      where: 'email = ?',
-      whereArgs: [email],
-    );
-    return result.isNotEmpty ? result.first : null;
-  }
-
-  Future<List<Map<String, dynamic>>> getAllUsers() async {
-    final db = await database;
-    return await db.query('users', where: 'is_active = 1');
-  }
-
-  // **MÉTODOS DE PRODUCTOS**
   Future<List<Map<String, dynamic>>> getProducts() async {
     final db = await database;
     return await db.rawQuery('''
-      SELECT p.*, c.name as category_name, s.name as supplier_name
-      FROM products p
-      LEFT JOIN categories c ON p.category_id = c.id
-      LEFT JOIN suppliers s ON p.supplier_id = s.id
-      ORDER BY p.name
-    ''');
+    SELECT p.*, 
+           c.name as category_name, 
+           s.name as supplier_name, 
+           l.name as location_name
+    FROM products p
+    LEFT JOIN categories c ON p.category_id = c.id
+    LEFT JOIN suppliers s ON p.supplier_id = s.id
+    LEFT JOIN locations l ON p.location_id = l.id
+  ''');
   }
 
-  Future<int> insertProduct(Map<String, dynamic> product) async {
+  Future<List<Map<String, dynamic>>> getCategories() async {
     final db = await database;
-    return await db.insert('products', product);
+    return await db.query('categories');
+  }
+
+  Future<List<Map<String, dynamic>>> getSuppliers() async {
+    final db = await database;
+    return await db.query('suppliers');
+  }
+
+  Future<List<Map<String, dynamic>>> getLocations() async {
+    final db = await database;
+    return await db.query('locations');
+  }
+
+  Future<void> insertProduct(Map<String, dynamic> product) async {
+  final db = await database;
+  await db.insert('products', product);
+
+  // Registrar la salida de dinero
+  final purchasePrice = (product['purchase_price'] as double?) ?? 0.0;
+  final quantity = (product['quantity'] as int?) ?? 0;
+  final amount = purchasePrice * quantity;
+  print('Inserting financial transaction - Type: Salida, Amount: $amount');
+  await db.insert('financial_transactions', {
+    'date': DateTime.now().toIso8601String(),
+    'type': 'Salida',
+    'amount': amount,
+  });
+}
+
+  Future<void> insertCategory(Map<String, dynamic> category) async {
+    final db = await database;
+    await db.insert('categories', category);
+  }
+
+  Future<void> insertSupplier(Map<String, dynamic> supplier) async {
+    final db = await database;
+    await db.insert('suppliers', supplier);
+  }
+
+  Future<void> insertLocation(Map<String, dynamic> location) async {
+    final db = await database;
+    await db.insert('locations', location);
+  }
+
+  Future<void> insertOrder(Map<String, dynamic> order) async {
+    final db = await database;
+    double totalOrden = 0.0;
+    for (var product in order['products']) {
+      totalOrden += product['quantity'] * product['price'];
+    }
+    final orderId = await db.insert('orders', {
+      'order_date': order['date'],
+      'totalOrden': totalOrden,
+    });
+    for (var product in order['products']) {
+      await db.insert('order_items', {
+        'order_id': orderId,
+        'product_id': product['id'],
+        'quantity': product['quantity'],
+        'price': product['price'],
+      });
+    }
+  }
+
+  // Nuevo método para insertar orden con método de pago
+  Future<int> insertOrderWithPayment(Map<String, dynamic> order) async {
+    final db = await database;
+    double totalOrden = order['totalOrden'] ?? 0.0;
+    
+    final orderId = await db.insert('orders', {
+      'order_date': order['order_date'],
+      'totalOrden': totalOrden,
+      'payment_method': order['payment_method'] ?? 'efectivo',
+      'customer_id': order['customer_id'],
+    });
+    
+    return orderId;
+  }
+
+  // Método para insertar order item individual
+  Future<void> insertOrderItem(Map<String, dynamic> orderItem) async {
+    final db = await database;
+    await db.insert('order_items', orderItem);
   }
 
   Future<void> updateProduct(Map<String, dynamic> product) async {
     final db = await database;
-    await db.update('products', product, where: 'id = ?', whereArgs: [product['id']]);
+    await db.update(
+      'products',
+      product,
+      where: 'id = ?',
+      whereArgs: [product['id']],
+    );
+  }
+
+  Future<void> updateCategory(Map<String, dynamic> category) async {
+    final db = await database;
+    await db.update(
+      'categories',
+      category,
+      where: 'id = ?',
+      whereArgs: [category['id']],
+    );
+  }
+
+  Future<void> updateSupplier(Map<String, dynamic> supplier) async {
+    final db = await database;
+    await db.update(
+      'suppliers',
+      supplier,
+      where: 'id = ?',
+      whereArgs: [supplier['id']],
+    );
+  }
+
+  Future<void> updateLocation(Map<String, dynamic> location) async {
+    final db = await database;
+    await db.update(
+      'locations',
+      location,
+      where: 'id = ?',
+      whereArgs: [location['id']],
+    );
+  }
+
+  Future<void> updateProductStock(int productId, int quantity) async {
+    final db = await database;
+    await db.rawUpdate('''
+      UPDATE products
+      SET stock = stock - ?
+      WHERE id = ?
+    ''', [quantity, productId]);
   }
 
   Future<void> deleteProduct(int id) async {
@@ -297,41 +711,9 @@ class DatabaseHelper {
     await db.delete('products', where: 'id = ?', whereArgs: [id]);
   }
 
-  // **MÉTODOS DE CATEGORÍAS**
-  Future<List<Map<String, dynamic>>> getCategories() async {
-    final db = await database;
-    return await db.query('categories', orderBy: 'name');
-  }
-
-  Future<int> insertCategory(Map<String, dynamic> category) async {
-    final db = await database;
-    return await db.insert('categories', category);
-  }
-
-  Future<void> updateCategory(Map<String, dynamic> category) async {
-    final db = await database;
-    await db.update('categories', category, where: 'id = ?', whereArgs: [category['id']]);
-  }
-
   Future<void> deleteCategory(int id) async {
     final db = await database;
     await db.delete('categories', where: 'id = ?', whereArgs: [id]);
-  }
-
-  // **MÉTODOS DE PROVEEDORES**
-  Future<List<Map<String, dynamic>>> getSuppliers() async {
-    final db = await database;
-    return await db.query('suppliers', orderBy: 'name');
-  }
-
-  Future<int> insertSupplier(Map<String, dynamic> supplier) async {
-    final db = await database;
-    return await db.insert('suppliers', supplier);
-  }
-
-  Future<void> updateSupplier(Map<String, dynamic> supplier) async {
-    final db = await database;
-    await db.update('suppliers', supplier, where: 'id = ?', whereArgs: [supplier['id']]);
   }
 
   Future<void> deleteSupplier(int id) async {
@@ -339,104 +721,1020 @@ class DatabaseHelper {
     await db.delete('suppliers', where: 'id = ?', whereArgs: [id]);
   }
 
-  // **MÉTODOS DE CLIENTES**
-  Future<List<Map<String, dynamic>>> getCustomers() async {
-    final db = await database;
-    return await db.query('customers', orderBy: 'name');
-  }
-
-  Future<int> insertCustomer(Map<String, dynamic> customer) async {
-    final db = await database;
-    return await db.insert('customers', customer);
-  }
-
-  Future<void> updateCustomer(Map<String, dynamic> customer) async {
-    final db = await database;
-    await db.update('customers', customer, where: 'id = ?', whereArgs: [customer['id']]);
-  }
-
-  Future<void> deleteCustomer(int id) async {
-    final db = await database;
-    await db.delete('customers', where: 'id = ?', whereArgs: [id]);
-  }
-
-  // **MÉTODOS DE ÓRDENES**
-  Future<List<Map<String, dynamic>>> getOrders() async {
-    final db = await database;
-    return await db.rawQuery('''
-      SELECT o.*, c.name as customer_name
-      FROM orders o
-      LEFT JOIN customers c ON o.customer_id = c.id
-      ORDER BY o.created_at DESC
-    ''');
-  }
-
-  Future<int> insertOrder(Map<String, dynamic> order) async {
-    final db = await database;
-    return await db.insert('orders', order);
-  }
-
-  Future<void> insertOrderItem(Map<String, dynamic> orderItem) async {
-    final db = await database;
-    await db.insert('order_items', orderItem);
-  }
-
-  Future<List<Map<String, dynamic>>> getOrderItems(int orderId) async {
-    final db = await database;
-    return await db.rawQuery('''
-      SELECT oi.*, p.name as product_name
-      FROM order_items oi
-      JOIN products p ON oi.product_id = p.id
-      WHERE oi.order_id = ?
-    ''', [orderId]);
-  }
-
-  // **MÉTODOS DE UBICACIONES**
-  Future<List<Map<String, dynamic>>> getLocations() async {
-    final db = await database;
-    return await db.query('locations', orderBy: 'name');
-  }
-
-  Future<int> insertLocation(Map<String, dynamic> location) async {
-    final db = await database;
-    return await db.insert('locations', location);
-  }
-
-  Future<void> updateLocation(Map<String, dynamic> location) async {
-    final db = await database;
-    await db.update('locations', location, where: 'id = ?', whereArgs: [location['id']]);
-  }
-
   Future<void> deleteLocation(int id) async {
     final db = await database;
     await db.delete('locations', where: 'id = ?', whereArgs: [id]);
   }
 
-  // Método para buscar productos
-  Future<List<Map<String, dynamic>>> searchProducts(String query) async {
+  Future<List<Map<String, dynamic>>> getProductsByCategory(
+      int categoryId) async {
     final db = await database;
     return await db.rawQuery('''
-      SELECT p.*, c.name as category_name, s.name as supplier_name
-      FROM products p
-      LEFT JOIN categories c ON p.category_id = c.id
-      LEFT JOIN suppliers s ON p.supplier_id = s.id
-      WHERE p.name LIKE ? OR p.description LIKE ? OR p.barcode LIKE ?
-      ORDER BY p.name
-    ''', ['%$query%', '%$query%', '%$query%']);
+    SELECT p.*, 
+           c.name as category_name, 
+           s.name as supplier_name, 
+           l.name as location_name
+    FROM products p
+    LEFT JOIN categories c ON p.category_id = c.id
+    LEFT JOIN suppliers s ON p.supplier_id = s.id
+    LEFT JOIN locations l ON p.location_id = l.id
+    WHERE p.category_id = ?
+  ''', [categoryId]);
   }
 
-  // Método para actualizar stock
-  Future<void> updateStock(int productId, int newStock) async {
+  Future<List<Map<String, dynamic>>> getProductsBySupplier(
+      int supplierId) async {
     final db = await database;
-    await db.update('products', {'stock': newStock}, where: 'id = ?', whereArgs: [productId]);
+    return await db.rawQuery('''
+    SELECT p.*, 
+           c.name as category_name, 
+           s.name as supplier_name, 
+           l.name as location_name
+    FROM products p
+    LEFT JOIN categories c ON p.category_id = c.id
+    LEFT JOIN suppliers s ON p.supplier_id = s.id
+    LEFT JOIN locations l ON p.location_id = l.id
+    WHERE p.supplier_id = ?
+  ''', [supplierId]);
   }
 
-  // Cerrar base de datos
-  Future<void> close() async {
-    final db = _database;
-    if (db != null) {
-      await db.close();
-      _database = null;
+  Future<List<Map<String, dynamic>>> getProductsByLocation(int locationId) async {
+  final db = await database;
+  return await db.rawQuery('''
+    SELECT p.*, 
+           c.name as category_name, 
+           s.name as supplier_name, 
+           l.name as location_name
+    FROM products p
+    LEFT JOIN categories c ON p.category_id = c.id
+    LEFT JOIN suppliers s ON p.supplier_id = s.id
+    LEFT JOIN locations l ON p.location_id = l.id
+    WHERE p.location_id = ?
+  ''', [locationId]);
+}
+
+  Future<Map<String, dynamic>?> getProductByName(String name) async {
+    final db = await database;
+    final result = await db.query(
+      'products',
+      where: 'name = ?',
+      whereArgs: [name],
+    );
+    if (result.isNotEmpty) {
+      return result.first;
+    }
+    return null;
+  }
+
+  Future<List<Map<String, dynamic>>> getOrdersWithItems() async {
+    final db = await database;
+    final orders = await db.query('orders');
+    List<Map<String, dynamic>> ordersWithItems = [];
+    for (var order in orders) {
+      Map<String, dynamic> orderCopy = Map<String, dynamic>.from(order);
+      final orderItems = await db.rawQuery('''
+        SELECT oi.*, p.name as product_name
+        FROM order_items oi
+        JOIN products p ON oi.product_id = p.id
+        WHERE oi.order_id = ?
+      ''', [order['id']]);
+      orderCopy['items'] = orderItems;
+      ordersWithItems.add(orderCopy);
+    }
+    return ordersWithItems;
+  }
+
+  Future<void> addProductStock(int productId, int quantityToAdd) async {
+  final db = await database;
+  final product = await db.query('products', where: 'id = ?', whereArgs: [productId]);
+
+  if (product.isNotEmpty) {
+    final currentStock = (product.first['stock'] as int?) ?? 0;
+    final purchasePrice = (product.first['purchase_price'] as double?) ?? 0.0;
+    final newStock = currentStock + quantityToAdd;
+
+    await db.update(
+      'products',
+      {'stock': newStock},
+      where: 'id = ?',
+      whereArgs: [productId],
+    );
+
+    // Registrar la salida de dinero
+    final amount = purchasePrice * quantityToAdd;
+    await db.insert('financial_transactions', {
+      'date': DateTime.now().toIso8601String(),
+      'type': 'Salida',
+      'amount': amount,
+    });
+  }
+}
+
+  Future<List<Map<String, dynamic>>> getProductsByRotation(
+      {required String period}) async {
+    final db = await database;
+    String dateCondition;
+    if (period == 'week') {
+      dateCondition =
+          DateTime.now().subtract(Duration(days: 7)).toIso8601String();
+    } else if (period == 'month') {
+      dateCondition =
+          DateTime.now().subtract(Duration(days: 30)).toIso8601String();
+    } else if (period == 'year') {
+      dateCondition =
+          DateTime.now().subtract(Duration(days: 365)).toIso8601String();
+    } else {
+      throw ArgumentError('Invalid period: $period');
+    }
+
+    return await db.rawQuery('''
+      SELECT p.*, SUM(oi.quantity) as total_quantity
+      FROM products p
+      JOIN order_items oi ON p.id = oi.product_id
+      JOIN orders o ON oi.order_id = o.id
+      WHERE o.order_date >= ?
+      GROUP BY p.id
+      ORDER BY total_quantity DESC
+    ''', [dateCondition]);
+  }
+
+  Future<List<Map<String, dynamic>>> getSalesDataForLastYear() async {
+    final db = await database;
+    final now = DateTime.now();
+    final lastYear = DateTime(now.year - 1, now.month);
+
+    final salesData = await db.rawQuery('''
+    SELECT 
+      strftime('%m', o.order_date) as month,
+      strftime('%Y', o.order_date) as year,
+      p.name,
+      p.purchase_price,
+      p.sale_price,
+      SUM(oi.quantity) as quantity,
+      SUM((p.sale_price - p.purchase_price) * oi.quantity) as profit,
+      SUM(p.purchase_price * oi.quantity) as total_cost
+    FROM orders o
+    JOIN order_items oi ON o.id = oi.order_id
+    JOIN products p ON oi.product_id = p.id
+    WHERE o.order_date >= ?
+    GROUP BY month, year, p.id
+    ORDER BY year DESC, month DESC
+  ''', [lastYear.toIso8601String()]);
+
+    Map<String, Map<String, dynamic>> groupedData = {};
+
+    for (var row in salesData) {
+      final month = row['month'];
+      final year = row['year'];
+      final key = '$year-$month';
+
+      if (!groupedData.containsKey(key)) {
+        groupedData[key] = {
+          'month': month,
+          'year': year,
+          'totalProfit': 0.0,
+          'totalCost': 0.0,
+          'products': [],
+        };
+      }
+
+      groupedData[key]!['totalProfit'] += row['profit'] ?? 0.0;
+      groupedData[key]!['totalCost'] += row['total_cost'] ?? 0.0;
+      groupedData[key]!['products'].add({
+        'name': row['name'],
+        'purchase_price': row['purchase_price'],
+        'sale_price': row['sale_price'],
+        'quantity': row['quantity'],
+        'profit': row['profit'],
+      });
+    }
+
+    return groupedData.values.toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getFinancialDataForLastYear() async {
+  final db = await database;
+  final now = DateTime.now();
+  final lastYear = DateTime(now.year - 1, now.month);
+
+  final incomeData = await db.rawQuery('''
+    SELECT 
+      strftime('%m', o.order_date) as month,
+      strftime('%Y', o.order_date) as year,
+      SUM(oi.quantity * p.sale_price) as totalIncome
+    FROM orders o
+    JOIN order_items oi ON o.id = oi.order_id
+    JOIN products p ON oi.product_id = p.id
+    WHERE o.order_date >= ?
+    GROUP BY month, year
+    ORDER BY year DESC, month DESC
+  ''', [lastYear.toIso8601String()]);
+
+  final expenseData = await db.rawQuery('''
+    SELECT 
+      strftime('%m', t.date) as month,
+      strftime('%Y', t.date) as year,
+      SUM(t.amount) as totalExpense
+    FROM financial_transactions t
+    WHERE t.type = 'Salida' AND t.date >= ?
+    GROUP BY month, year
+    ORDER BY year DESC, month DESC
+  ''', [lastYear.toIso8601String()]);
+
+  Map<String, Map<String, dynamic>> groupedData = {};
+
+  for (var row in incomeData) {
+    final month = row['month'];
+    final year = row['year'];
+    final key = '$year-$month';
+
+    if (!groupedData.containsKey(key)) {
+      groupedData[key] = {
+        'month': month,
+        'year': year,
+        'totalIncome': 0.0,
+        'totalExpense': 0.0,
+      };
+    }
+
+    groupedData[key]!['totalIncome'] += row['totalIncome'] ?? 0.0;
+  }
+
+  for (var row in expenseData) {
+    final month = row['month'];
+    final year = row['year'];
+    final key = '$year-$month';
+
+    if (!groupedData.containsKey(key)) {
+      groupedData[key] = {
+        'month': month,
+        'year': year,
+        'totalIncome': 0.0,
+        'totalExpense': 0.0,
+      };
+    }
+
+    groupedData[key]!['totalExpense'] += row['totalExpense'] ?? 0.0;
+  }
+
+  return groupedData.values.toList();
+}
+
+Future<List<Map<String, dynamic>>> getFinancialDataBetweenDates(DateTime startDate, DateTime endDate) async {
+  final db = await database;
+
+  final incomeData = await db.rawQuery('''
+    SELECT 
+      strftime('%m', o.order_date) as month,
+      strftime('%Y', o.order_date) as year,
+      SUM(oi.quantity * p.sale_price) as totalIncome
+    FROM orders o
+    JOIN order_items oi ON o.id = oi.order_id
+    JOIN products p ON oi.product_id = p.id
+    WHERE o.order_date BETWEEN ? AND ?
+    GROUP BY month, year
+    ORDER BY year DESC, month DESC
+  ''', [startDate.toIso8601String(), endDate.toIso8601String()]);
+
+  final expenseData = await db.rawQuery('''
+    SELECT 
+      strftime('%m', t.date) as month,
+      strftime('%Y', t.date) as year,
+      SUM(t.amount) as totalExpense
+    FROM financial_transactions t
+    WHERE t.type = 'Salida' AND t.date BETWEEN ? AND ?
+    GROUP BY month, year
+    ORDER BY year DESC, month DESC
+  ''', [startDate.toIso8601String(), endDate.toIso8601String()]);
+
+  Map<String, Map<String, dynamic>> groupedData = {};
+
+  for (var row in incomeData) {
+    final month = row['month'];
+    final year = row['year'];
+    final key = '$year-$month';
+
+    if (!groupedData.containsKey(key)) {
+      groupedData[key] = {
+        'month': month,
+        'year': year,
+        'totalIncome': 0.0,
+        'totalExpense': 0.0,
+      };
+    }
+
+    groupedData[key]!['totalIncome'] += row['totalIncome'] ?? 0.0;
+  }
+
+  for (var row in expenseData) {
+    final month = row['month'];
+    final year = row['year'];
+    final key = '$year-$month';
+
+    if (!groupedData.containsKey(key)) {
+      groupedData[key] = {
+        'month': month,
+        'year': year,
+        'totalIncome': 0.0,
+        'totalExpense': 0.0,
+      };
+    }
+
+    groupedData[key]!['totalExpense'] += row['totalExpense'] ?? 0.0;
+  }
+
+  return groupedData.values.toList();
+}
+
+  // ============= MÉTODOS PARA SISTEMA DE CAJA =============
+  
+  // Métodos para cash_movements
+  Future<void> insertCashMovement(Map<String, dynamic> movement) async {
+    final db = await database;
+    await db.insert('cash_movements', movement);
+  }
+
+  Future<List<Map<String, dynamic>>> getCashMovementsByDate(String date) async {
+    final db = await database;
+    return await db.query(
+      'cash_movements',
+      where: 'date LIKE ?',
+      whereArgs: ['$date%'],
+      orderBy: 'date DESC',
+    );
+  }
+
+  Future<double> getTotalCashByTypeAndDate(String type, String date) async {
+    final db = await database;
+    final result = await db.rawQuery('''
+      SELECT SUM(amount) as total
+      FROM cash_movements
+      WHERE type = ? AND date LIKE ?
+    ''', [type, '$date%']);
+    
+    return (result.first['total'] as double?) ?? 0.0;
+  }
+
+  Future<double> getTotalCashSalesToday() async {
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    return await getTotalCashByTypeAndDate('venta', today);
+  }
+
+  Future<double> getTotalCashIncomesToday() async {
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    final db = await database;
+    final result = await db.rawQuery('''
+      SELECT SUM(amount) as total
+      FROM cash_movements
+      WHERE type IN ('venta', 'entrada') AND date LIKE ?
+    ''', ['$today%']);
+    
+    return (result.first['total'] as double?) ?? 0.0;
+  }
+
+  Future<double> getTotalCashOutcomesToday() async {
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    return await getTotalCashByTypeAndDate('salida', today);
+  }
+
+  // Métodos para cash_registers
+  Future<int> insertCashRegister(Map<String, dynamic> register) async {
+    final db = await database;
+    return await db.insert('cash_registers', register);
+  }
+
+  Future<void> updateCashRegister(Map<String, dynamic> register) async {
+    final db = await database;
+    await db.update(
+      'cash_registers',
+      register,
+      where: 'id = ?',
+      whereArgs: [register['id']],
+    );
+  }
+
+  Future<Map<String, dynamic>?> getCashRegisterByDate(String date) async {
+    final db = await database;
+    final result = await db.query(
+      'cash_registers',
+      where: 'date = ?',
+      whereArgs: [date],
+    );
+    
+    return result.isNotEmpty ? result.first : null;
+  }
+
+  Future<Map<String, dynamic>?> getCurrentCashRegister() async {
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    return await getCashRegisterByDate(today);
+  }
+
+  Future<bool> isCashRegisterOpen() async {
+    final currentRegister = await getCurrentCashRegister();
+    return currentRegister != null && currentRegister['status'] == 'abierta';
+  }
+
+  Future<double> calculateExpectedCashAmount() async {
+    final currentRegister = await getCurrentCashRegister();
+    
+    if (currentRegister == null) return 0.0;
+    
+    final openingAmount = (currentRegister['opening_amount'] as double?) ?? 0.0;
+    final totalIncomes = await getTotalCashIncomesToday();
+    final totalOutcomes = await getTotalCashOutcomesToday();
+    
+    return openingAmount + totalIncomes - totalOutcomes;
+  }
+
+  // Método para registrar venta en efectivo automáticamente
+  Future<void> registerCashSale(int orderId, double amount) async {
+    final now = DateTime.now().toIso8601String();
+    await insertCashMovement({
+      'date': now,
+      'type': 'venta',
+      'amount': amount,
+      'description': 'Venta en efectivo',
+      'order_id': orderId,
+    });
+  }
+
+  // ============= MÉTODOS PARA CUSTOMERS =============
+  
+  // Obtener todos los customers
+  Future<List<Customer>> getCustomers() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'customers',
+      orderBy: 'name ASC',
+    );
+    
+    return List.generate(maps.length, (i) {
+      return Customer.fromMap(maps[i]);
+    });
+  }
+
+  // Obtener customer por ID
+  Future<Customer?> getCustomerById(int id) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'customers',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    
+    if (maps.isNotEmpty) {
+      return Customer.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  // Buscar customers por nombre o teléfono
+  Future<List<Customer>> searchCustomers(String query) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'customers',
+      where: 'name LIKE ? OR phone LIKE ?',
+      whereArgs: ['%$query%', '%$query%'],
+      orderBy: 'name ASC',
+    );
+    
+    return List.generate(maps.length, (i) {
+      return Customer.fromMap(maps[i]);
+    });
+  }
+
+  // Insertar nuevo customer
+  Future<int> insertCustomer(Customer customer) async {
+    final db = await database;
+    return await db.insert('customers', customer.toMap());
+  }
+
+  // Actualizar customer
+  Future<void> updateCustomer(Customer customer) async {
+    final db = await database;
+    await db.update(
+      'customers',
+      customer.toMap(),
+      where: 'id = ?',
+      whereArgs: [customer.id],
+    );
+  }
+
+  // Eliminar customer
+  Future<void> deleteCustomer(int id) async {
+    final db = await database;
+    await db.delete(
+      'customers',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // Actualizar estadísticas del customer después de una compra
+  Future<void> updateCustomerPurchaseStats(int customerId, double orderTotal) async {
+    final customer = await getCustomerById(customerId);
+    if (customer != null) {
+      // Calcular puntos ganados (1 punto por cada $10)
+      final pointsEarned = Customer.calculatePointsFromPurchase(orderTotal);
+      
+      final updatedCustomer = customer.copyWith(
+        lastPurchase: DateTime.now(),
+        totalSpent: customer.totalSpent + orderTotal,
+        totalOrders: customer.totalOrders + 1,
+        loyaltyPoints: customer.loyaltyPoints + pointsEarned,
+      );
+      await updateCustomer(updatedCustomer);
     }
   }
+
+  // Obtener top customers por gasto total
+  Future<List<Customer>> getTopCustomers({int limit = 10}) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'customers',
+      orderBy: 'total_spent DESC',
+      limit: limit,
+    );
+    
+    return List.generate(maps.length, (i) {
+      return Customer.fromMap(maps[i]);
+    });
+  }
+
+  // Obtener top customers por puntos de lealtad
+  Future<List<Customer>> getTopCustomersByPoints({int limit = 10}) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'customers',
+      orderBy: 'loyalty_points DESC',
+      limit: limit,
+    );
+    
+    return List.generate(maps.length, (i) {
+      return Customer.fromMap(maps[i]);
+    });
+  }
+
+  // Obtener customers recientes (por fecha de registro)
+  Future<List<Customer>> getRecentCustomers({int limit = 10}) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'customers',
+      orderBy: 'created_at DESC',
+      limit: limit,
+    );
+    
+    return List.generate(maps.length, (i) {
+      return Customer.fromMap(maps[i]);
+    });
+  }
+
+  // Obtener customers activos (con compras recientes)
+  Future<List<Customer>> getActiveCustomers({int daysAgo = 30}) async {
+    final db = await database;
+    final cutoffDate = DateTime.now().subtract(Duration(days: daysAgo)).toIso8601String();
+    
+    final List<Map<String, dynamic>> maps = await db.query(
+      'customers',
+      where: 'last_purchase > ?',
+      whereArgs: [cutoffDate],
+      orderBy: 'last_purchase DESC',
+    );
+    
+    return List.generate(maps.length, (i) {
+      return Customer.fromMap(maps[i]);
+    });
+  }
+
+  // Verificar si existe un customer con el mismo teléfono
+  Future<bool> customerExistsByPhone(String phone, {int? excludeId}) async {
+    final db = await database;
+    
+    String whereClause = 'phone = ?';
+    List<dynamic> whereArgs = [phone];
+    
+    if (excludeId != null) {
+      whereClause += ' AND id != ?';
+      whereArgs.add(excludeId);
+    }
+    
+    final List<Map<String, dynamic>> maps = await db.query(
+      'customers',
+      where: whereClause,
+      whereArgs: whereArgs,
+    );
+    
+    return maps.isNotEmpty;
+  }
+
+  // ============= MÉTODOS PARA DESCUENTOS =============
+
+  // Obtener todos los descuentos
+  Future<List<Discount>> getDiscounts() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'discounts',
+      orderBy: 'name ASC',
+    );
+    
+    return List.generate(maps.length, (i) {
+      return Discount.fromMap(maps[i]);
+    });
+  }
+
+  // Obtener descuento por ID
+  Future<Discount?> getDiscountById(int id) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'discounts',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    
+    if (maps.isNotEmpty) {
+      return Discount.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  // Buscar descuentos por nombre o descripción
+  Future<List<Discount>> searchDiscounts(String query) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'discounts',
+      where: 'name LIKE ? OR description LIKE ?',
+      whereArgs: ['%$query%', '%$query%'],
+      orderBy: 'name ASC',
+    );
+    
+    return List.generate(maps.length, (i) {
+      return Discount.fromMap(maps[i]);
+    });
+  }
+
+  // Insertar descuento
+  Future<int> insertDiscount(Discount discount) async {
+    final db = await database;
+    return await db.insert('discounts', discount.toMap());
+  }
+
+  // Actualizar descuento
+  Future<void> updateDiscount(Discount discount) async {
+    final db = await database;
+    await db.update(
+      'discounts',
+      discount.toMap(),
+      where: 'id = ?',
+      whereArgs: [discount.id],
+    );
+  }
+
+  // Eliminar descuento
+  Future<void> deleteDiscount(int id) async {
+    final db = await database;
+    await db.delete(
+      'discounts',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // Obtener descuentos activos
+  Future<List<Discount>> getActiveDiscounts() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'discounts',
+      where: 'is_active = 1',
+      orderBy: 'name ASC',
+    );
+    
+    return List.generate(maps.length, (i) {
+      return Discount.fromMap(maps[i]);
+    });
+  }
+
+  // Obtener descuentos aplicables para un monto específico
+  Future<List<Discount>> getApplicableDiscounts(double amount) async {
+    final db = await database;
+    final now = DateTime.now().toIso8601String();
+    
+    final List<Map<String, dynamic>> maps = await db.query(
+      'discounts',
+      where: '''
+        is_active = 1 
+        AND (minimum_amount IS NULL OR minimum_amount <= ?)
+        AND (start_date IS NULL OR start_date <= ?)
+        AND (end_date IS NULL OR end_date >= ?)
+      ''',
+      whereArgs: [amount, now, now],
+      orderBy: 'value DESC',
+    );
+    
+    return List.generate(maps.length, (i) {
+      return Discount.fromMap(maps[i]);
+    });
+  }
+
+  // Verificar si existe un descuento con el mismo nombre
+  Future<bool> discountExistsByName(String name, {int? excludeId}) async {
+    final db = await database;
+    
+    String whereClause = 'name = ?';
+    List<dynamic> whereArgs = [name];
+    
+    if (excludeId != null) {
+      whereClause += ' AND id != ?';
+      whereArgs.add(excludeId);
+    }
+    
+    final List<Map<String, dynamic>> maps = await db.query(
+      'discounts',
+      where: whereClause,
+      whereArgs: whereArgs,
+    );
+    
+    return maps.isNotEmpty;
+  }
+
+  // ============= MÉTODOS PARA SISTEMA DE USUARIOS =============
+
+  // Obtener todos los usuarios
+  Future<List<User>> getUsers() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'users',
+      orderBy: 'username ASC',
+    );
+    
+    return List.generate(maps.length, (i) {
+      return User.fromMap(maps[i]);
+    });
+  }
+
+  // Obtener usuario por ID
+  Future<User?> getUserById(int id) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'users',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    
+    if (maps.isNotEmpty) {
+      return User.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  // Obtener usuario por username
+  Future<User?> getUserByUsername(String username) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'users',
+      where: 'username = ?',
+      whereArgs: [username],
+    );
+    
+    if (maps.isNotEmpty) {
+      return User.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  // Obtener usuario por email
+  Future<User?> getUserByEmail(String email) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'users',
+      where: 'email = ?',
+      whereArgs: [email],
+    );
+    
+    if (maps.isNotEmpty) {
+      return User.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  // Buscar usuarios por nombre o username
+  Future<List<User>> searchUsers(String query) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'users',
+      where: 'username LIKE ? OR first_name LIKE ? OR last_name LIKE ?',
+      whereArgs: ['%$query%', '%$query%', '%$query%'],
+      orderBy: 'username ASC',
+    );
+    
+    return List.generate(maps.length, (i) {
+      return User.fromMap(maps[i]);
+    });
+  }
+
+  // Insertar nuevo usuario
+  Future<int> insertUser(User user) async {
+    final db = await database;
+    return await db.insert('users', user.toMap());
+  }
+
+  // Actualizar usuario
+  Future<void> updateUser(User user) async {
+    final db = await database;
+    await db.update(
+      'users',
+      user.toMap(),
+      where: 'id = ?',
+      whereArgs: [user.id],
+    );
+  }
+
+  // Actualizar último login
+  Future<void> updateUserLastLogin(int userId) async {
+    final db = await database;
+    await db.update(
+      'users',
+      {'last_login_at': DateTime.now().toIso8601String()},
+      where: 'id = ?',
+      whereArgs: [userId],
+    );
+  }
+
+  // Eliminar usuario
+  Future<void> deleteUser(int id) async {
+    final db = await database;
+    await db.delete(
+      'users',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // Obtener usuarios activos
+  Future<List<User>> getActiveUsers() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'users',
+      where: 'is_active = 1',
+      orderBy: 'username ASC',
+    );
+    
+    return List.generate(maps.length, (i) {
+      return User.fromMap(maps[i]);
+    });
+  }
+
+  // Verificar si existe un usuario con el mismo username
+  Future<bool> userExistsByUsername(String username, {int? excludeId}) async {
+    final db = await database;
+    
+    String whereClause = 'username = ?';
+    List<dynamic> whereArgs = [username];
+    
+    if (excludeId != null) {
+      whereClause += ' AND id != ?';
+      whereArgs.add(excludeId);
+    }
+    
+    final List<Map<String, dynamic>> maps = await db.query(
+      'users',
+      where: whereClause,
+      whereArgs: whereArgs,
+    );
+    
+    return maps.isNotEmpty;
+  }
+
+  // Verificar si existe un usuario con el mismo email
+  Future<bool> userExistsByEmail(String email, {int? excludeId}) async {
+    final db = await database;
+    
+    String whereClause = 'email = ?';
+    List<dynamic> whereArgs = [email];
+    
+    if (excludeId != null) {
+      whereClause += ' AND id != ?';
+      whereArgs.add(excludeId);
+    }
+    
+    final List<Map<String, dynamic>> maps = await db.query(
+      'users',
+      where: whereClause,
+      whereArgs: whereArgs,
+    );
+    
+    return maps.isNotEmpty;
+  }
+
+  // ============= MÉTODOS PARA SESIONES DE USUARIOS =============
+
+  // Insertar nueva sesión
+  Future<int> insertUserSession(UserSession session) async {
+    final db = await database;
+    return await db.insert('user_sessions', session.toMap());
+  }
+
+  // Obtener sesión por token
+  Future<UserSession?> getSessionByToken(String token) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'user_sessions',
+      where: 'session_token = ?',
+      whereArgs: [token],
+    );
+    
+    if (maps.isNotEmpty) {
+      return UserSession.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  // Obtener sesiones activas de un usuario
+  Future<List<UserSession>> getActiveUserSessions(int userId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'user_sessions',
+      where: 'user_id = ? AND is_active = 1',
+      whereArgs: [userId],
+      orderBy: 'created_at DESC',
+    );
+    
+    return List.generate(maps.length, (i) {
+      return UserSession.fromMap(maps[i]);
+    });
+  }
+
+  // Actualizar sesión
+  Future<void> updateUserSession(UserSession session) async {
+    final db = await database;
+    await db.update(
+      'user_sessions',
+      session.toMap(),
+      where: 'id = ?',
+      whereArgs: [session.id],
+    );
+  }
+
+  // Terminar sesión
+  Future<void> endUserSession(String token) async {
+    final db = await database;
+    await db.update(
+      'user_sessions',
+      {
+        'is_active': 0,
+        'ended_at': DateTime.now().toIso8601String(),
+      },
+      where: 'session_token = ?',
+      whereArgs: [token],
+    );
+  }
+
+  // Terminar todas las sesiones de un usuario
+  Future<void> endAllUserSessions(int userId) async {
+    final db = await database;
+    await db.update(
+      'user_sessions',
+      {
+        'is_active': 0,
+        'ended_at': DateTime.now().toIso8601String(),
+      },
+      where: 'user_id = ? AND is_active = 1',
+      whereArgs: [userId],
+    );
+  }
+
+  // Limpiar sesiones expiradas
+  Future<void> cleanupExpiredSessions() async {
+    final db = await database;
+    final now = DateTime.now().toIso8601String();
+    
+    await db.update(
+      'user_sessions',
+      {
+        'is_active': 0,
+        'ended_at': now,
+      },
+      where: 'expires_at < ? AND is_active = 1',
+      whereArgs: [now],
+    );
+  }
+
+  // Obtener todas las sesiones (para administración)
+  Future<List<UserSession>> getAllSessions() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'user_sessions',
+      orderBy: 'created_at DESC',
+    );
+    
+    return List.generate(maps.length, (i) {
+      return UserSession.fromMap(maps[i]);
+    });
+  }
+
+  // Validar token de sesión
+  Future<bool> isValidSession(String token) async {
+    final session = await getSessionByToken(token);
+    return session != null && session.isValid;
+  }
+
 }

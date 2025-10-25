@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:bellezapp/controllers/theme_controller.dart';
-import 'package:bellezapp/controllers/supplier_controller.dart';
+import 'package:bellezapp/database/database_helper.dart';
 import 'package:bellezapp/pages/add_supplier_page.dart';
 import 'package:bellezapp/pages/edit_supplier_page.dart';
 import 'package:bellezapp/pages/supplier_products_page.dart';
@@ -10,7 +10,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
-
 class SupplierListPage extends StatefulWidget {
   const SupplierListPage({super.key});
 
@@ -19,13 +18,48 @@ class SupplierListPage extends StatefulWidget {
 }
 
 class SupplierListPageState extends State<SupplierListPage> {
+  final RxList<Map<String, dynamic>> _suppliers = <Map<String, dynamic>>[].obs;
+  final RxList<Map<String, dynamic>> _filteredSuppliers = <Map<String, dynamic>>[].obs;
+  final TextEditingController _searchController = TextEditingController();
+  final dbHelper = DatabaseHelper();
   final themeController = Get.find<ThemeController>();
-  final supplierController = Get.find<SupplierController>();
 
   @override
   void initState() {
     super.initState();
-    // Ya no necesitamos cargar proveedores aquí, el controller lo maneja
+    _loadSuppliers();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _loadSuppliers() async {
+    final suppliers = await dbHelper.getSuppliers();
+    _suppliers.value = suppliers;
+    _filteredSuppliers.value = suppliers;
+  }
+
+  void _filterSuppliers(String searchText) {
+    if (searchText.isEmpty) {
+      _filteredSuppliers.value = List.from(_suppliers);
+    } else {
+      _filteredSuppliers.value = _suppliers.where((supplier) {
+        final name = (supplier['name'] ?? '').toString().toLowerCase();
+        final contactName = (supplier['contact_name'] ?? '').toString().toLowerCase();
+        final email = (supplier['contact_email'] ?? '').toString().toLowerCase();
+        final phone = (supplier['contact_phone'] ?? '').toString().toLowerCase();
+        final address = (supplier['address'] ?? '').toString().toLowerCase();
+        final searchLower = searchText.toLowerCase();
+        return name.contains(searchLower) ||
+               contactName.contains(searchLower) ||
+               email.contains(searchLower) ||
+               phone.contains(searchLower) ||
+               address.contains(searchLower);
+      }).toList();
+    }
   }
 
   void _deleteSupplier(int id) async {
@@ -35,166 +69,347 @@ class SupplierListPageState extends State<SupplierListPage> {
       '¿Estás seguro de que deseas eliminar este proveedor?',
     );
     if (confirmed) {
-      try {
-        await supplierController.deleteSupplier(id);
-      } catch (e) {
-        Get.snackbar('Error', 'No se pudo eliminar el proveedor: $e');
-      }
+      await dbHelper.deleteSupplier(id);
+      _loadSuppliers();
     }
   }
 
-  void _callPhone(String phone) async {
-    final Uri phoneUri = Uri(scheme: 'tel', path: phone);
-    if (await canLaunchUrl(phoneUri)) {
-      await launchUrl(phoneUri);
-    } else {
-      Get.snackbar('Error', 'No se pudo abrir la aplicación de teléfono');
-    }
+  Widget _buildCompactActionButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+    required String tooltip,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.3),
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Icon(
+            icon,
+            color: Colors.white,
+            size: 18,
+          ),
+        ),
+      ),
+    );
   }
 
-  void _sendWhatsApp(String phone) async {
-    final Uri whatsappUri = Uri.parse('https://wa.me/$phone');
-    if (await canLaunchUrl(whatsappUri)) {
-      await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
-    } else {
-      Get.snackbar('Error', 'No se pudo abrir WhatsApp');
+  Future<void> _launchWhatsApp(String? phone) async {
+    if (phone == null || phone.isEmpty) {
+      Get.snackbar(
+        'Error',
+        'No hay número de teléfono disponible',
+        backgroundColor: Colors.red.withOpacity(0.8),
+        colorText: Colors.white,
+      );
+      return;
+    }
+    
+    final cleanPhone = phone.replaceAll(RegExp(r'\D'), '');
+    final url = 'https://wa.me/591$cleanPhone';
+    
+    try {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'No se pudo abrir WhatsApp',
+        backgroundColor: Colors.red.withOpacity(0.8),
+        colorText: Colors.white,
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Obx(() => Scaffold(
       backgroundColor: Utils.colorFondo,
-      body: Obx(() {
-        if (supplierController.isLoading) {
-          return Center(child: Utils.loadingCustom());
-        }
-        
-        return ListView.builder(
-          itemCount: supplierController.suppliers.length,
-          itemBuilder: (context, index) {
-            final supplier = supplierController.suppliers[index];
-            final fotoBase64 = supplier['foto'] ?? '';
-
-            Uint8List? imageBytes;
-            if (fotoBase64.isNotEmpty) {
-              try {
-                imageBytes = base64Decode(fotoBase64);
-              } catch (e) {
-                imageBytes = null;
-              }
-            }
-
-            return Container(
-              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-              decoration: BoxDecoration(
-                color: Utils.colorFondoCards,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade300),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.2),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: ListTile(
-                leading: CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.grey.shade200,
-                  backgroundImage: imageBytes != null ? MemoryImage(imageBytes) : null,
-                  child: imageBytes == null
-                      ? Icon(Icons.business, color: Colors.grey.shade600)
-                      : null,
+      body: Column(
+        children: [
+          // Header moderno con búsqueda
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
                 ),
-                title: Utils.textTitle(supplier['name']),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Utils.textDescription(supplier['description'] ?? ''),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.phone, size: 16, color: Colors.grey[600]),
-                        const SizedBox(width: 4),
-                        Text(
-                          supplier['phone'] ?? 'Sin teléfono',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                        ),
-                      ],
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Campo de búsqueda prominente
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: _filterSuppliers,
+                    decoration: InputDecoration(
+                      hintText: 'Buscar proveedores...',
+                      hintStyle: TextStyle(color: Colors.grey[500]),
+                      prefixIcon: Icon(Icons.search, color: Utils.colorBotones),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(Icons.clear, color: Colors.grey),
+                              onPressed: () {
+                                _searchController.clear();
+                                _filterSuppliers('');
+                              },
+                            )
+                          : null,
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),
-                    Row(
-                      children: [
-                        Icon(Icons.email, size: 16, color: Colors.grey[600]),
-                        const SizedBox(width: 4),
-                        Text(
-                          supplier['email'] ?? 'Sin email',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ),
+                SizedBox(height: 12),
+                // Header con contador
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Proveedores',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Utils.colorBotones.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${_filteredSuppliers.length} proveedores',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Utils.colorBotones,
                         ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (supplier['phone'] != null && supplier['phone'].isNotEmpty) ...[
-                      IconButton(
-                        onPressed: () => _callPhone(supplier['phone']),
-                        icon: const Icon(Icons.phone),
-                        color: Colors.green,
-                        tooltip: 'Llamar',
-                      ),
-                      IconButton(
-                        onPressed: () => _sendWhatsApp(supplier['phone']),
-                        icon: const Icon(Icons.message),
-                        color: Colors.blue,
-                        tooltip: 'WhatsApp',
+                SizedBox(height: 6),
+              ],
+            ),
+          ),
+          // Lista de proveedores
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _filteredSuppliers.length,
+              itemBuilder: (context, index) {
+                final supplier = _filteredSuppliers[index];
+                final fotoBase64 = supplier['foto'] ?? '';
+                Uint8List? imageBytes;
+                if (fotoBase64.isNotEmpty) {
+                  try {
+                    imageBytes = base64Decode(fotoBase64);
+                  } catch (e) {
+                    imageBytes = null;
+                  }
+                }
+                
+                return Container(
+                  margin: EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Utils.colorFondoCards,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade200),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.08),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
                       ),
                     ],
-                    IconButton(
-                      onPressed: () async {
-                        final result = await Get.to(EditSupplierPage(supplier: supplier));
-                        if (result == true) {
-                          supplierController.refreshSuppliers();
-                        }
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () {
+                        Get.to(SupplierProductsPage(
+                          supplierId: supplier['id'],
+                          supplierName: supplier['name'],
+                        ));
                       },
-                      icon: const Icon(Icons.edit),
-                      color: Utils.edit,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          children: [
+                            // Imagen del proveedor
+                            Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: imageBytes != null
+                                    ? Image.memory(
+                                        imageBytes,
+                                        width: 80,
+                                        height: 80,
+                                        fit: BoxFit.cover,
+                                      )
+                                    : Image.asset(
+                                        'assets/img/perfume.webp',
+                                        width: 80,
+                                        height: 80,
+                                        fit: BoxFit.cover,
+                                      ),
+                              ),
+                            ),
+                            SizedBox(width: 16),
+                            // Contenido del proveedor
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Nombre del proveedor
+                                  Text(
+                                    supplier['name'] ?? 'Sin nombre',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Utils.colorGnav,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  SizedBox(height: 4),
+                                  // Información de contacto
+                                  if (supplier['contact_name'] != null && supplier['contact_name'].isNotEmpty)
+                                    _buildInfoRow(Icons.person, supplier['contact_name']),
+                                  if (supplier['contact_email'] != null && supplier['contact_email'].isNotEmpty)
+                                    _buildInfoRow(Icons.email, supplier['contact_email']),
+                                  if (supplier['contact_phone'] != null && supplier['contact_phone'].isNotEmpty)
+                                    _buildInfoRow(Icons.phone, supplier['contact_phone']),
+                                  if (supplier['address'] != null && supplier['address'].isNotEmpty)
+                                    _buildInfoRow(Icons.location_on, supplier['address']),
+                                  SizedBox(height: 8),
+                                  // Indicador de navegación
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.arrow_forward_ios,
+                                        size: 12,
+                                        color: Utils.colorBotones,
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Ver productos',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Utils.colorBotones,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Botones de acción
+                            Column(
+                              children: [
+                                _buildCompactActionButton(
+                                  icon: Icons.edit,
+                                  color: Utils.edit,
+                                  onTap: () => Get.to(EditSupplierPage(supplier: supplier)),
+                                  tooltip: 'Editar proveedor',
+                                ),
+                                SizedBox(height: 8),
+                                _buildCompactActionButton(
+                                  icon: Icons.phone,
+                                  color: Colors.green,
+                                  onTap: () => _launchWhatsApp(supplier['contact_phone']),
+                                  tooltip: 'Contactar por WhatsApp',
+                                ),
+                                SizedBox(height: 8),
+                                _buildCompactActionButton(
+                                  icon: Icons.delete,
+                                  color: Utils.delete,
+                                  onTap: () => _deleteSupplier(supplier['id']),
+                                  tooltip: 'Eliminar proveedor',
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                    IconButton(
-                      onPressed: () {
-                        _deleteSupplier(supplier['id']);
-                      },
-                      icon: const Icon(Icons.delete),
-                      color: Utils.delete,
-                    ),
-                  ],
-                ),
-                onTap: () {
-                  Get.to(SupplierProductsPage(
-                    supplierName: supplier['name'],
-                    supplierId: supplier['id'],
-                  ));
-                },
-              ),
-            );
-          },
-        );
-      }),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: Utils.colorBotones,
         onPressed: () async {
           final result = await Get.to(AddSupplierPage());
-          if (result == true) {
-            supplierController.refreshSuppliers();
+          if (result != null) {
+            _loadSuppliers();
           }
         },
-        child: const Icon(
-          Icons.add,
-          color: Colors.white,
-        ),
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+    ));
+  }
+
+  Widget _buildInfoRow(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 14,
+            color: Colors.grey[600],
+          ),
+          SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }

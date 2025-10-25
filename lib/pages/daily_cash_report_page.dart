@@ -7,6 +7,8 @@ import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class DailyCashReportPage extends StatefulWidget {
+  const DailyCashReportPage({super.key});
+
   @override
   _DailyCashReportPageState createState() => _DailyCashReportPageState();
 }
@@ -24,7 +26,7 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
   int _movementsCount = 0;
   
   // Datos por hora para el gráfico de líneas
-  Map<int, double> _hourlyData = {};
+  final Map<int, double> _hourlyData = {};
 
   @override
   void initState() {
@@ -284,7 +286,7 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
 
     return _buildChartContainer(
       'Distribución de Ingresos',
-      Container(
+      SizedBox(
         height: 200,
         child: PieChart(
           PieChartData(
@@ -334,7 +336,7 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
 
     return _buildChartContainer(
       'Flujo de Efectivo por Hora',
-      Container(
+      SizedBox(
         height: 200,
         child: LineChart(
           LineChartData(
@@ -393,7 +395,7 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
 
     return _buildChartContainer(
       'Cantidad de Movimientos por Tipo',
-      Container(
+      SizedBox(
         height: 200,
         child: BarChart(
           BarChartData(

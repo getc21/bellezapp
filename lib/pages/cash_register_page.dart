@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 class CashRegisterPage extends StatefulWidget {
+  const CashRegisterPage({super.key});
+
   @override
   CashRegisterPageState createState() => CashRegisterPageState();
 }

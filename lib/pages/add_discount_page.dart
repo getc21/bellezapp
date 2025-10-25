@@ -7,7 +7,7 @@ import '../models/discount.dart';
 class AddDiscountPage extends StatefulWidget {
   final Discount? discount;
 
-  const AddDiscountPage({Key? key, this.discount}) : super(key: key);
+  const AddDiscountPage({super.key, this.discount});
 
   @override
   State<AddDiscountPage> createState() => _AddDiscountPageState();

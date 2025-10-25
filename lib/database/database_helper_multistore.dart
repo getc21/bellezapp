@@ -346,8 +346,8 @@ class DatabaseHelper {
     await db.insert('suppliers', {
       'name': 'Beauty Supplier ${storeId}A',
       'contact_name': 'Contacto A',
-      'contact_email': 'contactoa@supplier${storeId}.com',
-      'contact_phone': '123-456-789${storeId}',
+      'contact_email': 'contactoa@supplier$storeId.com',
+      'contact_phone': '123-456-789$storeId',
       'address': 'Dirección Supplier A Store $storeId',
       'foto': 'supplier${storeId}a.png',
       'store_id': storeId
@@ -355,7 +355,7 @@ class DatabaseHelper {
     await db.insert('suppliers', {
       'name': 'Cosmetics Inc ${storeId}B',
       'contact_name': 'Contacto B',
-      'contact_email': 'contactob@supplier${storeId}.com',
+      'contact_email': 'contactob@supplier$storeId.com',
       'contact_phone': '123-456-789${storeId + 10}',
       'address': 'Dirección Supplier B Store $storeId',
       'foto': 'supplier${storeId}b.png',
@@ -393,15 +393,15 @@ class DatabaseHelper {
       final salePrice = (i * 2.5) + 10.0;
       
       await db.insert('products', {
-        'name': 'Producto ${storeId}-${i}',
-        'description': 'Descripción del producto ${storeId}-${i}',
+        'name': 'Producto $storeId-$i',
+        'description': 'Descripción del producto $storeId-$i',
         'purchase_price': purchasePrice,
         'sale_price': salePrice,
         'weight': '${i}g',
         'category_id': categories[i % categories.length]['id'],
         'supplier_id': suppliers[i % suppliers.length]['id'],
         'location_id': locations[i % locations.length]['id'],
-        'foto': 'producto${storeId}_${i}.png',
+        'foto': 'producto${storeId}_$i.png',
         'stock': stockAleatorio,
         'expirity_date': expirityDate,
         'store_id': storeId
@@ -411,10 +411,10 @@ class DatabaseHelper {
     // Insert sample customers for this store
     for (int i = 1; i <= 5; i++) {
       await db.insert('customers', {
-        'name': 'Cliente ${storeId}-${i}',
-        'email': 'cliente${storeId}${i}@email.com',
-        'phone': '555-000${storeId}${i}',
-        'address': 'Dirección ${storeId}-${i}',
+        'name': 'Cliente $storeId-$i',
+        'email': 'cliente$storeId$i@email.com',
+        'phone': '555-000$storeId$i',
+        'address': 'Dirección $storeId-$i',
         'birth_date': '1990-0${(i % 9) + 1}-15',
         'total_purchases': 0.0,
         'store_id': storeId

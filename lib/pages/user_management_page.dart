@@ -1,3 +1,4 @@
+import 'package:bellezapp/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/auth_controller.dart';
@@ -85,7 +86,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Gestión de Usuarios'),
-        backgroundColor: colorScheme.primary,
+        backgroundColor: Utils.colorGnav,
         foregroundColor: colorScheme.onPrimary,
       ),
       body: Column(
@@ -400,7 +401,7 @@ class _AddUserDialogState extends State<AddUserDialog> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<UserRole>(
-                value: _selectedRole,
+                initialValue: _selectedRole,
                 decoration: const InputDecoration(
                   labelText: 'Rol',
                   prefixIcon: Icon(Icons.security),

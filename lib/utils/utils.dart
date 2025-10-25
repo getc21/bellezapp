@@ -329,7 +329,6 @@ class Utils {
       builder: (BuildContext context, Widget? child) {
         return Theme(
           data: isDarkMode ? ThemeData.dark().copyWith(
-            dialogBackgroundColor: Utils.colorFondo,
             primaryColor: Utils.colorBotones,
             colorScheme: ColorScheme.dark(
                 primary: Utils.colorBotones, secondary: Utils.colorGnav),
@@ -339,9 +338,8 @@ class Utils {
             ),
             buttonTheme: ButtonThemeData(
               textTheme: ButtonTextTheme.primary,
-            ),
+            ), dialogTheme: DialogThemeData(backgroundColor: Utils.colorFondo),
           ) : ThemeData.light().copyWith(
-            dialogBackgroundColor: Utils.colorFondo,
             primaryColor: Utils.colorBotones,
             colorScheme: ColorScheme.light(
                 primary: Utils.colorBotones, secondary: Utils.colorGnav),
@@ -351,7 +349,7 @@ class Utils {
             ),
             buttonTheme: ButtonThemeData(
               textTheme: ButtonTextTheme.primary,
-            ),
+            ), dialogTheme: DialogThemeData(backgroundColor: Utils.colorFondo),
           ),
           child: child!,
         );
