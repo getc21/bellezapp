@@ -1,49 +1,19 @@
 import 'package:bellezapp/controllers/indexpage_controller.dart';
 import 'package:bellezapp/controllers/loading_controller.dart';
 import 'package:bellezapp/controllers/theme_controller.dart';
-import 'package:bellezapp/controllers/cash_controller.dart';
-import 'package:bellezapp/controllers/auth_controller.dart';
-import 'package:bellezapp/controllers/store_controller.dart';
-import 'package:bellezapp/controllers/current_store_controller.dart';
-import 'package:bellezapp/controllers/product_controller.dart';
-import 'package:bellezapp/controllers/category_controller.dart';
-import 'package:bellezapp/controllers/supplier_controller.dart';
-import 'package:bellezapp/controllers/location_controller.dart';
-import 'package:bellezapp/controllers/customer_controller.dart';
 import 'package:bellezapp/pages/home_page.dart';
-import 'package:bellezapp/pages/login_page.dart';
-import 'package:bellezapp/debug/database_debug.dart';
 import 'package:bellezapp/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter/foundation.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // RESET COMPLETO: Eliminar y recrear base de datos (solo si no es web)
-  if (!kIsWeb) {
-    print('Reseteando base de datos...');
-    await DatabaseDebug.resetDatabase();
-    print('Base de datos recreada. Iniciando aplicación...');
-  } else {
-    print('Ejecutando en web - inicializando aplicación...');
-  }
-  
-  // Inicializar controladores
+  // Inicializar controladores básicos
   Get.put(ThemeController());
   Get.put(IndexPageController());
   Get.put(LoadingController());
-  Get.put(CashController()); // Cambiar de lazyPut a put directo
-  Get.put(AuthController()); // Agregar controlador de autenticación
-  Get.put(StoreController()); // Controlador de tiendas
-  Get.put(CurrentStoreController()); // Controlador de tienda actual
-  Get.put(ProductController()); // Controlador de productos
-  Get.put(CategoryController()); // Controlador de categorías
-  Get.put(SupplierController()); // Controlador de proveedores
-  Get.put(LocationController()); // Controlador de ubicaciones
-  Get.put(CustomerController()); // Controlador de clientes
   
   runApp(BeautyStoreApp());
 }
@@ -94,23 +64,12 @@ class BeautyStoreAppState extends State<BeautyStoreApp> {
 
   Widget _buildInitialScreen() {
     final themeController = Get.find<ThemeController>();
-    final authController = Get.find<AuthController>();
     
     if (!themeController.isInitialized) {
       return _buildLoadingScreen();
     }
     
-    return Obx(() {
-      if (authController.isLoading) {
-        return _buildLoadingScreen();
-      }
-      
-      if (authController.isLoggedIn) {
-        return HomePage();
-      } else {
-        return LoginPage();
-      }
-    });
+    return HomePage();
   }
 
   Widget _buildLoadingScreen() {
