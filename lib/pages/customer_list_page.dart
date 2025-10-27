@@ -118,24 +118,30 @@ class CustomerListPage extends StatelessWidget {
       child: Column(
         children: [
           // Barra de búsqueda
-          TextField(
-            decoration: InputDecoration(
-              hintText: 'Buscar por nombre, teléfono o email...',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: Obx(() => controller.searchQuery.value.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () => controller.clearSearch(),
-                    )
-                  : const SizedBox.shrink()),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
+          Container(
+            height: 40,
+            child: TextField(
+              style: TextStyle(fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'Buscar por nombre, teléfono o email...',
+                hintStyle: TextStyle(fontSize: 12),
+                prefixIcon: Icon(Icons.search, size: 20),
+                suffixIcon: Obx(() => controller.searchQuery.value.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear, size: 18),
+                        onPressed: () => controller.clearSearch(),
+                      )
+                    : const SizedBox.shrink()),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: Theme.of(Get.context!).colorScheme.surface,
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
-              filled: true,
-              fillColor: Theme.of(Get.context!).colorScheme.surface,
+              onChanged: (value) => controller.searchCustomers(value),
             ),
-            onChanged: (value) => controller.searchCustomers(value),
           ),
           
           const SizedBox(height: 16),

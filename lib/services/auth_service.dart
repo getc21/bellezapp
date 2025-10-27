@@ -1,9 +1,13 @@
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
+import 'package:get/get.dart';
 import '../database/database_helper.dart';
 import '../models/user.dart';
 import '../models/user_session.dart';
+import '../models/store.dart';
+import '../controllers/store_controller.dart';
+import '../pages/login_page.dart';
 
 class AuthService {
   static final AuthService _instance = AuthService._();
@@ -13,11 +17,22 @@ class AuthService {
   final DatabaseHelper _dbHelper = DatabaseHelper();
   User? _currentUser;
   UserSession? _currentSession;
+  
+  // Multi-tienda
+  List<Store> _assignedStores = [];
+  Store? _currentStore;
 
   // Getters
   User? get currentUser => _currentUser;
   UserSession? get currentSession => _currentSession;
   bool get isLoggedIn => _currentUser != null && _currentSession != null && _currentSession!.isValid;
+  
+  // Getters multi-tienda
+  List<Store> get assignedStores => _assignedStores;
+  Store? get currentStore => _currentStore;
+  bool get isAdmin => _currentUser?.role == UserRole.admin;
+  bool get isManager => _currentUser?.role == UserRole.manager;
+  bool get isEmployee => _currentUser?.role == UserRole.employee;
 
   // Hash de contraseña usando SHA256 (en producción usar bcrypt)
   String _hashPassword(String password) {
@@ -77,11 +92,68 @@ class AuthService {
       // Actualizar estado actual
       _currentUser = user;
       _currentSession = session;
+      
+      // Cargar tiendas del usuario
+      await _loadUserStores();
+      
+      // Inicializar StoreController con las tiendas cargadas
+      try {
+        final storeController = Get.find<StoreController>();
+        await storeController.initializeAfterLogin();
+      } catch (e) {
+        print('StoreController no disponible: $e');
+      }
 
       return AuthResult.success(user);
     } catch (e) {
       return AuthResult.failure('Error en el login: $e');
     }
+  }
+  
+  // Cargar tiendas asignadas al usuario
+  Future<void> _loadUserStores() async {
+    if (_currentUser == null) return;
+
+    try {
+      if (_currentUser!.isAdmin) {
+        // Admin: cargar todas las tiendas activas
+        final stores = await _dbHelper.getActiveStores();
+        _assignedStores = stores.map((s) => Store.fromMap(s)).toList();
+      } else {
+        // Otros roles: cargar solo tiendas asignadas
+        final stores = await _dbHelper.getUserAssignedStores(_currentUser!.id!);
+        _assignedStores = stores.map((s) => Store.fromMap(s)).toList();
+      }
+
+      // Establecer tienda por defecto (la primera)
+      if (_assignedStores.isNotEmpty) {
+        _currentStore = _assignedStores.first;
+      }
+    } catch (e) {
+      print('Error cargando tiendas del usuario: $e');
+      _assignedStores = [];
+      _currentStore = null;
+    }
+  }
+  
+  // Cambiar tienda actual
+  Future<void> switchStore(Store store) async {
+    if (canAccessStore(store.id!)) {
+      _currentStore = store;
+    } else {
+      throw Exception('No tienes acceso a esta tienda');
+    }
+  }
+
+  // Verificar si el usuario puede acceder a una tienda
+  bool canAccessStore(int storeId) {
+    if (_currentUser?.isAdmin ?? false) return true;
+    return _assignedStores.any((s) => s.id == storeId);
+  }
+  
+  // Obtener nombre de la tienda actual
+  String get currentStoreName {
+    return _currentStore?.name ?? 'Sin tienda';
   }
 
   // Registro de nuevo usuario (solo admin puede crear usuarios)
@@ -147,6 +219,20 @@ class AuthService {
     } finally {
       _currentUser = null;
       _currentSession = null;
+      _assignedStores = [];
+      _currentStore = null;
+      
+      // Limpiar el StoreController si existe
+      try {
+        final storeController = Get.find<StoreController>();
+        storeController.currentStore.value = null;
+        storeController.availableStores.clear();
+      } catch (e) {
+        // StoreController no existe
+      }
+      
+      // Navegar a login
+      Get.offAll(() => LoginPage());
     }
   }
 
@@ -165,6 +251,10 @@ class AuthService {
 
       _currentUser = user;
       _currentSession = session;
+      
+      // Cargar tiendas del usuario
+      await _loadUserStores();
+      
       return true;
     } catch (e) {
       print('Error validando sesión: $e');

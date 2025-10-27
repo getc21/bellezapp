@@ -50,9 +50,16 @@ class AddCategoryPageState extends State<AddCategoryPage> {
     return Scaffold(
       backgroundColor: Utils.colorFondo,
       appBar: AppBar(
-        title: Text('Agregar Categoría'),
+        title: Row(
+          children: [
+            Icon(Icons.category, size: 24),
+            SizedBox(width: 8),
+            Text('Nueva Categoría'),
+          ],
+        ),
         backgroundColor: Utils.colorGnav,
         foregroundColor: Colors.white,
+        elevation: 2,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -60,11 +67,29 @@ class AddCategoryPageState extends State<AddCategoryPage> {
           key: formKey,
           child: ListView(
             children: [
+              // Sección: Información Básica
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Utils.colorBotones, size: 24),
+                    SizedBox(width: 8),
+                    Text(
+                      'Información Básica',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Utils.colorBotones,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               TextFormField(
                 controller: _nameController,
                 cursorColor: Utils.colorBotones,
                 decoration: InputDecoration(
-                  prefixIconColor: Utils.colorBotones,
+                  prefixIcon: Icon(Icons.label, color: Utils.colorBotones),
                   floatingLabelStyle: TextStyle(
                       color: Utils.colorBotones, fontWeight: FontWeight.bold),
                   focusedBorder: OutlineInputBorder(
@@ -73,7 +98,8 @@ class AddCategoryPageState extends State<AddCategoryPage> {
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(),
-                  labelText: 'Nombre',
+                  labelText: 'Nombre de la Categoría',
+                  hintText: 'Ej: Shampoos, Tintes, Cremas...',
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -82,12 +108,13 @@ class AddCategoryPageState extends State<AddCategoryPage> {
                   return null;
                 },
               ),
-              SizedBox(height: 10),
+              Utils.espacio10,
               TextFormField(
                 controller: _descriptionController,
                 cursorColor: Utils.colorBotones,
+                maxLines: 3,
                 decoration: InputDecoration(
-                  prefixIconColor: Utils.colorBotones,
+                  prefixIcon: Icon(Icons.description, color: Utils.colorBotones),
                   floatingLabelStyle: TextStyle(
                       color: Utils.colorBotones, fontWeight: FontWeight.bold),
                   focusedBorder: OutlineInputBorder(
@@ -97,6 +124,7 @@ class AddCategoryPageState extends State<AddCategoryPage> {
                   fillColor: Colors.white,
                   border: OutlineInputBorder(),
                   labelText: 'Descripción',
+                  hintText: 'Describe la categoría brevemente...',
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -105,56 +133,131 @@ class AddCategoryPageState extends State<AddCategoryPage> {
                   return null;
                 },
               ),
-              SizedBox(height: 10),
-              Container(
-                padding: EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Colors.grey),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              Utils.espacio10,
+              
+              // Sección: Imagen
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Row(
                   children: [
+                    Icon(Icons.photo_camera, color: Utils.colorBotones, size: 24),
+                    SizedBox(width: 8),
                     Text(
-                      'Cargar imagen',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      'Imagen de la Categoría',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Utils.colorBotones,
+                      ),
                     ),
-                    SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Utils.elevatedButtonWithIcon('Cámara', Utils.colorBotones, (){
-                          _pickImage(ImageSource.camera);
-                        }, Icons.camera),
-                        Utils.elevatedButtonWithIcon('Galería', Utils.colorBotones, (){
-                          _pickImage(ImageSource.gallery);
-                        }, Icons.camera),
-                      ],
-                    ),
-                    if (_image != null) ...[
-                      SizedBox(height: 10),
-                      Image.file(_image!, height: 200),
-                    ],
                   ],
                 ),
               ),
-              SizedBox(height: 20),
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Utils.colorBotones.withOpacity(0.3), width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    if (_image == null) ...[
+                      Icon(Icons.add_photo_alternate, size: 64, color: Colors.grey[400]),
+                      SizedBox(height: 8),
+                      Text(
+                        'Selecciona una imagen para la categoría',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                        textAlign: TextAlign.center,
+                      ),
+                    ] else ...[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(_image!, height: 200, fit: BoxFit.cover),
+                      ),
+                    ],
+                    SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Expanded(
+                          child: Utils.elevatedButtonWithIcon(
+                            'Cámara', 
+                            Utils.colorBotones, 
+                            () {
+                              _pickImage(ImageSource.camera);
+                            }, 
+                            Icons.camera_alt
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Utils.elevatedButtonWithIcon(
+                            'Galería', 
+                            Utils.colorBotones, 
+                            () {
+                              _pickImage(ImageSource.gallery);
+                            }, 
+                            Icons.photo_library
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 24),
 
-              Utils.elevatedButton('Guardar',Utils.colorBotones, () async {
-                if (formKey.currentState?.validate() ?? false) {
-                    final newCategory = {
-                      'name': _nameController.text,
-                      'description': _descriptionController.text,
-                      'foto': _fotoController.text,
-                    };
+              // Botón de guardar destacado
+              Container(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    if (formKey.currentState?.validate() ?? false) {
+                      final newCategory = {
+                        'name': _nameController.text,
+                        'description': _descriptionController.text,
+                        'foto': _fotoController.text,
+                      };
 
-                    // Guardar en la base de datos local
-                    await DatabaseHelper().insertCategory(newCategory);
+                      await DatabaseHelper().insertCategory(newCategory);
 
-                    Get.to(HomePage()); // Cerrar la página
-                  }
-              }),
+                      Get.snackbar(
+                        '✓ Éxito',
+                        'Categoría guardada correctamente',
+                        snackPosition: SnackPosition.TOP,
+                        backgroundColor: Colors.green,
+                        colorText: Colors.white,
+                        duration: Duration(seconds: 2),
+                      );
+
+                      Get.to(HomePage());
+                    }
+                  },
+                  icon: Icon(Icons.save, size: 24),
+                  label: Text(
+                    'Guardar Categoría',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Utils.colorBotones,
+                    foregroundColor: Colors.white,
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: 16),
             ],
           ),
         ),

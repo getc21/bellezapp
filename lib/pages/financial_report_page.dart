@@ -1,4 +1,5 @@
 import 'package:bellezapp/pages/financial_chart_group_data.dart';
+import 'package:bellezapp/mixins/store_aware_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:bellezapp/database/database_helper.dart';
 import 'package:bellezapp/utils/utils.dart';
@@ -15,7 +16,7 @@ class FinancialReportPage extends StatefulWidget {
   FinancialReportPageState createState() => FinancialReportPageState();
 }
 
-class FinancialReportPageState extends State<FinancialReportPage> {
+class FinancialReportPageState extends State<FinancialReportPage> with StoreAwareMixin {
   final dbHelper = DatabaseHelper();
   List<Map<String, dynamic>> _financialData = [];
   DateTime? _startDate;
@@ -26,6 +27,16 @@ class FinancialReportPageState extends State<FinancialReportPage> {
   void initState() {
     super.initState();
     _loadFinancialData();
+  }
+
+  @override
+  void reloadData() {
+    print('🔄 Recargando reporte financiero por cambio de tienda');
+    if (_startDate != null && _endDate != null) {
+      _loadFinancialDataBetweenDates(_startDate!, _endDate!);
+    } else {
+      _loadFinancialData();
+    }
   }
 
   Future<void> _loadFinancialData() async {

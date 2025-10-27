@@ -308,6 +308,99 @@ class AuthController extends GetxController {
     return await _authService.searchUsers(query);
   }
 
+  // Actualizar usuario (solo admin/manager)
+  Future<bool> updateUser(User user) async {
+    if (!isAdmin && !isManager) {
+      Get.snackbar(
+        'Error',
+        'No tienes permisos para actualizar usuarios',
+        snackPosition: SnackPosition.TOP,
+      );
+      return false;
+    }
+
+    _isLoading.value = true;
+    try {
+      final result = await _authService.updateUser(user);
+      
+      if (result.success) {
+        if (user.id == currentUser?.id) {
+          _updateUserState();
+        }
+        Get.snackbar(
+          'Éxito',
+          'Usuario actualizado correctamente',
+          snackPosition: SnackPosition.TOP,
+          duration: const Duration(seconds: 2),
+        );
+        return true;
+      } else {
+        Get.snackbar(
+          'Error',
+          result.message ?? 'Error actualizando usuario',
+          snackPosition: SnackPosition.TOP,
+          duration: const Duration(seconds: 3),
+        );
+        return false;
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Error inesperado: $e',
+        snackPosition: SnackPosition.TOP,
+        duration: const Duration(seconds: 3),
+      );
+      return false;
+    } finally {
+      _isLoading.value = false;
+    }
+  }
+
+  // Eliminar usuario (solo admin)
+  Future<bool> deleteUser(int userId) async {
+    if (!isAdmin) {
+      Get.snackbar(
+        'Error',
+        'No tienes permisos para eliminar usuarios',
+        snackPosition: SnackPosition.TOP,
+      );
+      return false;
+    }
+
+    _isLoading.value = true;
+    try {
+      final result = await _authService.deleteUser(userId);
+      
+      if (result.success) {
+        Get.snackbar(
+          'Éxito',
+          'Usuario eliminado correctamente',
+          snackPosition: SnackPosition.TOP,
+          duration: const Duration(seconds: 2),
+        );
+        return true;
+      } else {
+        Get.snackbar(
+          'Error',
+          result.message ?? 'Error eliminando usuario',
+          snackPosition: SnackPosition.TOP,
+          duration: const Duration(seconds: 3),
+        );
+        return false;
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Error inesperado: $e',
+        snackPosition: SnackPosition.TOP,
+        duration: const Duration(seconds: 3),
+      );
+      return false;
+    } finally {
+      _isLoading.value = false;
+    }
+  }
+
   // Limpiar mensaje de error
   void clearError() {
     _errorMessage.value = '';

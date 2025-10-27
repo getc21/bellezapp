@@ -184,10 +184,8 @@ class PaymentMethodDialog extends StatelessWidget {
     switch (method) {
       case PaymentMethod.cash:
         return _buildCashFields();
-      case PaymentMethod.card:
-        return _buildCardFields();
-      case PaymentMethod.transfer:
-        return _buildTransferFields();
+      case PaymentMethod.qr:
+        return _buildQrFields();
     }
   }
 
@@ -250,30 +248,12 @@ class PaymentMethodDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildCardFields() {
+  Widget _buildQrFields() {
     return TextField(
       decoration: InputDecoration(
-        labelText: 'Referencia de Tarjeta',
-        hintText: 'Últimos 4 dígitos o número de transacción',
-        prefixIcon: const Icon(Icons.credit_card),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Utils.colorBotones, width: 2),
-        ),
-      ),
-      onChanged: (value) => paymentController.updateCardReference(value),
-    );
-  }
-
-  Widget _buildTransferFields() {
-    return TextField(
-      decoration: InputDecoration(
-        labelText: 'Referencia de Transferencia',
-        hintText: 'Número de operación o referencia',
-        prefixIcon: const Icon(Icons.account_balance),
+        labelText: 'Referencia de Pago QR',
+        hintText: 'Número de operación o código de confirmación',
+        prefixIcon: const Icon(Icons.qr_code),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
         ),

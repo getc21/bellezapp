@@ -6,6 +6,7 @@ import 'package:bellezapp/pages/add_supplier_page.dart';
 import 'package:bellezapp/pages/edit_supplier_page.dart';
 import 'package:bellezapp/pages/supplier_products_page.dart';
 import 'package:bellezapp/utils/utils.dart';
+import 'package:bellezapp/mixins/store_aware_mixin.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -17,7 +18,7 @@ class SupplierListPage extends StatefulWidget {
   State<SupplierListPage> createState() => SupplierListPageState();
 }
 
-class SupplierListPageState extends State<SupplierListPage> {
+class SupplierListPageState extends State<SupplierListPage> with StoreAwareMixin {
   final RxList<Map<String, dynamic>> _suppliers = <Map<String, dynamic>>[].obs;
   final RxList<Map<String, dynamic>> _filteredSuppliers = <Map<String, dynamic>>[].obs;
   final TextEditingController _searchController = TextEditingController();
@@ -27,6 +28,12 @@ class SupplierListPageState extends State<SupplierListPage> {
   @override
   void initState() {
     super.initState();
+    _loadSuppliers();
+  }
+
+  @override
+  void reloadData() {
+    print('🔄 Recargando proveedores por cambio de tienda');
     _loadSuppliers();
   }
 
@@ -158,21 +165,23 @@ class SupplierListPageState extends State<SupplierListPage> {
               children: [
                 // Campo de búsqueda prominente
                 Container(
+                  height: 40,
                   decoration: BoxDecoration(
                     color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: Colors.grey[300]!),
                   ),
                   child: TextField(
                     controller: _searchController,
                     onChanged: _filterSuppliers,
+                    style: TextStyle(fontSize: 13),
                     decoration: InputDecoration(
                       hintText: 'Buscar proveedores...',
-                      hintStyle: TextStyle(color: Colors.grey[500]),
-                      prefixIcon: Icon(Icons.search, color: Utils.colorBotones),
+                      hintStyle: TextStyle(color: Colors.grey[500], fontSize: 12),
+                      prefixIcon: Icon(Icons.search, color: Utils.colorBotones, size: 20),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
-                              icon: Icon(Icons.clear, color: Colors.grey),
+                              icon: Icon(Icons.clear, color: Colors.grey, size: 18),
                               onPressed: () {
                                 _searchController.clear();
                                 _filterSuppliers('');
@@ -180,7 +189,7 @@ class SupplierListPageState extends State<SupplierListPage> {
                             )
                           : null,
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
                   ),
                 ),
@@ -220,7 +229,9 @@ class SupplierListPageState extends State<SupplierListPage> {
           ),
           // Lista de proveedores
           Expanded(
-            child: ListView.builder(
+            child: _filteredSuppliers.isEmpty
+                ? _buildEmptyState()
+                : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _filteredSuppliers.length,
               itemBuilder: (context, index) {
@@ -407,6 +418,70 @@ class SupplierListPageState extends State<SupplierListPage> {
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    String mensaje;
+    
+    if (_searchController.text.isNotEmpty) {
+      mensaje = 'No se encontraron proveedores que coincidan con tu búsqueda.';
+    } else {
+      mensaje = 'No hay proveedores registrados. Agrega tu primer proveedor usando el botón "+".';
+    }
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Utils.colorBotones.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.business_outlined,
+              size: 80,
+              color: Utils.colorBotones,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Sin Proveedores',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Utils.colorTexto,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              mensaje,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Utils.colorTexto.withOpacity(0.7),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () {
+              _loadSuppliers();
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Actualizar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Utils.colorBotones,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
           ),
         ],

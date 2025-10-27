@@ -1,4 +1,5 @@
 import 'package:bellezapp/utils/utils.dart';
+import 'package:bellezapp/mixins/store_aware_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:bellezapp/database/database_helper.dart';
 import 'package:pdf/pdf.dart';
@@ -14,13 +15,19 @@ class SalesHistoryPage extends StatefulWidget {
   SalesHistoryPageState createState() => SalesHistoryPageState();
 }
 
-class SalesHistoryPageState extends State<SalesHistoryPage> {
+class SalesHistoryPageState extends State<SalesHistoryPage> with StoreAwareMixin {
   final dbHelper = DatabaseHelper();
   List<Map<String, dynamic>> _salesData = [];
 
   @override
   void initState() {
     super.initState();
+    _loadSalesData();
+  }
+
+  @override
+  void reloadData() {
+    print('🔄 Recargando historial de ventas por cambio de tienda');
     _loadSalesData();
   }
 

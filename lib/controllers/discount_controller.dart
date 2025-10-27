@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import '../models/discount.dart';
 import '../database/database_helper.dart';
+import '../controllers/store_controller.dart';
 
 class DiscountController extends GetxController {
   final DatabaseHelper _databaseHelper = DatabaseHelper();
@@ -27,6 +28,17 @@ class DiscountController extends GetxController {
     
     // Escuchar cambios en la búsqueda
     ever(searchQuery, (_) => filterDiscounts());
+    
+    // Escuchar cambios en la tienda actual
+    try {
+      final storeController = Get.find<StoreController>();
+      ever(storeController.currentStore, (_) {
+        print('🔄 Recargando descuentos por cambio de tienda');
+        loadDiscounts();
+      });
+    } catch (e) {
+      // StoreController no disponible
+    }
   }
 
   // Cargar todos los descuentos

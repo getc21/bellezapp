@@ -2,6 +2,7 @@ import 'dart:developer';
 
 import 'package:bellezapp/controllers/theme_controller.dart';
 import 'package:bellezapp/utils/utils.dart';
+import 'package:bellezapp/mixins/store_aware_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:bellezapp/pages/add_order_page.dart';
 import 'package:bellezapp/database/database_helper.dart';
@@ -15,7 +16,7 @@ class OrderListPage extends StatefulWidget {
   OrderListPageState createState() => OrderListPageState();
 }
 
-class OrderListPageState extends State<OrderListPage> {
+class OrderListPageState extends State<OrderListPage> with StoreAwareMixin {
   final dbHelper = DatabaseHelper();
   final themeController = Get.find<ThemeController>();
   final RxList<Map<String, dynamic>> _orders = <Map<String, dynamic>>[].obs;
@@ -32,6 +33,12 @@ class OrderListPageState extends State<OrderListPage> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  @override
+  void reloadData() {
+    print('🔄 Recargando órdenes por cambio de tienda');
+    _loadOrders();
   }
 
   Future<void> _loadOrders() async {
@@ -76,6 +83,70 @@ class OrderListPageState extends State<OrderListPage> {
   String _formatCurrency(dynamic value) {
     final amount = double.tryParse(value.toString()) ?? 0.0;
     return 'Bs. ${amount.toStringAsFixed(2)}';
+  }
+
+  Widget _buildEmptyState() {
+    String mensaje;
+    
+    if (_searchController.text.isNotEmpty) {
+      mensaje = 'No se encontraron órdenes que coincidan con tu búsqueda.';
+    } else {
+      mensaje = 'No hay órdenes registradas en esta tienda. Agrega tu primera orden usando el botón "+".';
+    }
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Utils.colorBotones.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.shopping_cart_outlined,
+              size: 80,
+              color: Utils.colorBotones,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Sin Órdenes',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Utils.colorTexto,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              mensaje,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Utils.colorTexto.withOpacity(0.7),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () {
+              _loadOrders();
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Actualizar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Utils.colorBotones,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildProductsTable(List<dynamic> items) {
@@ -201,21 +272,23 @@ class OrderListPageState extends State<OrderListPage> {
               children: [
                 // Campo de búsqueda prominente
                 Container(
+                  height: 40,
                   decoration: BoxDecoration(
                     color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: Colors.grey[300]!),
                   ),
                   child: TextField(
                     controller: _searchController,
                     onChanged: _filterOrders,
+                    style: TextStyle(fontSize: 13),
                     decoration: InputDecoration(
                       hintText: 'Buscar órdenes...',
-                      hintStyle: TextStyle(color: Colors.grey[500]),
-                      prefixIcon: Icon(Icons.search, color: Utils.colorBotones),
+                      hintStyle: TextStyle(color: Colors.grey[500], fontSize: 12),
+                      prefixIcon: Icon(Icons.search, color: Utils.colorBotones, size: 20),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
-                              icon: Icon(Icons.clear, color: Colors.grey),
+                              icon: Icon(Icons.clear, color: Colors.grey, size: 18),
                               onPressed: () {
                                 _searchController.clear();
                                 _filterOrders('');
@@ -223,7 +296,7 @@ class OrderListPageState extends State<OrderListPage> {
                             )
                           : null,
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
                   ),
                 ),
@@ -287,35 +360,7 @@ class OrderListPageState extends State<OrderListPage> {
           // Lista de órdenes
           Expanded(
             child: _filteredOrders.isEmpty
-                ? RefreshIndicator(
-                    onRefresh: _loadOrders,
-                    child: SingleChildScrollView(
-                      physics: AlwaysScrollableScrollPhysics(),
-                      child: SizedBox(
-                        height: MediaQuery.of(context).size.height * 0.6,
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.receipt_long,
-                                size: 64,
-                                color: Colors.grey[400],
-                              ),
-                              SizedBox(height: 16),
-                              Text(
-                                _orders.isEmpty ? 'No hay órdenes disponibles' : 'No se encontraron órdenes',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
+                ? _buildEmptyState()
                 : RefreshIndicator(
                     onRefresh: _loadOrders,
                     child: ListView.builder(

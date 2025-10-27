@@ -26,6 +26,9 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
+      // Cerrar el teclado antes de iniciar el login
+      FocusScope.of(context).unfocus();
+      
       final success = await authController.login(
         _usernameController.text.trim(),
         _passwordController.text,

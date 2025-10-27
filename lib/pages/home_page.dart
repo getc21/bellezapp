@@ -16,6 +16,7 @@ import 'package:bellezapp/pages/supplier_list_page.dart';
 import 'package:bellezapp/pages/theme_settings_page.dart';
 import 'package:bellezapp/pages/user_management_page.dart';
 import 'package:bellezapp/utils/utils.dart';
+import 'package:bellezapp/widgets/store_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
@@ -162,57 +163,8 @@ class HomePageState extends State<HomePage> {
             ],
           ),
           actions: [
-            // Botón de notificaciones
-            Container(
-              margin: EdgeInsets.only(right: 8),
-              child: Stack(
-                children: [
-                  IconButton(
-                    icon: Container(
-                      padding: EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.notifications_outlined,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                    onPressed: () {
-                      // TODO: Mostrar notificaciones
-                    },
-                    tooltip: 'Notificaciones',
-                  ),
-                  // Badge de notificaciones
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: Container(
-                      padding: EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      constraints: BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
-                      ),
-                      child: Text(
-                        '3',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            // Selector de Tienda (Multi-tienda)
+            StoreSelector(),
             // Botón de configuración de temas
             Container(
               margin: EdgeInsets.only(right: 8),

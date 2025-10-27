@@ -6,6 +6,7 @@ import 'package:bellezapp/pages/add_category_page.dart';
 import 'package:bellezapp/pages/category_products_page.dart';
 import 'package:bellezapp/pages/edit_category_page.dart';
 import 'package:bellezapp/utils/utils.dart';
+import 'package:bellezapp/mixins/store_aware_mixin.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -17,7 +18,7 @@ class CategoryListPage extends StatefulWidget {
   State<CategoryListPage> createState() => CategoryListPageState();
 }
 
-class CategoryListPageState extends State<CategoryListPage> {
+class CategoryListPageState extends State<CategoryListPage> with StoreAwareMixin {
   final RxList<Map<String, dynamic>> _categories = <Map<String, dynamic>>[].obs;
   final RxList<Map<String, dynamic>> _filteredCategories = <Map<String, dynamic>>[].obs;
   final TextEditingController _searchController = TextEditingController();
@@ -27,6 +28,12 @@ class CategoryListPageState extends State<CategoryListPage> {
   @override
   void initState() {
     super.initState();
+    _loadCategories();
+  }
+
+  @override
+  void reloadData() {
+    print('🔄 Recargando categorías por cambio de tienda');
     _loadCategories();
   }
 
@@ -125,21 +132,23 @@ class CategoryListPageState extends State<CategoryListPage> {
               children: [
                 // Campo de búsqueda prominente
                 Container(
+                  height: 40,
                   decoration: BoxDecoration(
                     color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: Colors.grey[300]!),
                   ),
                   child: TextField(
                     controller: _searchController,
                     onChanged: _filterCategories,
+                    style: TextStyle(fontSize: 13),
                     decoration: InputDecoration(
                       hintText: 'Buscar categorías...',
-                      hintStyle: TextStyle(color: Colors.grey[500]),
-                      prefixIcon: Icon(Icons.search, color: Utils.colorBotones),
+                      hintStyle: TextStyle(color: Colors.grey[500], fontSize: 12),
+                      prefixIcon: Icon(Icons.search, color: Utils.colorBotones, size: 20),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
-                              icon: Icon(Icons.clear, color: Colors.grey),
+                              icon: Icon(Icons.clear, color: Colors.grey, size: 18),
                               onPressed: () {
                                 _searchController.clear();
                                 _filterCategories('');
@@ -147,7 +156,7 @@ class CategoryListPageState extends State<CategoryListPage> {
                             )
                           : null,
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
                   ),
                 ),
@@ -187,7 +196,9 @@ class CategoryListPageState extends State<CategoryListPage> {
           ),
           // Lista de categorías
           Expanded(
-            child: ListView.builder(
+            child: _filteredCategories.isEmpty
+                ? _buildEmptyState()
+                : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _filteredCategories.length,
               itemBuilder: (context, index) {
@@ -346,5 +357,69 @@ class CategoryListPageState extends State<CategoryListPage> {
         child: const Icon(Icons.add, color: Colors.white),
       ),
     ));
+  }
+
+  Widget _buildEmptyState() {
+    String mensaje;
+    
+    if (_searchController.text.isNotEmpty) {
+      mensaje = 'No se encontraron categorías que coincidan con tu búsqueda.';
+    } else {
+      mensaje = 'No hay categorías registradas. Agrega tu primera categoría usando el botón "+".';
+    }
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Utils.colorBotones.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.category_outlined,
+              size: 80,
+              color: Utils.colorBotones,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Sin Categorías',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Utils.colorTexto,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              mensaje,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Utils.colorTexto.withOpacity(0.7),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () {
+              _loadCategories();
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Actualizar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Utils.colorBotones,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

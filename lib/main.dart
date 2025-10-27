@@ -1,5 +1,6 @@
 import 'package:bellezapp/controllers/indexpage_controller.dart';
 import 'package:bellezapp/controllers/loading_controller.dart';
+import 'package:bellezapp/controllers/store_controller.dart';
 import 'package:bellezapp/controllers/theme_controller.dart';
 import 'package:bellezapp/controllers/cash_controller.dart';
 import 'package:bellezapp/controllers/auth_controller.dart';
@@ -15,6 +16,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Inicializar controladores
+  Get.put(StoreController());
   Get.put(ThemeController());
   Get.put(IndexPageController());
   Get.put(LoadingController());

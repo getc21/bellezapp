@@ -11,7 +11,7 @@ import 'package:bellezapp/widgets/payment_method_dialog.dart';
 import 'package:bellezapp/widgets/discount_selection_dialog.dart';
 import 'package:bellezapp/widgets/customer_selection_dialog.dart';
 import 'package:flutter/material.dart';
-import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:bellezapp/database/database_helper.dart';
 import 'package:get/get.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
@@ -24,8 +24,11 @@ class AddOrderPage extends StatefulWidget {
 }
 
 class AddOrderPageState extends State<AddOrderPage> {
-  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
-  QRViewController? controller;
+  final MobileScannerController scannerController = MobileScannerController(
+    detectionSpeed: DetectionSpeed.noDuplicates,
+    facing: CameraFacing.back,
+    torchEnabled: false,
+  );
   final List<Map<String, dynamic>> _products = [];
   final dbHelper = DatabaseHelper();
   final ipc = Get.find<IndexPageController>();
@@ -61,32 +64,37 @@ class AddOrderPageState extends State<AddOrderPage> {
   }
   @override
   void dispose() {
-    controller?.dispose();
+    scannerController.dispose();
     super.dispose();
   }
 
-  void _onQRViewCreated(QRViewController controller) {
-    this.controller = controller;
-    controller.scannedDataStream.listen((scanData) async {
-      final productName = scanData.code;
-      final product = await dbHelper.getProductByName(productName!);
-      if (product != null) {
-        setState(() {
-          if (!_products.any((p) => p['id'] == product['id'])) {
-            _products.add({
-              'id': product['id'],
-              'name': product['name'],
-              'quantity': 1, // Inicializa la cantidad en 1
-              'price': product['sale_price'],
-            });
-            log('Product added: ${product['name']}');
-            FlutterRingtonePlayer().play(
-              fromAsset: 'assets/img/beep.mp3',
-            );
-          }
-        });
+  void _handleBarcodeDetection(BarcodeCapture barcodeCapture) async {
+    final List<Barcode> barcodes = barcodeCapture.barcodes;
+    
+    for (final barcode in barcodes) {
+      final String? code = barcode.rawValue;
+      
+      if (code != null && code.isNotEmpty) {
+        final product = await dbHelper.getProductByName(code);
+        
+        if (product != null) {
+          setState(() {
+            if (!_products.any((p) => p['id'] == product['id'])) {
+              _products.add({
+                'id': product['id'],
+                'name': product['name'],
+                'quantity': 1,
+                'price': product['sale_price'],
+              });
+              log('Product added: ${product['name']}');
+              FlutterRingtonePlayer().play(
+                fromAsset: 'assets/img/beep.mp3',
+              );
+            }
+          });
+        }
       }
-    });
+    }
   }
 
   void _incrementQuantity(int index) {
@@ -416,8 +424,8 @@ class AddOrderPageState extends State<AddOrderPage> {
       final hasDiscount = appliedDiscount != null;
       
       return Container(
-        margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        padding: EdgeInsets.all(16),
+        margin: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -434,12 +442,12 @@ class AddOrderPageState extends State<AddOrderPage> {
           children: [
             Row(
               children: [
-                Icon(Icons.receipt_long, color: Colors.blue),
+                Icon(Icons.receipt_long, color: Colors.blue, size: 18),
                 SizedBox(width: 8),
                 Text(
-                  'Resumen de la Orden',
+                  'Resumen',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: Colors.grey[700],
                   ),
@@ -448,31 +456,33 @@ class AddOrderPageState extends State<AddOrderPage> {
                 if (!hasDiscount)
                   TextButton.icon(
                     onPressed: () => _showDiscountSelectionDialog(subtotal),
-                    icon: Icon(Icons.local_offer, size: 16),
-                    label: Text('Agregar Desc.'),
+                    icon: Icon(Icons.local_offer, size: 14),
+                    label: Text('Desc.', style: TextStyle(fontSize: 12)),
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.blue,
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      minimumSize: Size(0, 0),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),
               ],
             ),
-            Divider(),
+            SizedBox(height: 6),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   'Subtotal:',
-                  style: TextStyle(fontSize: 14),
+                  style: TextStyle(fontSize: 13),
                 ),
                 Text(
                   '\$${subtotal.toStringAsFixed(2)}',
-                  style: TextStyle(fontSize: 14),
+                  style: TextStyle(fontSize: 13),
                 ),
               ],
             ),
             if (hasDiscount) ...[
-              SizedBox(height: 4),
+              SizedBox(height: 3),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -480,20 +490,20 @@ class AddOrderPageState extends State<AddOrderPage> {
                     children: [
                       Text(
                         'Descuento:',
-                        style: TextStyle(fontSize: 14, color: Colors.red),
+                        style: TextStyle(fontSize: 12, color: Colors.red),
                       ),
                       SizedBox(width: 4),
                       Container(
-                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                         decoration: BoxDecoration(
                           color: Colors.green.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(6),
                           border: Border.all(color: Colors.green.withOpacity(0.3)),
                         ),
                         child: Text(
                           appliedDiscount.discount.displayValue,
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: 9,
                             color: Colors.green,
                             fontWeight: FontWeight.bold,
                           ),
@@ -505,16 +515,16 @@ class AddOrderPageState extends State<AddOrderPage> {
                     children: [
                       Text(
                         '-\$${appliedDiscount.discountAmount.toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 14, color: Colors.red),
+                        style: TextStyle(fontSize: 12, color: Colors.red),
                       ),
-                      SizedBox(width: 8),
+                      SizedBox(width: 6),
                       GestureDetector(
                         onTap: () {
                           discountController.removeDiscount();
                         },
                         child: Icon(
                           Icons.close,
-                          size: 16,
+                          size: 14,
                           color: Colors.red,
                         ),
                       ),
@@ -522,25 +532,17 @@ class AddOrderPageState extends State<AddOrderPage> {
                   ),
                 ],
               ),
-              SizedBox(height: 4),
-              Text(
-                appliedDiscount.discount.name,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey[600],
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
             ],
-            SizedBox(height: 8),
-            Divider(thickness: 2),
+            SizedBox(height: 6),
+            Divider(thickness: 1, height: 1),
+            SizedBox(height: 6),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Total Final:',
+                  'Total:',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.bold,
                     color: Colors.blue[700],
                   ),
@@ -548,183 +550,17 @@ class AddOrderPageState extends State<AddOrderPage> {
                 Text(
                   '\$${(hasDiscount ? appliedDiscount.finalAmount : subtotal).toStringAsFixed(2)}',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.blue[700],
                   ),
                 ),
               ],
             ),
-            if (hasDiscount) ...[
-              SizedBox(height: 4),
-              Text(
-                'Ahorras: \$${appliedDiscount.discountAmount.toStringAsFixed(2)}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.green,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
           ],
         ),
       );
     });
-  }
-
-  Widget _buildCustomerInfo() {
-    if (selectedCustomer == null) {
-      // Solo mostrar opción de seleccionar cliente si hay productos
-      if (_products.isEmpty) {
-        return SizedBox.shrink();
-      }
-      
-      return Container(
-        margin: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        padding: EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.grey[50],
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[300]!),
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              backgroundColor: Colors.grey[200],
-              child: Icon(Icons.person_add, color: Colors.grey[600]),
-            ),
-            SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Sin cliente seleccionado',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 14,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                  Text(
-                    'Toca para seleccionar un cliente y ganar puntos',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            ElevatedButton.icon(
-              onPressed: () async {
-                final subtotal = _products.fold(0.0, (sum, product) => sum + product['quantity'] * product['price']);
-                await _showCustomerSelectionDialog(subtotal);
-              },
-              icon: Icon(Icons.person_add, size: 16),
-              label: Text('Seleccionar', style: TextStyle(fontSize: 12)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.blue[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue[200]!),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: Colors.blue[100],
-            child: Text(
-              selectedCustomer!.name.isNotEmpty ? selectedCustomer!.name[0].toUpperCase() : 'C',
-              style: TextStyle(
-                color: Colors.blue[800],
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        selectedCustomer!.name,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.orange[100],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '⭐ ${selectedCustomer!.loyaltyPoints} pts',
-                        style: TextStyle(
-                          color: Colors.orange[700],
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Text(
-                  '📱 ${selectedCustomer!.phone}',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 12,
-                  ),
-                ),
-                Text(
-                  '🛍️ ${selectedCustomer!.ordersText} • ${selectedCustomer!.totalSpentFormatted}',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: () async {
-              // Mostrar diálogo para cambiar cliente
-              final subtotal = _products.fold(0.0, (sum, product) => sum + product['quantity'] * product['price']);
-              await _showCustomerSelectionDialog(subtotal);
-            },
-            icon: Icon(Icons.edit, size: 20),
-            tooltip: 'Cambiar cliente',
-          ),
-          IconButton(
-            onPressed: () {
-              setState(() {
-                selectedCustomer = null;
-              });
-            },
-            icon: Icon(Icons.close, size: 20),
-            tooltip: 'Quitar cliente',
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -732,77 +568,336 @@ class AddOrderPageState extends State<AddOrderPage> {
     return Scaffold(
       backgroundColor: Utils.colorFondo,
       appBar: AppBar(
-        title: Text('Agregar Orden'),
+        title: Row(
+          children: [
+            Icon(Icons.shopping_cart, size: 24),
+            SizedBox(width: 8),
+            Text('Nueva Venta'),
+          ],
+        ),
         backgroundColor: Utils.colorGnav,
         foregroundColor: Colors.white,
+        elevation: 2,
+        actions: [
+          if (_products.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: Center(
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${_products.length} ${_products.length == 1 ? 'producto' : 'productos'}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       body: Column(
         children: [
+          // Sección del escáner QR con indicador visual
           Expanded(
             flex: 4,
-            child: QRView(
-              key: qrKey,
-              onQRViewCreated: _onQRViewCreated,
+            child: Stack(
+              children: [
+                MobileScanner(
+                  controller: scannerController,
+                  onDetect: _handleBarcodeDetection,
+                ),
+                // Overlay con guía visual
+                Center(
+                  child: Container(
+                    width: 250,
+                    height: 250,
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Colors.white,
+                        width: 3,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                // Instrucciones en la parte superior
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  right: 16,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.qr_code_scanner, color: Colors.white, size: 24),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Escanea el código QR del producto',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Botón de linterna
+                Positioned(
+                  bottom: 16,
+                  right: 16,
+                  child: FloatingActionButton(
+                    mini: true,
+                    backgroundColor: Colors.black.withOpacity(0.6),
+                    onPressed: () {
+                      scannerController.toggleTorch();
+                    },
+                    child: Icon(Icons.flash_on, color: Colors.white),
+                  ),
+                ),
+              ],
             ),
           ),
+          
+          // Lista de productos mejorada
           Expanded(
             flex: 3,
-            child: Padding(
-              padding: EdgeInsets.all(10),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: ListView.builder(
-                  itemCount: _products.length,
-                  itemBuilder: (context, index) {
-                    final product = _products[index];
-                    return ListTile(
-                      title: Text(product['name']),
-                      subtitle: Text('Cantidad: ${product['quantity']}'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ElevatedButton(
-                            onPressed: () => _decrementQuantity(index),
-                            style: ElevatedButton.styleFrom(
-                              shape: CircleBorder(), // Hace el botón redondo
-                              backgroundColor: Utils.colorBotones,// Fondo rojo
-                              padding: EdgeInsets.all(
-                                  10), // Ajusta el tamaño del botón
-                            ),
-                            child: Icon(Icons.remove,
-                                color: Colors.white), // Ícono blanco
-                          ),
-                          Text('${product['quantity']}', style: TextStyle(fontSize: 14)),
-                          ElevatedButton(
-                            onPressed: () => _incrementQuantity(index),
-                            style: ElevatedButton.styleFrom(
-                              shape: CircleBorder(), // Hace el botón redondo
-                              backgroundColor: Utils.colorBotones, // Fondo rojo
-                              padding: EdgeInsets.all(
-                                  10), // Ajusta el tamaño del botón
-                            ),
-                            child: Icon(Icons.add,
-                                color: Colors.white), // Ícono blanco
-                          ),
-                        ],
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  // Encabezado de la lista
+                  Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: Colors.grey[200]!),
                       ),
-                    );
-                  },
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.shopping_basket, color: Utils.colorBotones, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Productos en el carrito',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Lista de productos
+                  Expanded(
+                    child: _products.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.qr_code_scanner,
+                                  size: 64,
+                                  color: Colors.grey[300],
+                                ),
+                                SizedBox(height: 16),
+                                Text(
+                                  'Escanea productos para agregarlos',
+                                  style: TextStyle(
+                                    color: Colors.grey[500],
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.separated(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            itemCount: _products.length,
+                            separatorBuilder: (context, index) => Divider(height: 1, indent: 16, endIndent: 16),
+                            itemBuilder: (context, index) {
+                              final product = _products[index];
+                              final itemTotal = product['quantity'] * product['price'];
+                              return Dismissible(
+                                key: Key(product['id'].toString()),
+                                direction: DismissDirection.endToStart,
+                                background: Container(
+                                  alignment: Alignment.centerRight,
+                                  padding: EdgeInsets.only(right: 20),
+                                  color: Colors.red,
+                                  child: Icon(Icons.delete, color: Colors.white, size: 32),
+                                ),
+                                onDismissed: (direction) {
+                                  setState(() {
+                                    _products.removeAt(index);
+                                  });
+                                  Get.snackbar(
+                                    'Producto eliminado',
+                                    'Se ha quitado del carrito',
+                                    snackPosition: SnackPosition.BOTTOM,
+                                    backgroundColor: Colors.orange,
+                                    colorText: Colors.white,
+                                    duration: Duration(seconds: 2),
+                                  );
+                                },
+                                child: ListTile(
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                  leading: IconButton(
+                                    icon: Icon(Icons.delete_outline, color: Colors.red[400]),
+                                    onPressed: () {
+                                      setState(() {
+                                        _products.removeAt(index);
+                                      });
+                                      Get.snackbar(
+                                        'Producto eliminado',
+                                        'Se ha quitado del carrito',
+                                        snackPosition: SnackPosition.BOTTOM,
+                                        backgroundColor: Colors.orange,
+                                        colorText: Colors.white,
+                                        duration: Duration(seconds: 2),
+                                      );
+                                    },
+                                  ),
+                                  title: Text(
+                                    product['name'],
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    '\$${product['price'].toStringAsFixed(2)} c/u',
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      // Botón decrementar
+                                      Container(
+                                        width: 32,
+                                        height: 32,
+                                        child: ElevatedButton(
+                                          onPressed: () => _decrementQuantity(index),
+                                          style: ElevatedButton.styleFrom(
+                                            shape: CircleBorder(),
+                                            backgroundColor: Utils.colorBotones,
+                                            padding: EdgeInsets.zero,
+                                            elevation: 2,
+                                          ),
+                                          child: Icon(Icons.remove, color: Colors.white, size: 16),
+                                        ),
+                                      ),
+                                      // Cantidad y total
+                                      Container(
+                                        width: 70,
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              '${product['quantity']}',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            Text(
+                                              '\$${itemTotal.toStringAsFixed(2)}',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: Utils.colorBotones,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      // Botón incrementar
+                                      Container(
+                                        width: 32,
+                                        height: 32,
+                                        child: ElevatedButton(
+                                          onPressed: () => _incrementQuantity(index),
+                                          style: ElevatedButton.styleFrom(
+                                            shape: CircleBorder(),
+                                            backgroundColor: Utils.colorBotones,
+                                            padding: EdgeInsets.zero,
+                                            elevation: 2,
+                                          ),
+                                          child: Icon(Icons.add, color: Colors.white, size: 16),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          // Widget de resumen de totales
+          _buildOrderSummary(),
+          
+          // Botón de registrar orden mejorado
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Container(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton.icon(
+                onPressed: _products.isEmpty ? null : () {
+                  _registerOrder();
+                },
+                icon: Icon(Icons.check_circle, size: 24),
+                label: Text(
+                  'Procesar Venta',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Utils.colorBotones,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey[300],
+                  disabledForegroundColor: Colors.grey[500],
+                  elevation: _products.isEmpty ? 0 : 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),
           ),
-          // Widget de información del cliente
-          _buildCustomerInfo(),
-          // Widget de resumen de totales
-          _buildOrderSummary(),
-          Utils.elevatedButton('Registrar Orden', Utils.colorBotones, () {
-            _registerOrder();
-          }),
-          Utils.espacio20
+          SizedBox(height: 8),
         ],
       ),
     );

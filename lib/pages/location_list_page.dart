@@ -4,6 +4,7 @@ import 'package:bellezapp/pages/add_location_page.dart';
 import 'package:bellezapp/pages/edit_location_page.dart';
 import 'package:bellezapp/pages/location_products_page.dart';
 import 'package:bellezapp/utils/utils.dart';
+import 'package:bellezapp/mixins/store_aware_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -14,7 +15,7 @@ class LocationListPage extends StatefulWidget {
   State<LocationListPage> createState() => LocationListPageState();
 }
 
-class LocationListPageState extends State<LocationListPage> {
+class LocationListPageState extends State<LocationListPage> with StoreAwareMixin {
   final RxList<Map<String, dynamic>> _locations = <Map<String, dynamic>>[].obs;
   final RxList<Map<String, dynamic>> _filteredLocations = <Map<String, dynamic>>[].obs;
   final TextEditingController _searchController = TextEditingController();
@@ -24,6 +25,12 @@ class LocationListPageState extends State<LocationListPage> {
   @override
   void initState() {
     super.initState();
+    _loadLocations();
+  }
+
+  @override
+  void reloadData() {
+    print('🔄 Recargando ubicaciones por cambio de tienda');
     _loadLocations();
   }
 
@@ -122,21 +129,23 @@ class LocationListPageState extends State<LocationListPage> {
               children: [
                 // Campo de búsqueda prominente
                 Container(
+                  height: 40,
                   decoration: BoxDecoration(
                     color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: Colors.grey[300]!),
                   ),
                   child: TextField(
                     controller: _searchController,
                     onChanged: _filterLocations,
+                    style: TextStyle(fontSize: 13),
                     decoration: InputDecoration(
                       hintText: 'Buscar ubicaciones...',
-                      hintStyle: TextStyle(color: Colors.grey[500]),
-                      prefixIcon: Icon(Icons.search, color: Utils.colorBotones),
+                      hintStyle: TextStyle(color: Colors.grey[500], fontSize: 12),
+                      prefixIcon: Icon(Icons.search, color: Utils.colorBotones, size: 20),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
-                              icon: Icon(Icons.clear, color: Colors.grey),
+                              icon: Icon(Icons.clear, color: Colors.grey, size: 18),
                               onPressed: () {
                                 _searchController.clear();
                                 _filterLocations('');
@@ -144,7 +153,7 @@ class LocationListPageState extends State<LocationListPage> {
                             )
                           : null,
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
                   ),
                 ),
@@ -184,7 +193,9 @@ class LocationListPageState extends State<LocationListPage> {
           ),
           // Lista de ubicaciones
           Expanded(
-            child: ListView.builder(
+            child: _filteredLocations.isEmpty
+                ? _buildEmptyState()
+                : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _filteredLocations.length,
               itemBuilder: (context, index) {
@@ -323,5 +334,69 @@ class LocationListPageState extends State<LocationListPage> {
         child: const Icon(Icons.add, color: Colors.white),
       ),
     ));
+  }
+
+  Widget _buildEmptyState() {
+    String mensaje;
+    
+    if (_searchController.text.isNotEmpty) {
+      mensaje = 'No se encontraron ubicaciones que coincidan con tu búsqueda.';
+    } else {
+      mensaje = 'No hay ubicaciones registradas en esta tienda. Agrega tu primera ubicación usando el botón "+".';
+    }
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Utils.colorBotones.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.location_on_outlined,
+              size: 80,
+              color: Utils.colorBotones,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Sin Ubicaciones',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Utils.colorTexto,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              mensaje,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Utils.colorTexto.withOpacity(0.7),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () {
+              _loadLocations();
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Actualizar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Utils.colorBotones,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

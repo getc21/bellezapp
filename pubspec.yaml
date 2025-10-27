@@ -49,7 +49,7 @@ dependencies:
   google_nav_bar: ^5.0.7
   fl_chart: ^1.1.1
   flutter_ringtone_player: ^4.0.0+4
-  qr_code_scanner_plus: ^2.0.13
+  mobile_scanner: ^5.2.3
   shared_preferences: ^2.5.3
   url_launcher: ^6.3.2
   crypto: ^3.0.3

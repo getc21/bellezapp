@@ -30,24 +30,30 @@ class DiscountListPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16.0),
             color: Colors.grey[50],
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Buscar descuentos...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: Obx(() => discountController.searchQuery.value.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () => discountController.clearSearch(),
-                      )
-                    : const SizedBox.shrink()),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
+            child: Container(
+              height: 40,
+              child: TextField(
+                style: TextStyle(fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'Buscar descuentos...',
+                  hintStyle: TextStyle(fontSize: 12),
+                  prefixIcon: Icon(Icons.search, size: 20),
+                  suffixIcon: Obx(() => discountController.searchQuery.value.isNotEmpty
+                      ? IconButton(
+                          icon: Icon(Icons.clear, size: 18),
+                          onPressed: () => discountController.clearSearch(),
+                        )
+                      : const SizedBox.shrink()),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
-                filled: true,
-                fillColor: Colors.white,
+                onChanged: (value) => discountController.searchDiscounts(value),
               ),
-              onChanged: (value) => discountController.searchDiscounts(value),
             ),
           ),
           

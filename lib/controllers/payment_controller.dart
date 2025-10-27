@@ -11,8 +11,7 @@ class PaymentController extends GetxController {
   final RxString validationError = ''.obs;
   
   // Información de pago adicional
-  final RxString cardReference = ''.obs;
-  final RxString transferReference = ''.obs;
+  final RxString qrReference = ''.obs;
   final RxDouble receivedCashAmount = 0.0.obs;
   final RxDouble changeAmount = 0.0.obs;
   
@@ -20,8 +19,7 @@ class PaymentController extends GetxController {
   void resetPaymentInfo() {
     selectedPaymentMethod.value = PaymentMethod.cash;
     validationError.value = '';
-    cardReference.value = '';
-    transferReference.value = '';
+    qrReference.value = '';
     receivedCashAmount.value = 0.0;
     changeAmount.value = 0.0;
   }
@@ -36,11 +34,8 @@ class PaymentController extends GetxController {
       receivedCashAmount.value = 0.0;
       changeAmount.value = 0.0;
     }
-    if (!method.isCard) {
-      cardReference.value = '';
-    }
-    if (!method.isTransfer) {
-      transferReference.value = '';
+    if (!method.isQr) {
+      qrReference.value = '';
     }
   }
   
@@ -58,14 +53,9 @@ class PaymentController extends GetxController {
     }
   }
   
-  // Actualizar referencia de tarjeta
-  void updateCardReference(String reference) {
-    cardReference.value = reference;
-  }
-  
-  // Actualizar referencia de transferencia
+  // Actualizar referencia de QR/Yape
   void updateTransferReference(String reference) {
-    transferReference.value = reference;
+    qrReference.value = reference;
   }
   
   // Validar pago antes de procesar
@@ -84,24 +74,13 @@ class PaymentController extends GetxController {
         }
         break;
         
-      case PaymentMethod.card:
-        if (cardReference.value.trim().isEmpty) {
-          validationError.value = 'Debe ingresar la referencia de la tarjeta';
+      case PaymentMethod.qr:
+        if (qrReference.value.trim().isEmpty) {
+          validationError.value = 'Debe ingresar la referencia del pago QR';
           return false;
         }
-        if (cardReference.value.trim().length < 4) {
+        if (qrReference.value.trim().length < 4) {
           validationError.value = 'La referencia debe tener al menos 4 caracteres';
-          return false;
-        }
-        break;
-        
-      case PaymentMethod.transfer:
-        if (transferReference.value.trim().isEmpty) {
-          validationError.value = 'Debe ingresar la referencia de la transferencia';
-          return false;
-        }
-        if (transferReference.value.trim().length < 6) {
-          validationError.value = 'La referencia debe tener al menos 6 caracteres';
           return false;
         }
         break;
@@ -116,11 +95,8 @@ class PaymentController extends GetxController {
       case PaymentMethod.cash:
         return receivedCashAmount.value > 0 && receivedCashAmount.value >= totalAmount;
         
-      case PaymentMethod.card:
-        return cardReference.value.trim().length >= 4;
-        
-      case PaymentMethod.transfer:
-        return transferReference.value.trim().length >= 6;
+      case PaymentMethod.qr:
+        return qrReference.value.trim().length >= 4;
     }
   }
   
@@ -136,21 +112,12 @@ class PaymentController extends GetxController {
         }
         break;
         
-      case PaymentMethod.card:
-        if (cardReference.value.trim().isEmpty) {
-          return 'Debe ingresar la referencia de la tarjeta';
+      case PaymentMethod.qr:
+        if (qrReference.value.trim().isEmpty) {
+          return 'Debe ingresar la referencia del pago QR';
         }
-        if (cardReference.value.trim().length < 4) {
+        if (qrReference.value.trim().length < 4) {
           return 'La referencia debe tener al menos 4 caracteres';
-        }
-        break;
-        
-      case PaymentMethod.transfer:
-        if (transferReference.value.trim().isEmpty) {
-          return 'Debe ingresar la referencia de la transferencia';
-        }
-        if (transferReference.value.trim().length < 6) {
-          return 'La referencia debe tener al menos 6 caracteres';
         }
         break;
     }
@@ -164,8 +131,7 @@ class PaymentController extends GetxController {
       'method': selectedPaymentMethod.value,
       'methodValue': selectedPaymentMethod.value.value,
       'methodDisplayName': selectedPaymentMethod.value.displayName,
-      'cardReference': cardReference.value,
-      'transferReference': transferReference.value,
+      'qrReference': qrReference.value,
       'receivedAmount': receivedCashAmount.value,
       'changeAmount': changeAmount.value,
     };
@@ -186,15 +152,9 @@ class PaymentController extends GetxController {
         }
         break;
         
-      case PaymentMethod.card:
-        if (cardReference.value.isNotEmpty) {
-          details += '\nRef: ${cardReference.value}';
-        }
-        break;
-        
-      case PaymentMethod.transfer:
-        if (transferReference.value.isNotEmpty) {
-          details += '\nRef: ${transferReference.value}';
+      case PaymentMethod.qr:
+        if (qrReference.value.isNotEmpty) {
+          details += '\nRef: ${qrReference.value}';
         }
         break;
     }
@@ -209,8 +169,7 @@ class PaymentController extends GetxController {
       'payment_method': info['methodValue'],
       'payment_details': {
         'method': info['methodDisplayName'],
-        'card_reference': info['cardReference'],
-        'transfer_reference': info['transferReference'],
+        'qr_reference': info['qrReference'],
         'received_amount': info['receivedAmount'],
         'change_amount': info['changeAmount'],
       }

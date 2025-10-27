@@ -1,6 +1,7 @@
 import 'package:bellezapp/database/database_helper.dart';
 import 'package:bellezapp/models/cash_movement.dart';
 import 'package:bellezapp/models/cash_register.dart';
+import 'package:bellezapp/controllers/store_controller.dart';
 import 'package:get/get.dart';
 
 class CashController extends GetxController {
@@ -36,6 +37,19 @@ class CashController extends GetxController {
     super.onInit();
     // No cargar datos automáticamente para evitar errores de contexto
     print('CashController inicializado correctamente');
+    
+    // Escuchar cambios en la tienda actual
+    try {
+      final storeController = Get.find<StoreController>();
+      ever(storeController.currentStore, (_) {
+        print('🔄 Recargando caja por cambio de tienda');
+        if (_hasLoaded) {
+          loadTodayData(showErrorSnackbar: false);
+        }
+      });
+    } catch (e) {
+      // StoreController no disponible
+    }
   }
 
   // Inicialización segura para cargar datos cuando sea necesario

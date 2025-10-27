@@ -54,9 +54,16 @@ class AddSupplierPageState extends State<AddSupplierPage> {
     return Scaffold(
       backgroundColor: Utils.colorFondo,
       appBar: AppBar(
-        title: Text('Agregar Proveedor'),
+        title: Row(
+          children: [
+            Icon(Icons.business, size: 24),
+            SizedBox(width: 8),
+            Text('Nuevo Proveedor'),
+          ],
+        ),
         backgroundColor: Utils.colorGnav,
         foregroundColor: Colors.white,
+        elevation: 2,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -64,11 +71,29 @@ class AddSupplierPageState extends State<AddSupplierPage> {
           key: formKey,
           child: ListView(
             children: [
+              // Sección: Información del Proveedor
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Row(
+                  children: [
+                    Icon(Icons.business_center, color: Utils.colorBotones, size: 24),
+                    SizedBox(width: 8),
+                    Text(
+                      'Información del Proveedor',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Utils.colorBotones,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               TextFormField(
                 controller: _nameController,
                 cursorColor: Utils.colorBotones,
                 decoration: InputDecoration(
-                  prefixIconColor: Utils.colorBotones,
+                  prefixIcon: Icon(Icons.business, color: Utils.colorBotones),
                   floatingLabelStyle: TextStyle(
                       color: Utils.colorBotones, fontWeight: FontWeight.bold),
                   focusedBorder: OutlineInputBorder(
@@ -77,7 +102,8 @@ class AddSupplierPageState extends State<AddSupplierPage> {
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(),
-                  labelText: 'Nombre',
+                  labelText: 'Nombre del Proveedor',
+                  hintText: 'Ej: Distribuidora XYZ',
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -86,12 +112,31 @@ class AddSupplierPageState extends State<AddSupplierPage> {
                   return null;
                 },
               ),
-              SizedBox(height: 10),
+              Utils.espacio10,
+              
+              // Sección: Datos de Contacto
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Row(
+                  children: [
+                    Icon(Icons.contact_phone, color: Utils.colorBotones, size: 24),
+                    SizedBox(width: 8),
+                    Text(
+                      'Datos de Contacto',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Utils.colorBotones,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               TextFormField(
                 controller: _contactNameController,
                 cursorColor: Utils.colorBotones,
                 decoration: InputDecoration(
-                  prefixIconColor: Utils.colorBotones,
+                  prefixIcon: Icon(Icons.person, color: Utils.colorBotones),
                   floatingLabelStyle: TextStyle(
                       color: Utils.colorBotones, fontWeight: FontWeight.bold),
                   focusedBorder: OutlineInputBorder(
@@ -101,6 +146,7 @@ class AddSupplierPageState extends State<AddSupplierPage> {
                   fillColor: Colors.white,
                   border: OutlineInputBorder(),
                   labelText: 'Nombre de Contacto',
+                  hintText: 'Ej: Juan Pérez',
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -109,12 +155,13 @@ class AddSupplierPageState extends State<AddSupplierPage> {
                   return null;
                 },
               ),
-              SizedBox(height: 10),
+              Utils.espacio10,
               TextFormField(
                 controller: _contactEmailController,
                 cursorColor: Utils.colorBotones,
+                keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
-                  prefixIconColor: Utils.colorBotones,
+                  prefixIcon: Icon(Icons.email, color: Utils.colorBotones),
                   floatingLabelStyle: TextStyle(
                       color: Utils.colorBotones, fontWeight: FontWeight.bold),
                   focusedBorder: OutlineInputBorder(
@@ -124,20 +171,25 @@ class AddSupplierPageState extends State<AddSupplierPage> {
                   fillColor: Colors.white,
                   border: OutlineInputBorder(),
                   labelText: 'Email de Contacto',
+                  hintText: 'ejemplo@correo.com',
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Por favor ingrese el email de contacto';
                   }
+                  if (!value.contains('@')) {
+                    return 'Por favor ingrese un email válido';
+                  }
                   return null;
                 },
               ),
-              SizedBox(height: 10),
+              Utils.espacio10,
               TextFormField(
                 controller: _contactPhoneController,
                 cursorColor: Utils.colorBotones,
+                keyboardType: TextInputType.phone,
                 decoration: InputDecoration(
-                  prefixIconColor: Utils.colorBotones,
+                  prefixIcon: Icon(Icons.phone, color: Utils.colorBotones),
                   floatingLabelStyle: TextStyle(
                       color: Utils.colorBotones, fontWeight: FontWeight.bold),
                   focusedBorder: OutlineInputBorder(
@@ -147,6 +199,7 @@ class AddSupplierPageState extends State<AddSupplierPage> {
                   fillColor: Colors.white,
                   border: OutlineInputBorder(),
                   labelText: 'Teléfono de Contacto',
+                  hintText: '123-456-7890',
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -155,12 +208,32 @@ class AddSupplierPageState extends State<AddSupplierPage> {
                   return null;
                 },
               ),
-              SizedBox(height: 10),
+              Utils.espacio10,
+              
+              // Sección: Ubicación
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Row(
+                  children: [
+                    Icon(Icons.location_on, color: Utils.colorBotones, size: 24),
+                    SizedBox(width: 8),
+                    Text(
+                      'Ubicación',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Utils.colorBotones,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               TextFormField(
                 controller: _addressController,
                 cursorColor: Utils.colorBotones,
+                maxLines: 2,
                 decoration: InputDecoration(
-                  prefixIconColor: Utils.colorBotones,
+                  prefixIcon: Icon(Icons.home, color: Utils.colorBotones),
                   floatingLabelStyle: TextStyle(
                       color: Utils.colorBotones, fontWeight: FontWeight.bold),
                   focusedBorder: OutlineInputBorder(
@@ -170,6 +243,7 @@ class AddSupplierPageState extends State<AddSupplierPage> {
                   fillColor: Colors.white,
                   border: OutlineInputBorder(),
                   labelText: 'Dirección',
+                  hintText: 'Dirección completa del proveedor',
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -178,61 +252,134 @@ class AddSupplierPageState extends State<AddSupplierPage> {
                   return null;
                 },
               ),
-              SizedBox(height: 10),
-              Container(
-                padding: EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Colors.grey),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              Utils.espacio10,
+              
+              // Sección: Logo/Imagen
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Row(
                   children: [
+                    Icon(Icons.photo_camera, color: Utils.colorBotones, size: 24),
+                    SizedBox(width: 8),
                     Text(
-                      'Cargar imagen',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      'Logo/Imagen del Proveedor',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Utils.colorBotones,
+                      ),
                     ),
-                    SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Utils.elevatedButtonWithIcon(
-                            'Cámara', Utils.colorBotones, () {
-                          _pickImage(ImageSource.camera);
-                        }, Icons.camera),
-                        Utils.elevatedButtonWithIcon(
-                            'Galería', Utils.colorBotones, () {
-                          _pickImage(ImageSource.gallery);
-                        }, Icons.photo_library),
-                      ],
-                    ),
-                    if (_image != null) ...[
-                      SizedBox(height: 10),
-                      Image.file(_image!, height: 200),
-                    ],
                   ],
                 ),
               ),
-              SizedBox(height: 20),
-              Utils.elevatedButton('Guardar', Utils.colorBotones, () async {
-                if (formKey.currentState?.validate() ?? false) {
-                  final newSupplier = {
-                    'name': _nameController.text,
-                    'contact_name': _contactNameController.text,
-                    'contact_email': _contactEmailController.text,
-                    'contact_phone': _contactPhoneController.text,
-                    'address': _addressController.text,
-                    'foto': _fotoController.text,
-                  };
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Utils.colorBotones.withOpacity(0.3), width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    if (_image == null) ...[
+                      Icon(Icons.add_photo_alternate, size: 64, color: Colors.grey[400]),
+                      SizedBox(height: 8),
+                      Text(
+                        'Selecciona un logo o imagen del proveedor',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                        textAlign: TextAlign.center,
+                      ),
+                    ] else ...[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(_image!, height: 200, fit: BoxFit.cover),
+                      ),
+                    ],
+                    SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Expanded(
+                          child: Utils.elevatedButtonWithIcon(
+                            'Cámara', 
+                            Utils.colorBotones, 
+                            () {
+                              _pickImage(ImageSource.camera);
+                            }, 
+                            Icons.camera_alt
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Utils.elevatedButtonWithIcon(
+                            'Galería', 
+                            Utils.colorBotones, 
+                            () {
+                              _pickImage(ImageSource.gallery);
+                            }, 
+                            Icons.photo_library
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 24),
 
-                  // Guardar en la base de datos local
-                  await DatabaseHelper().insertSupplier(newSupplier);
+              // Botón de guardar destacado
+              Container(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    if (formKey.currentState?.validate() ?? false) {
+                      final newSupplier = {
+                        'name': _nameController.text,
+                        'contact_name': _contactNameController.text,
+                        'contact_email': _contactEmailController.text,
+                        'contact_phone': _contactPhoneController.text,
+                        'address': _addressController.text,
+                        'foto': _fotoController.text,
+                      };
 
-                  Get.to(HomePage()); // Cerrar la página
-                }
-              }),
+                      await DatabaseHelper().insertSupplier(newSupplier);
+
+                      Get.snackbar(
+                        '✓ Éxito',
+                        'Proveedor guardado correctamente',
+                        snackPosition: SnackPosition.TOP,
+                        backgroundColor: Colors.green,
+                        colorText: Colors.white,
+                        duration: Duration(seconds: 2),
+                      );
+
+                      Get.to(HomePage());
+                    }
+                  },
+                  icon: Icon(Icons.save, size: 24),
+                  label: Text(
+                    'Guardar Proveedor',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Utils.colorBotones,
+                    foregroundColor: Colors.white,
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: 16),
             ],
           ),
         ),

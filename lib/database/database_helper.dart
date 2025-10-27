@@ -1,10 +1,12 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'dart:math';
+import 'package:get/get.dart';
 import '../models/customer.dart';
 import '../models/discount.dart';
 import '../models/user.dart';
 import '../models/user_session.dart';
+import '../controllers/store_controller.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._();
@@ -24,8 +26,30 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'beauty_store.db');
     return await openDatabase(
       path,
-      version: 9, // Incrementar versión para asegurar migración completa
+      version: 12, // Versión 12: Agregar store_id a locations
       onCreate: (db, version) async {
+        // Tabla de tiendas
+        db.execute('''
+          CREATE TABLE stores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            address TEXT,
+            phone TEXT,
+            email TEXT,
+            status TEXT DEFAULT 'active',
+            created_at TEXT NOT NULL
+          )
+        ''');
+        
+        // Tabla de roles
+        db.execute('''
+          CREATE TABLE roles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            description TEXT
+          )
+        ''');
+        
         db.execute('''
           CREATE TABLE products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,7 +63,9 @@ class DatabaseHelper {
             location_id INTEGER NOT NULL,
             foto TEXT,
             stock INTEGER,
-            expirity_date TEXT
+            expirity_date TEXT,
+            store_id INTEGER DEFAULT 1,
+            FOREIGN KEY (store_id) REFERENCES stores(id)
           )
         ''');
         db.execute('''
@@ -68,14 +94,18 @@ class DatabaseHelper {
             totalOrden REAL NOT NULL,
             payment_method TEXT DEFAULT 'efectivo',
             customer_id INTEGER,
-            FOREIGN KEY (customer_id) REFERENCES customers (id)
+            store_id INTEGER DEFAULT 1,
+            FOREIGN KEY (customer_id) REFERENCES customers (id),
+            FOREIGN KEY (store_id) REFERENCES stores(id)
           )
         ''');
         db.execute('''
           CREATE TABLE locations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            description TEXT
+            description TEXT,
+            store_id INTEGER DEFAULT 1,
+            FOREIGN KEY (store_id) REFERENCES stores(id)
           )
         ''');
         db.execute('''
@@ -105,7 +135,9 @@ class DatabaseHelper {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           date TEXT,
           type TEXT,
-          amount REAL
+          amount REAL,
+          store_id INTEGER DEFAULT 1,
+          FOREIGN KEY (store_id) REFERENCES stores(id)
         )
         ''');
         
@@ -119,7 +151,9 @@ class DatabaseHelper {
             description TEXT,
             order_id INTEGER,
             user_id TEXT,
-            FOREIGN KEY (order_id) REFERENCES orders (id)
+            store_id INTEGER DEFAULT 1,
+            FOREIGN KEY (order_id) REFERENCES orders (id),
+            FOREIGN KEY (store_id) REFERENCES stores(id)
           )
         ''');
         
@@ -134,7 +168,9 @@ class DatabaseHelper {
             status TEXT NOT NULL,
             opening_time TEXT,
             closing_time TEXT,
-            user_id TEXT
+            user_id TEXT,
+            store_id INTEGER DEFAULT 1,
+            FOREIGN KEY (store_id) REFERENCES stores(id)
           )
         ''');
         
@@ -166,6 +202,21 @@ class DatabaseHelper {
             start_date TEXT,
             end_date TEXT,
             is_active INTEGER NOT NULL DEFAULT 1
+          )
+        ''');
+        
+        // Tabla de asignación usuario-tienda
+        db.execute('''
+          CREATE TABLE user_store_assignments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            store_id INTEGER NOT NULL,
+            assigned_at TEXT NOT NULL,
+            assigned_by INTEGER,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
+            FOREIGN KEY (assigned_by) REFERENCES users(id),
+            UNIQUE(user_id, store_id)
           )
         ''');
         
@@ -202,6 +253,34 @@ class DatabaseHelper {
             FOREIGN KEY (user_id) REFERENCES users (id)
           )
         ''');
+        
+        // Insertar roles predeterminados
+        await db.insert('roles', {
+          'id': 1,
+          'name': 'admin',
+          'description': 'Administrador del sistema con acceso completo',
+        });
+        await db.insert('roles', {
+          'id': 2,
+          'name': 'manager',
+          'description': 'Gerente de tienda con permisos de gestión',
+        });
+        await db.insert('roles', {
+          'id': 3,
+          'name': 'employee',
+          'description': 'Empleado con permisos básicos',
+        });
+        
+        // Insertar tienda principal
+        await db.insert('stores', {
+          'id': 1,
+          'name': 'Tienda Principal',
+          'address': 'Dirección Principal',
+          'phone': '0000000000',
+          'email': 'principal@bellezapp.com',
+          'status': 'active',
+          'created_at': DateTime.now().toIso8601String(),
+        });
         
         await _insertTestData(db);
       },
@@ -414,6 +493,144 @@ class DatabaseHelper {
             });
           }
         }
+
+        // Migración v9 -> v10: Implementar sistema multi-tienda
+        if (oldVersion < 10) {
+          // Crear tabla de tiendas
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS stores (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              name TEXT NOT NULL,
+              address TEXT,
+              phone TEXT,
+              email TEXT,
+              status TEXT DEFAULT 'active',
+              created_at TEXT NOT NULL
+            )
+          ''');
+          
+          // Crear tabla de roles
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS roles (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              name TEXT NOT NULL UNIQUE,
+              description TEXT
+            )
+          ''');
+          
+          // Crear tabla de asignación usuario-tienda
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS user_store_assignments (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              user_id INTEGER NOT NULL,
+              store_id INTEGER NOT NULL,
+              assigned_at TEXT NOT NULL,
+              assigned_by INTEGER,
+              FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+              FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
+              FOREIGN KEY (assigned_by) REFERENCES users(id),
+              UNIQUE(user_id, store_id)
+            )
+          ''');
+          
+          // Insertar roles predeterminados
+          await db.insert('roles', {
+            'id': 1,
+            'name': 'admin',
+            'description': 'Administrador del sistema con acceso completo',
+          }, conflictAlgorithm: ConflictAlgorithm.ignore);
+          
+          await db.insert('roles', {
+            'id': 2,
+            'name': 'manager',
+            'description': 'Gerente de tienda con permisos de gestión',
+          }, conflictAlgorithm: ConflictAlgorithm.ignore);
+          
+          await db.insert('roles', {
+            'id': 3,
+            'name': 'employee',
+            'description': 'Empleado con permisos básicos',
+          }, conflictAlgorithm: ConflictAlgorithm.ignore);
+          
+          // Insertar tienda principal
+          await db.insert('stores', {
+            'id': 1,
+            'name': 'Tienda Principal',
+            'address': 'Dirección Principal',
+            'phone': '0000000000',
+            'email': 'principal@bellezapp.com',
+            'status': 'active',
+            'created_at': DateTime.now().toIso8601String(),
+          }, conflictAlgorithm: ConflictAlgorithm.ignore);
+          
+          // Agregar store_id a productos existentes
+          try {
+            await db.execute('ALTER TABLE products ADD COLUMN store_id INTEGER DEFAULT 1 REFERENCES stores(id)');
+          } catch (e) {
+            print('Column store_id already exists in products: $e');
+          }
+          
+          // Agregar store_id a orders existentes
+          try {
+            await db.execute('ALTER TABLE orders ADD COLUMN store_id INTEGER DEFAULT 1 REFERENCES stores(id)');
+          } catch (e) {
+            print('Column store_id already exists in orders: $e');
+          }
+          
+          // Asignar el usuario admin a la tienda principal
+          final adminUser = await db.query('users', where: 'username = ?', whereArgs: ['admin']);
+          if (adminUser.isNotEmpty) {
+            await db.insert('user_store_assignments', {
+              'user_id': adminUser.first['id'],
+              'store_id': 1,
+              'assigned_at': DateTime.now().toIso8601String(),
+            }, conflictAlgorithm: ConflictAlgorithm.ignore);
+          }
+        }
+        
+        if (oldVersion < 11) {
+          print('🔄 Migrando a versión 11: Agregando store_id a financial_transactions y cash_movements');
+          
+          // Agregar store_id a financial_transactions
+          try {
+            await db.execute('ALTER TABLE financial_transactions ADD COLUMN store_id INTEGER DEFAULT 1 REFERENCES stores(id)');
+            print('✅ Columna store_id agregada a financial_transactions');
+          } catch (e) {
+            print('⚠️ Column store_id already exists in financial_transactions: $e');
+          }
+          
+          // Agregar store_id a cash_movements
+          try {
+            await db.execute('ALTER TABLE cash_movements ADD COLUMN store_id INTEGER DEFAULT 1 REFERENCES stores(id)');
+            print('✅ Columna store_id agregada a cash_movements');
+          } catch (e) {
+            print('⚠️ Column store_id already exists in cash_movements: $e');
+          }
+          
+          // Agregar store_id a cash_registers si existe
+          try {
+            await db.execute('ALTER TABLE cash_registers ADD COLUMN store_id INTEGER DEFAULT 1 REFERENCES stores(id)');
+            print('✅ Columna store_id agregada a cash_registers');
+          } catch (e) {
+            print('⚠️ Column store_id already exists in cash_registers: $e');
+          }
+          
+          print('✅ Migración a versión 11 completada');
+        }
+        
+        if (oldVersion < 12) {
+          print('🔄 Migrando a versión 12: Agregando store_id a locations');
+          
+          // Agregar store_id a locations
+          try {
+            await db.execute('ALTER TABLE locations ADD COLUMN store_id INTEGER DEFAULT 1 REFERENCES stores(id)');
+            print('✅ Columna store_id agregada a locations');
+          } catch (e) {
+            print('⚠️ Column store_id already exists in locations: $e');
+          }
+          
+          print('✅ Migración a versión 12 completada');
+        }
       },
     );
   }
@@ -455,6 +672,7 @@ class DatabaseHelper {
     'date': transactionDate,
     'type': 'Salida',
     'amount': amount,
+    'store_id': 1, // Datos de prueba siempre en tienda 1
   });
     }
 
@@ -556,18 +774,36 @@ class DatabaseHelper {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getProducts() async {
+  Future<List<Map<String, dynamic>>> getProducts({int? storeId}) async {
     final db = await database;
+    
+    // Usar la tienda especificada o la tienda actual del usuario
+    final currentStoreId = storeId ?? _getCurrentStoreId();
+    
+    // Siempre filtrar por tienda (incluso admin)
     return await db.rawQuery('''
-    SELECT p.*, 
-           c.name as category_name, 
-           s.name as supplier_name, 
-           l.name as location_name
-    FROM products p
-    LEFT JOIN categories c ON p.category_id = c.id
-    LEFT JOIN suppliers s ON p.supplier_id = s.id
-    LEFT JOIN locations l ON p.location_id = l.id
-  ''');
+      SELECT p.*, 
+             c.name as category_name, 
+             s.name as supplier_name, 
+             l.name as location_name
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN suppliers s ON p.supplier_id = s.id
+      LEFT JOIN locations l ON p.location_id = l.id
+      WHERE p.store_id = ?
+    ''', [currentStoreId]);
+  }
+  
+  // Helper method para obtener ID de tienda actual
+  int _getCurrentStoreId() {
+    try {
+      // Intentar obtener del StoreController
+      final storeController = Get.find<StoreController>();
+      return storeController.currentStoreId ?? 1;
+    } catch (e) {
+      // Si no está disponible, usar tienda por defecto
+      return 1;
+    }
   }
 
   Future<List<Map<String, dynamic>>> getCategories() async {
@@ -582,37 +818,66 @@ class DatabaseHelper {
 
   Future<List<Map<String, dynamic>>> getLocations() async {
     final db = await database;
-    return await db.query('locations');
+    final currentStoreId = _getCurrentStoreId();
+    
+    // Filtrar ubicaciones por tienda actual
+    return await db.query(
+      'locations',
+      where: 'store_id = ?',
+      whereArgs: [currentStoreId],
+    );
   }
 
   Future<void> insertProduct(Map<String, dynamic> product) async {
-  final db = await database;
-  await db.insert('products', product);
+    final db = await database;
+    
+    // Agregar store_id actual si no se especifica
+    if (!product.containsKey('store_id')) {
+      product['store_id'] = _getCurrentStoreId();
+    }
+    
+    await db.insert('products', product);
 
-  // Registrar la salida de dinero
-  final purchasePrice = (product['purchase_price'] as double?) ?? 0.0;
-  final quantity = (product['quantity'] as int?) ?? 0;
-  final amount = purchasePrice * quantity;
-  print('Inserting financial transaction - Type: Salida, Amount: $amount');
-  await db.insert('financial_transactions', {
-    'date': DateTime.now().toIso8601String(),
-    'type': 'Salida',
-    'amount': amount,
-  });
-}
+    // Registrar la salida de dinero
+    final purchasePrice = (product['purchase_price'] as double?) ?? 0.0;
+    final quantity = (product['quantity'] as int?) ?? 0;
+    final amount = purchasePrice * quantity;
+    print('Inserting financial transaction - Type: Salida, Amount: $amount');
+    await db.insert('financial_transactions', {
+      'date': DateTime.now().toIso8601String(),
+      'type': 'Salida',
+      'amount': amount,
+      'store_id': product['store_id'] ?? _getCurrentStoreId(),
+    });
+  }
 
   Future<void> insertCategory(Map<String, dynamic> category) async {
     final db = await database;
+    
+    // Las categorías son globales (compartidas entre tiendas)
+    // NO agregar store_id
+    
     await db.insert('categories', category);
   }
 
   Future<void> insertSupplier(Map<String, dynamic> supplier) async {
     final db = await database;
+    
+    // Los proveedores son globales (compartidos entre tiendas)
+    // NO agregar store_id
+    
     await db.insert('suppliers', supplier);
   }
 
   Future<void> insertLocation(Map<String, dynamic> location) async {
     final db = await database;
+    
+    // Las ubicaciones son específicas de cada tienda
+    // Agregar store_id actual si no se especifica
+    if (!location.containsKey('store_id')) {
+      location['store_id'] = _getCurrentStoreId();
+    }
+    
     await db.insert('locations', location);
   }
 
@@ -622,10 +887,17 @@ class DatabaseHelper {
     for (var product in order['products']) {
       totalOrden += product['quantity'] * product['price'];
     }
-    final orderId = await db.insert('orders', {
+    
+    // Agregar store_id actual si no se especifica
+    final orderData = {
       'order_date': order['date'],
       'totalOrden': totalOrden,
-    });
+    };
+    if (!orderData.containsKey('store_id')) {
+      orderData['store_id'] = _getCurrentStoreId();
+    }
+    
+    final orderId = await db.insert('orders', orderData);
     for (var product in order['products']) {
       await db.insert('order_items', {
         'order_id': orderId,
@@ -641,11 +913,17 @@ class DatabaseHelper {
     final db = await database;
     double totalOrden = order['totalOrden'] ?? 0.0;
     
+    // Agregar store_id actual si no se especifica
+    if (!order.containsKey('store_id')) {
+      order['store_id'] = _getCurrentStoreId();
+    }
+    
     final orderId = await db.insert('orders', {
       'order_date': order['order_date'],
       'totalOrden': totalOrden,
       'payment_method': order['payment_method'] ?? 'efectivo',
       'customer_id': order['customer_id'],
+      'store_id': order['store_id'],
     });
     
     return orderId;
@@ -729,6 +1007,8 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> getProductsByCategory(
       int categoryId) async {
     final db = await database;
+    final currentStoreId = _getCurrentStoreId();
+    
     return await db.rawQuery('''
     SELECT p.*, 
            c.name as category_name, 
@@ -738,13 +1018,15 @@ class DatabaseHelper {
     LEFT JOIN categories c ON p.category_id = c.id
     LEFT JOIN suppliers s ON p.supplier_id = s.id
     LEFT JOIN locations l ON p.location_id = l.id
-    WHERE p.category_id = ?
-  ''', [categoryId]);
+    WHERE p.category_id = ? AND p.store_id = ?
+  ''', [categoryId, currentStoreId]);
   }
 
   Future<List<Map<String, dynamic>>> getProductsBySupplier(
       int supplierId) async {
     final db = await database;
+    final currentStoreId = _getCurrentStoreId();
+    
     return await db.rawQuery('''
     SELECT p.*, 
            c.name as category_name, 
@@ -754,12 +1036,14 @@ class DatabaseHelper {
     LEFT JOIN categories c ON p.category_id = c.id
     LEFT JOIN suppliers s ON p.supplier_id = s.id
     LEFT JOIN locations l ON p.location_id = l.id
-    WHERE p.supplier_id = ?
-  ''', [supplierId]);
+    WHERE p.supplier_id = ? AND p.store_id = ?
+  ''', [supplierId, currentStoreId]);
   }
 
   Future<List<Map<String, dynamic>>> getProductsByLocation(int locationId) async {
   final db = await database;
+  final currentStoreId = _getCurrentStoreId();
+  
   return await db.rawQuery('''
     SELECT p.*, 
            c.name as category_name, 
@@ -769,8 +1053,8 @@ class DatabaseHelper {
     LEFT JOIN categories c ON p.category_id = c.id
     LEFT JOIN suppliers s ON p.supplier_id = s.id
     LEFT JOIN locations l ON p.location_id = l.id
-    WHERE p.location_id = ?
-  ''', [locationId]);
+    WHERE p.location_id = ? AND p.store_id = ?
+  ''', [locationId, currentStoreId]);
 }
 
   Future<Map<String, dynamic>?> getProductByName(String name) async {
@@ -786,9 +1070,19 @@ class DatabaseHelper {
     return null;
   }
 
-  Future<List<Map<String, dynamic>>> getOrdersWithItems() async {
+  Future<List<Map<String, dynamic>>> getOrdersWithItems({int? storeId}) async {
     final db = await database;
-    final orders = await db.query('orders');
+    
+    // Usar la tienda especificada o la tienda actual del usuario
+    final currentStoreId = storeId ?? _getCurrentStoreId();
+    
+    // Siempre filtrar por tienda (incluso admin)
+    final orders = await db.query(
+      'orders',
+      where: 'store_id = ?',
+      whereArgs: [currentStoreId],
+    );
+    
     List<Map<String, dynamic>> ordersWithItems = [];
     for (var order in orders) {
       Map<String, dynamic> orderCopy = Map<String, dynamic>.from(order);
@@ -826,12 +1120,13 @@ class DatabaseHelper {
       'date': DateTime.now().toIso8601String(),
       'type': 'Salida',
       'amount': amount,
+      'store_id': _getCurrentStoreId(),
     });
   }
 }
 
   Future<List<Map<String, dynamic>>> getProductsByRotation(
-      {required String period}) async {
+      {required String period, int? storeId}) async {
     final db = await database;
     String dateCondition;
     if (period == 'week') {
@@ -847,39 +1142,53 @@ class DatabaseHelper {
       throw ArgumentError('Invalid period: $period');
     }
 
-    return await db.rawQuery('''
+    // Usar la tienda especificada o la tienda actual del usuario
+    final currentStoreId = storeId ?? _getCurrentStoreId();
+
+    // Siempre filtrar por tienda (incluso admin)
+    final query = '''
       SELECT p.*, SUM(oi.quantity) as total_quantity
       FROM products p
       JOIN order_items oi ON p.id = oi.product_id
       JOIN orders o ON oi.order_id = o.id
-      WHERE o.order_date >= ?
+      WHERE o.order_date >= ? AND o.store_id = ?
       GROUP BY p.id
       ORDER BY total_quantity DESC
-    ''', [dateCondition]);
+    ''';
+    final args = [dateCondition, currentStoreId];
+
+    return await db.rawQuery(query, args);
   }
 
-  Future<List<Map<String, dynamic>>> getSalesDataForLastYear() async {
+  Future<List<Map<String, dynamic>>> getSalesDataForLastYear({int? storeId}) async {
     final db = await database;
     final now = DateTime.now();
     final lastYear = DateTime(now.year - 1, now.month);
+    
+    // Usar la tienda especificada o la tienda actual del usuario
+    final currentStoreId = storeId ?? _getCurrentStoreId();
 
-    final salesData = await db.rawQuery('''
-    SELECT 
-      strftime('%m', o.order_date) as month,
-      strftime('%Y', o.order_date) as year,
-      p.name,
-      p.purchase_price,
-      p.sale_price,
-      SUM(oi.quantity) as quantity,
-      SUM((p.sale_price - p.purchase_price) * oi.quantity) as profit,
-      SUM(p.purchase_price * oi.quantity) as total_cost
-    FROM orders o
-    JOIN order_items oi ON o.id = oi.order_id
-    JOIN products p ON oi.product_id = p.id
-    WHERE o.order_date >= ?
-    GROUP BY month, year, p.id
-    ORDER BY year DESC, month DESC
-  ''', [lastYear.toIso8601String()]);
+    // Siempre filtrar por tienda (incluso admin)
+    final query = '''
+      SELECT 
+        strftime('%m', o.order_date) as month,
+        strftime('%Y', o.order_date) as year,
+        p.name,
+        p.purchase_price,
+        p.sale_price,
+        SUM(oi.quantity) as quantity,
+        SUM((p.sale_price - p.purchase_price) * oi.quantity) as profit,
+        SUM(p.purchase_price * oi.quantity) as total_cost
+      FROM orders o
+      JOIN order_items oi ON o.id = oi.order_id
+      JOIN products p ON oi.product_id = p.id
+      WHERE o.order_date >= ? AND o.store_id = ?
+      GROUP BY month, year, p.id
+      ORDER BY year DESC, month DESC
+    ''';
+    final args = [lastYear.toIso8601String(), currentStoreId];
+
+    final salesData = await db.rawQuery(query, args);
 
     Map<String, Map<String, dynamic>> groupedData = {};
 
@@ -912,12 +1221,89 @@ class DatabaseHelper {
     return groupedData.values.toList();
   }
 
-  Future<List<Map<String, dynamic>>> getFinancialDataForLastYear() async {
-  final db = await database;
-  final now = DateTime.now();
-  final lastYear = DateTime(now.year - 1, now.month);
+  Future<List<Map<String, dynamic>>> getFinancialDataForLastYear({int? storeId}) async {
+    final db = await database;
+    final now = DateTime.now();
+    final lastYear = DateTime(now.year - 1, now.month);
+    
+    // Usar la tienda especificada o la tienda actual del usuario
+    final currentStoreId = storeId ?? _getCurrentStoreId();
 
-  final incomeData = await db.rawQuery('''
+    // Siempre filtrar por tienda (incluso admin)
+    final incomeQuery = '''
+      SELECT 
+        strftime('%m', o.order_date) as month,
+        strftime('%Y', o.order_date) as year,
+        SUM(oi.quantity * p.sale_price) as totalIncome
+      FROM orders o
+      JOIN order_items oi ON o.id = oi.order_id
+      JOIN products p ON oi.product_id = p.id
+      WHERE o.order_date >= ? AND o.store_id = ?
+      GROUP BY month, year
+      ORDER BY year DESC, month DESC
+    ''';
+    final incomeArgs = [lastYear.toIso8601String(), currentStoreId];
+    
+    final incomeData = await db.rawQuery(incomeQuery, incomeArgs);
+
+    final expenseData = await db.rawQuery('''
+      SELECT 
+        strftime('%m', t.date) as month,
+        strftime('%Y', t.date) as year,
+        SUM(t.amount) as totalExpense
+      FROM financial_transactions t
+      WHERE t.type = 'Salida' AND t.date >= ? AND t.store_id = ?
+      GROUP BY month, year
+      ORDER BY year DESC, month DESC
+    ''', [lastYear.toIso8601String(), currentStoreId]);
+
+    Map<String, Map<String, dynamic>> groupedData = {};
+
+    for (var row in incomeData) {
+      final month = row['month'];
+      final year = row['year'];
+      final key = '$year-$month';
+
+      if (!groupedData.containsKey(key)) {
+        groupedData[key] = {
+          'month': month,
+          'year': year,
+          'totalIncome': 0.0,
+          'totalExpense': 0.0,
+        };
+      }
+
+      groupedData[key]!['totalIncome'] += row['totalIncome'] ?? 0.0;
+    }
+
+    for (var row in expenseData) {
+      final month = row['month'];
+      final year = row['year'];
+      final key = '$year-$month';
+
+      if (!groupedData.containsKey(key)) {
+        groupedData[key] = {
+          'month': month,
+          'year': year,
+          'totalIncome': 0.0,
+          'totalExpense': 0.0,
+        };
+      }
+
+      groupedData[key]!['totalExpense'] += row['totalExpense'] ?? 0.0;
+    }
+
+    return groupedData.values.toList();
+  }
+
+Future<List<Map<String, dynamic>>> getFinancialDataBetweenDates(DateTime startDate, DateTime endDate, {int? storeId}) async {
+  final db = await database;
+
+  // Usar la tienda especificada o la tienda actual del usuario
+  final currentStoreId = storeId ?? _getCurrentStoreId();
+
+  // Siempre filtrar por tienda (incluso admin)
+  final incomeQuery = '''
     SELECT 
       strftime('%m', o.order_date) as month,
       strftime('%Y', o.order_date) as year,
@@ -925,10 +1311,13 @@ class DatabaseHelper {
     FROM orders o
     JOIN order_items oi ON o.id = oi.order_id
     JOIN products p ON oi.product_id = p.id
-    WHERE o.order_date >= ?
+    WHERE o.order_date BETWEEN ? AND ? AND o.store_id = ?
     GROUP BY month, year
     ORDER BY year DESC, month DESC
-  ''', [lastYear.toIso8601String()]);
+  ''';
+  final incomeArgs = [startDate.toIso8601String(), endDate.toIso8601String(), currentStoreId];
+
+  final incomeData = await db.rawQuery(incomeQuery, incomeArgs);
 
   final expenseData = await db.rawQuery('''
     SELECT 
@@ -936,76 +1325,10 @@ class DatabaseHelper {
       strftime('%Y', t.date) as year,
       SUM(t.amount) as totalExpense
     FROM financial_transactions t
-    WHERE t.type = 'Salida' AND t.date >= ?
+    WHERE t.type = 'Salida' AND t.date BETWEEN ? AND ? AND t.store_id = ?
     GROUP BY month, year
     ORDER BY year DESC, month DESC
-  ''', [lastYear.toIso8601String()]);
-
-  Map<String, Map<String, dynamic>> groupedData = {};
-
-  for (var row in incomeData) {
-    final month = row['month'];
-    final year = row['year'];
-    final key = '$year-$month';
-
-    if (!groupedData.containsKey(key)) {
-      groupedData[key] = {
-        'month': month,
-        'year': year,
-        'totalIncome': 0.0,
-        'totalExpense': 0.0,
-      };
-    }
-
-    groupedData[key]!['totalIncome'] += row['totalIncome'] ?? 0.0;
-  }
-
-  for (var row in expenseData) {
-    final month = row['month'];
-    final year = row['year'];
-    final key = '$year-$month';
-
-    if (!groupedData.containsKey(key)) {
-      groupedData[key] = {
-        'month': month,
-        'year': year,
-        'totalIncome': 0.0,
-        'totalExpense': 0.0,
-      };
-    }
-
-    groupedData[key]!['totalExpense'] += row['totalExpense'] ?? 0.0;
-  }
-
-  return groupedData.values.toList();
-}
-
-Future<List<Map<String, dynamic>>> getFinancialDataBetweenDates(DateTime startDate, DateTime endDate) async {
-  final db = await database;
-
-  final incomeData = await db.rawQuery('''
-    SELECT 
-      strftime('%m', o.order_date) as month,
-      strftime('%Y', o.order_date) as year,
-      SUM(oi.quantity * p.sale_price) as totalIncome
-    FROM orders o
-    JOIN order_items oi ON o.id = oi.order_id
-    JOIN products p ON oi.product_id = p.id
-    WHERE o.order_date BETWEEN ? AND ?
-    GROUP BY month, year
-    ORDER BY year DESC, month DESC
-  ''', [startDate.toIso8601String(), endDate.toIso8601String()]);
-
-  final expenseData = await db.rawQuery('''
-    SELECT 
-      strftime('%m', t.date) as month,
-      strftime('%Y', t.date) as year,
-      SUM(t.amount) as totalExpense
-    FROM financial_transactions t
-    WHERE t.type = 'Salida' AND t.date BETWEEN ? AND ?
-    GROUP BY month, year
-    ORDER BY year DESC, month DESC
-  ''', [startDate.toIso8601String(), endDate.toIso8601String()]);
+  ''', [startDate.toIso8601String(), endDate.toIso8601String(), currentStoreId]);
 
   Map<String, Map<String, dynamic>> groupedData = {};
 
@@ -1051,26 +1374,36 @@ Future<List<Map<String, dynamic>>> getFinancialDataBetweenDates(DateTime startDa
   // Métodos para cash_movements
   Future<void> insertCashMovement(Map<String, dynamic> movement) async {
     final db = await database;
+    
+    // Agregar store_id actual si no se especifica
+    if (!movement.containsKey('store_id')) {
+      movement['store_id'] = _getCurrentStoreId();
+    }
+    
     await db.insert('cash_movements', movement);
   }
 
   Future<List<Map<String, dynamic>>> getCashMovementsByDate(String date) async {
     final db = await database;
+    final currentStoreId = _getCurrentStoreId();
+    
     return await db.query(
       'cash_movements',
-      where: 'date LIKE ?',
-      whereArgs: ['$date%'],
+      where: 'date LIKE ? AND store_id = ?',
+      whereArgs: ['$date%', currentStoreId],
       orderBy: 'date DESC',
     );
   }
 
   Future<double> getTotalCashByTypeAndDate(String type, String date) async {
     final db = await database;
+    final currentStoreId = _getCurrentStoreId();
+    
     final result = await db.rawQuery('''
       SELECT SUM(amount) as total
       FROM cash_movements
-      WHERE type = ? AND date LIKE ?
-    ''', [type, '$date%']);
+      WHERE type = ? AND date LIKE ? AND store_id = ?
+    ''', [type, '$date%', currentStoreId]);
     
     return (result.first['total'] as double?) ?? 0.0;
   }
@@ -1100,6 +1433,12 @@ Future<List<Map<String, dynamic>>> getFinancialDataBetweenDates(DateTime startDa
   // Métodos para cash_registers
   Future<int> insertCashRegister(Map<String, dynamic> register) async {
     final db = await database;
+    
+    // Agregar store_id actual si no se especifica
+    if (!register.containsKey('store_id')) {
+      register['store_id'] = _getCurrentStoreId();
+    }
+    
     return await db.insert('cash_registers', register);
   }
 
@@ -1115,10 +1454,12 @@ Future<List<Map<String, dynamic>>> getFinancialDataBetweenDates(DateTime startDa
 
   Future<Map<String, dynamic>?> getCashRegisterByDate(String date) async {
     final db = await database;
+    final currentStoreId = _getCurrentStoreId();
+    
     final result = await db.query(
       'cash_registers',
-      where: 'date = ?',
-      whereArgs: [date],
+      where: 'date = ? AND store_id = ?',
+      whereArgs: [date, currentStoreId],
     );
     
     return result.isNotEmpty ? result.first : null;
@@ -1531,6 +1872,12 @@ Future<List<Map<String, dynamic>>> getFinancialDataBetweenDates(DateTime startDa
     });
   }
 
+  // Obtener todos los usuarios
+  Future<List<Map<String, dynamic>>> getAllUsers() async {
+    final db = await database;
+    return await db.query('users', orderBy: 'username ASC');
+  }
+
   // Insertar nuevo usuario
   Future<int> insertUser(User user) async {
     final db = await database;
@@ -1735,6 +2082,157 @@ Future<List<Map<String, dynamic>>> getFinancialDataBetweenDates(DateTime startDa
   Future<bool> isValidSession(String token) async {
     final session = await getSessionByToken(token);
     return session != null && session.isValid;
+  }
+
+  // ============= MÉTODOS PARA SISTEMA MULTI-TIENDA =============
+  
+  // Obtener todas las tiendas
+  Future<List<Map<String, dynamic>>> getAllStores() async {
+    final db = await database;
+    return await db.query(
+      'stores',
+      orderBy: 'name ASC',
+    );
+  }
+
+  // Obtener tienda por ID
+  Future<Map<String, dynamic>?> getStoreById(int id) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'stores',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    
+    if (maps.isNotEmpty) {
+      return maps.first;
+    }
+    return null;
+  }
+
+  // Obtener tiendas activas
+  Future<List<Map<String, dynamic>>> getActiveStores() async {
+    final db = await database;
+    return await db.query(
+      'stores',
+      where: 'status = ?',
+      whereArgs: ['active'],
+      orderBy: 'name ASC',
+    );
+  }
+
+  // Insertar nueva tienda
+  Future<int> insertStore(Map<String, dynamic> store) async {
+    final db = await database;
+    return await db.insert('stores', store);
+  }
+
+  // Actualizar tienda
+  Future<void> updateStore(Map<String, dynamic> store) async {
+    final db = await database;
+    await db.update(
+      'stores',
+      store,
+      where: 'id = ?',
+      whereArgs: [store['id']],
+    );
+  }
+
+  // Eliminar tienda (soft delete)
+  Future<void> deleteStore(int id) async {
+    final db = await database;
+    await db.update(
+      'stores',
+      {'status': 'inactive'},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // Obtener tiendas asignadas a un usuario
+  Future<List<Map<String, dynamic>>> getUserAssignedStores(int userId) async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT s.*
+      FROM stores s
+      INNER JOIN user_store_assignments usa ON s.id = usa.store_id
+      WHERE usa.user_id = ? AND s.status = 'active'
+      ORDER BY s.name ASC
+    ''', [userId]);
+  }
+
+  // Asignar usuario a tienda
+  Future<int> assignUserToStore(int userId, int storeId, {int? assignedBy}) async {
+    final db = await database;
+    return await db.insert('user_store_assignments', {
+      'user_id': userId,
+      'store_id': storeId,
+      'assigned_at': DateTime.now().toIso8601String(),
+      'assigned_by': assignedBy,
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
+  }
+
+  // Desasignar usuario de tienda
+  Future<void> unassignUserFromStore(int userId, int storeId) async {
+    final db = await database;
+    await db.delete(
+      'user_store_assignments',
+      where: 'user_id = ? AND store_id = ?',
+      whereArgs: [userId, storeId],
+    );
+  }
+
+  // Obtener usuarios asignados a una tienda
+  Future<List<Map<String, dynamic>>> getStoreAssignedUsers(int storeId) async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT u.*, usa.assigned_at
+      FROM users u
+      INNER JOIN user_store_assignments usa ON u.id = usa.user_id
+      WHERE usa.store_id = ? AND u.is_active = 1
+      ORDER BY u.username ASC
+    ''', [storeId]);
+  }
+
+  // Verificar si un usuario tiene acceso a una tienda
+  Future<bool> userHasAccessToStore(int userId, int storeId) async {
+    final db = await database;
+    
+    // Verificar si el usuario es admin
+    final user = await getUserById(userId);
+    if (user != null && user.role == 'admin') {
+      return true;
+    }
+    
+    // Verificar asignación específica
+    final List<Map<String, dynamic>> maps = await db.query(
+      'user_store_assignments',
+      where: 'user_id = ? AND store_id = ?',
+      whereArgs: [userId, storeId],
+    );
+    
+    return maps.isNotEmpty;
+  }
+
+  // Obtener todos los roles
+  Future<List<Map<String, dynamic>>> getRoles() async {
+    final db = await database;
+    return await db.query('roles', orderBy: 'name ASC');
+  }
+
+  // Obtener rol por nombre
+  Future<Map<String, dynamic>?> getRoleByName(String roleName) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'roles',
+      where: 'name = ?',
+      whereArgs: [roleName],
+    );
+    
+    if (maps.isNotEmpty) {
+      return maps.first;
+    }
+    return null;
   }
 
 }

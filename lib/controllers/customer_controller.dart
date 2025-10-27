@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../models/customer.dart';
 import '../database/database_helper.dart';
+import '../controllers/store_controller.dart';
 
 class CustomerController extends GetxController {
   final DatabaseHelper _databaseHelper = DatabaseHelper();
@@ -32,6 +33,17 @@ class CustomerController extends GetxController {
     
     // Escuchar cambios en la búsqueda
     ever(searchQuery, (_) => filterCustomers());
+    
+    // Escuchar cambios en la tienda actual
+    try {
+      final storeController = Get.find<StoreController>();
+      ever(storeController.currentStore, (_) {
+        print('🔄 Recargando clientes por cambio de tienda');
+        loadCustomers();
+      });
+    } catch (e) {
+      // StoreController no disponible
+    }
   }
 
   // Cargar todos los customers

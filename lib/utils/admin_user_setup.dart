@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'package:sqflite/sqflite.dart';
 import '../database/database_helper.dart';
 import '../models/user.dart';
 
@@ -121,7 +122,7 @@ class AdminUserSetup {
       
       // Verificar si las tablas existen
       final result = await db.rawQuery(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('users', 'user_sessions')"
+        "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('users', 'user_sessions', 'stores', 'roles', 'user_store_assignments')"
       );
       
       log('📊 Tablas encontradas: ${result.map((r) => r['name']).toList()}');
@@ -134,10 +135,140 @@ class AdminUserSetup {
       // Verificar usuario admin
       await ensureAdminUserExists();
       
+      // Verificar tiendas
+      await _ensureStoreExists();
+      
       log('✅ Verificación de integridad completada exitosamente');
       
     } catch (e) {
       log('❌ Error al verificar integridad de la base de datos: $e');
+    }
+  }
+  
+  /// Verificar y crear la tienda principal si no existe
+  static Future<void> _ensureStoreExists() async {
+    log('🏪 Verificando tiendas...');
+    try {
+      final db = await _dbHelper.database;
+      
+      // Verificar si existe la tabla stores
+      final tableExists = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='stores'"
+      );
+      
+      if (tableExists.isEmpty) {
+        log('⚠️ Tabla stores no existe. Creando tabla...');
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS stores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            address TEXT,
+            phone TEXT,
+            email TEXT,
+            status TEXT DEFAULT 'active',
+            created_at TEXT NOT NULL
+          )
+        ''');
+      }
+      
+      // Verificar si existe al menos una tienda
+      final stores = await db.query('stores');
+      
+      if (stores.isEmpty) {
+        log('❌ No hay tiendas registradas. Creando Tienda Principal...');
+        await db.insert('stores', {
+          'id': 1,
+          'name': 'Tienda Principal',
+          'address': 'Dirección Principal',
+          'phone': '0000000000',
+          'email': 'principal@bellezapp.com',
+          'status': 'active',
+          'created_at': DateTime.now().toIso8601String(),
+        });
+        log('✅ Tienda Principal creada exitosamente');
+      } else {
+        log('✅ Se encontraron ${stores.length} tienda(s) registrada(s)');
+      }
+      
+      // Verificar tabla roles
+      final rolesTableExists = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='roles'"
+      );
+      
+      if (rolesTableExists.isEmpty) {
+        log('⚠️ Tabla roles no existe. Creando tabla...');
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS roles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            description TEXT
+          )
+        ''');
+        
+        // Insertar roles predeterminados
+        await db.insert('roles', {
+          'id': 1,
+          'name': 'admin',
+          'description': 'Administrador del sistema con acceso completo',
+        }, conflictAlgorithm: ConflictAlgorithm.ignore);
+        
+        await db.insert('roles', {
+          'id': 2,
+          'name': 'manager',
+          'description': 'Gerente de tienda con permisos de gestión',
+        }, conflictAlgorithm: ConflictAlgorithm.ignore);
+        
+        await db.insert('roles', {
+          'id': 3,
+          'name': 'employee',
+          'description': 'Empleado con permisos básicos',
+        }, conflictAlgorithm: ConflictAlgorithm.ignore);
+      }
+      
+      // Verificar tabla user_store_assignments
+      final assignmentsTableExists = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='user_store_assignments'"
+      );
+      
+      if (assignmentsTableExists.isEmpty) {
+        log('⚠️ Tabla user_store_assignments no existe. Creando tabla...');
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS user_store_assignments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            store_id INTEGER NOT NULL,
+            assigned_at TEXT NOT NULL,
+            assigned_by INTEGER,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
+            FOREIGN KEY (assigned_by) REFERENCES users(id),
+            UNIQUE(user_id, store_id)
+          )
+        ''');
+      }
+      
+      // Asignar el usuario admin a la tienda principal si no está asignado
+      final adminUser = await db.query('users', where: 'username = ?', whereArgs: ['admin']);
+      if (adminUser.isNotEmpty) {
+        final adminId = adminUser.first['id'] as int;
+        final assignment = await db.query(
+          'user_store_assignments',
+          where: 'user_id = ? AND store_id = ?',
+          whereArgs: [adminId, 1],
+        );
+        
+        if (assignment.isEmpty) {
+          await db.insert('user_store_assignments', {
+            'user_id': adminId,
+            'store_id': 1,
+            'assigned_at': DateTime.now().toIso8601String(),
+          });
+          log('✅ Usuario admin asignado a Tienda Principal');
+        }
+      }
+      
+    } catch (e) {
+      log('❌ Error al verificar/crear tiendas: $e');
     }
   }
 }

@@ -1,4 +1,5 @@
 import 'package:bellezapp/utils/utils.dart';
+import 'package:bellezapp/mixins/store_aware_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:bellezapp/database/database_helper.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -13,7 +14,7 @@ class ReportPage extends StatefulWidget {
   ReportPageState createState() => ReportPageState();
 }
 
-class ReportPageState extends State<ReportPage> {
+class ReportPageState extends State<ReportPage> with StoreAwareMixin {
   final dbHelper = DatabaseHelper();
   List<Map<String, dynamic>> _weeklyRotationProducts = [];
   List<Map<String, dynamic>> _monthlyRotationProducts = [];
@@ -22,6 +23,12 @@ class ReportPageState extends State<ReportPage> {
   @override
   void initState() {
     super.initState();
+    _loadReportData();
+  }
+
+  @override
+  void reloadData() {
+    print('🔄 Recargando reportes de rotación por cambio de tienda');
     _loadReportData();
   }
 

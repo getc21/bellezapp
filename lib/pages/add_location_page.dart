@@ -22,9 +22,16 @@ class AddLocationPageState extends State<AddLocationPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Agregar Ubicación'),
+        title: Row(
+          children: [
+            Icon(Icons.location_on, size: 24),
+            SizedBox(width: 8),
+            Text('Nueva Ubicación'),
+          ],
+        ),
         backgroundColor: Utils.colorGnav,
         foregroundColor: Colors.white,
+        elevation: 2,
       ),
       backgroundColor: Utils.colorFondo,
       body: Padding(
@@ -33,11 +40,29 @@ class AddLocationPageState extends State<AddLocationPage> {
           key: formKey,
           child: ListView(
             children: [
+              // Sección: Información de la Ubicación
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Utils.colorBotones, size: 24),
+                    SizedBox(width: 8),
+                    Text(
+                      'Información de la Ubicación',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Utils.colorBotones,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               TextFormField(
                 controller: _nameController,
                 cursorColor: Utils.colorBotones,
                 decoration: InputDecoration(
-                  prefixIconColor: Utils.colorBotones,
+                  prefixIcon: Icon(Icons.location_on, color: Utils.colorBotones),
                   floatingLabelStyle: TextStyle(
                       color: Utils.colorBotones, fontWeight: FontWeight.bold),
                   focusedBorder: OutlineInputBorder(
@@ -46,7 +71,8 @@ class AddLocationPageState extends State<AddLocationPage> {
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(),
-                  labelText: 'Nombre',
+                  labelText: 'Nombre de la Ubicación',
+                  hintText: 'Ej: Estante A1, Almacén Principal, Vitrina...',
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -55,12 +81,13 @@ class AddLocationPageState extends State<AddLocationPage> {
                   return null;
                 },
               ),
-              SizedBox(height: 10),
+              Utils.espacio10,
               TextFormField(
                 controller: _descriptionController,
                 cursorColor: Utils.colorBotones,
+                maxLines: 3,
                 decoration: InputDecoration(
-                  prefixIconColor: Utils.colorBotones,
+                  prefixIcon: Icon(Icons.description, color: Utils.colorBotones),
                   floatingLabelStyle: TextStyle(
                       color: Utils.colorBotones, fontWeight: FontWeight.bold),
                   focusedBorder: OutlineInputBorder(
@@ -70,6 +97,8 @@ class AddLocationPageState extends State<AddLocationPage> {
                   fillColor: Colors.white,
                   border: OutlineInputBorder(),
                   labelText: 'Descripción',
+                  hintText: 'Describe las características de esta ubicación...',
+                  alignLabelWithHint: true,
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -78,20 +107,51 @@ class AddLocationPageState extends State<AddLocationPage> {
                   return null;
                 },
               ),
-              SizedBox(height: 20),
-              Utils.elevatedButton('Guardar', Utils.colorBotones, () async {
-                if (formKey.currentState?.validate() ?? false) {
-                    final newLocation = {
-                      'name': _nameController.text,
-                      'description': _descriptionController.text,
-                    };
+              
+              SizedBox(height: 24),
 
-                    // Guardar en la base de datos local
-                    await DatabaseHelper().insertLocation(newLocation);
+              // Botón de guardar destacado
+              Container(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    if (formKey.currentState?.validate() ?? false) {
+                      final newLocation = {
+                        'name': _nameController.text,
+                        'description': _descriptionController.text,
+                      };
 
-                    Get.to(HomePage()); // Cerrar la página
-                  }
-              }),
+                      await DatabaseHelper().insertLocation(newLocation);
+
+                      Get.snackbar(
+                        '✓ Éxito',
+                        'Ubicación guardada correctamente',
+                        snackPosition: SnackPosition.TOP,
+                        backgroundColor: Colors.green,
+                        colorText: Colors.white,
+                        duration: Duration(seconds: 2),
+                      );
+
+                      Get.to(HomePage());
+                    }
+                  },
+                  icon: Icon(Icons.save, size: 24),
+                  label: Text(
+                    'Guardar Ubicación',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Utils.colorBotones,
+                    foregroundColor: Colors.white,
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: 16),
             ],
           ),
         ),

@@ -1,7 +1,6 @@
 enum PaymentMethod {
   cash('efectivo', 'Efectivo', '💰'),
-  card('tarjeta', 'Tarjeta', '💳'),
-  transfer('transferencia', 'Transferencia', '📱');
+  qr('qr', 'QR / Yape', '📱');
 
   const PaymentMethod(this.value, this.displayName, this.icon);
 
@@ -19,6 +18,5 @@ enum PaymentMethod {
   String get displayLabel => '$icon $displayName';
 
   bool get isCash => this == PaymentMethod.cash;
-  bool get isCard => this == PaymentMethod.card;
-  bool get isTransfer => this == PaymentMethod.transfer;
+  bool get isQr => this == PaymentMethod.qr;
 }

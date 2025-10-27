@@ -1,4 +1,4 @@
-import 'package:bellezapp/utils/utils.dart';
+﻿import 'package:bellezapp/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/auth_controller.dart';
@@ -94,14 +94,20 @@ class _UserManagementPageState extends State<UserManagementPage> {
           // Barra de búsqueda
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: _searchController,
-              onChanged: _filterUsers,
-              decoration: InputDecoration(
-                labelText: 'Buscar usuarios',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+            child: Container(
+              height: 40,
+              child: TextField(
+                controller: _searchController,
+                onChanged: _filterUsers,
+                style: TextStyle(fontSize: 13),
+                decoration: InputDecoration(
+                  labelText: 'Buscar usuarios',
+                  labelStyle: TextStyle(fontSize: 12),
+                  prefixIcon: Icon(Icons.search, size: 20),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
               ),
             ),
@@ -314,7 +320,7 @@ class _AddUserDialogState extends State<AddUserDialog> {
                     return 'Campo requerido';
                   }
                   if (value.length < 3) {
-                    return 'Mínimo 3 caracteres';
+                    return 'MÃ­nimo 3 caracteres';
                   }
                   return null;
                 },
@@ -332,7 +338,7 @@ class _AddUserDialogState extends State<AddUserDialog> {
                     return 'Campo requerido';
                   }
                   if (!GetUtils.isEmail(value)) {
-                    return 'Email inválido';
+                    return 'Email invÃ¡lido';
                   }
                   return null;
                 },
@@ -376,7 +382,7 @@ class _AddUserDialogState extends State<AddUserDialog> {
               TextFormField(
                 controller: _passwordController,
                 decoration: const InputDecoration(
-                  labelText: 'Contraseña',
+                  labelText: 'ContraseÃ±a',
                   prefixIcon: Icon(Icons.lock),
                 ),
                 obscureText: true,
@@ -385,7 +391,7 @@ class _AddUserDialogState extends State<AddUserDialog> {
                     return 'Campo requerido';
                   }
                   if (value.length < 6) {
-                    return 'Mínimo 6 caracteres';
+                    return 'MÃ­nimo 6 caracteres';
                   }
                   return null;
                 },
@@ -394,7 +400,7 @@ class _AddUserDialogState extends State<AddUserDialog> {
               TextFormField(
                 controller: _phoneController,
                 decoration: const InputDecoration(
-                  labelText: 'Teléfono (opcional)',
+                  labelText: 'TelÃ©fono (opcional)',
                   prefixIcon: Icon(Icons.phone),
                 ),
                 keyboardType: TextInputType.phone,
@@ -482,11 +488,55 @@ class UserDetailsDialog extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cerrar'),
         ),
-        if (user.id != Get.find<AuthController>().currentUser?.id)
+        if (user.id != Get.find<AuthController>().currentUser?.id) ...[
+          if (Get.find<AuthController>().isAdmin)
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Get.dialog(
+                  AlertDialog(
+                    title: const Text('Confirmar eliminación'),
+                    content: Text(
+                      '¿Estás seguro de que deseas eliminar al usuario ${user.fullName}?\n\nEsta acción no se puede deshacer.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Get.back(),
+                        child: const Text('Cancelar'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () async {
+                          Get.back();
+                          final success = await Get.find<AuthController>().deleteUser(user.id!);
+                          if (success) {
+                            onUserUpdated();
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Eliminar'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Eliminar'),
+            ),
           ElevatedButton(
             onPressed: () {
-              // TODO: Implementar edición de usuario
               Navigator.of(context).pop();
+              Get.dialog(
+                EditUserDialog(
+                  user: user,
+                  onUserUpdated: onUserUpdated,
+                ),
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: colorScheme.primary,
@@ -494,6 +544,7 @@ class UserDetailsDialog extends StatelessWidget {
             ),
             child: const Text('Editar'),
           ),
+        ],
       ],
     );
   }
@@ -519,5 +570,231 @@ class UserDetailsDialog extends StatelessWidget {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+  }
+}
+// Dialog para editar usuario existente
+class EditUserDialog extends StatefulWidget {
+  final User user;
+  final VoidCallback onUserUpdated;
+
+  const EditUserDialog({
+    super.key,
+    required this.user,
+    required this.onUserUpdated,
+  });
+
+  @override
+  State<EditUserDialog> createState() => _EditUserDialogState();
+}
+
+class _EditUserDialogState extends State<EditUserDialog> {
+  final AuthController authController = Get.find<AuthController>();
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _usernameController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _firstNameController;
+  late final TextEditingController _lastNameController;
+  late final TextEditingController _phoneController;
+  late UserRole _selectedRole;
+  late bool _isActive;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _usernameController = TextEditingController(text: widget.user.username);
+    _emailController = TextEditingController(text: widget.user.email);
+    _firstNameController = TextEditingController(text: widget.user.firstName);
+    _lastNameController = TextEditingController(text: widget.user.lastName);
+    _phoneController = TextEditingController(text: widget.user.phone ?? '');
+    _selectedRole = widget.user.role;
+    _isActive = widget.user.isActive;
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _emailController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _updateUser() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    final updatedUser = User(
+      id: widget.user.id,
+      username: _usernameController.text.trim(),
+      email: _emailController.text.trim(),
+      firstName: _firstNameController.text.trim(),
+      lastName: _lastNameController.text.trim(),
+      phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+      role: _selectedRole,
+      isActive: _isActive,
+      passwordHash: widget.user.passwordHash,
+      createdAt: widget.user.createdAt,
+      lastLoginAt: widget.user.lastLoginAt,
+      profileImageUrl: widget.user.profileImageUrl,
+      permissions: widget.user.permissions,
+    );
+
+    final success = await authController.updateUser(updatedUser);
+
+    setState(() => _isLoading = false);
+
+    if (success) {
+      widget.onUserUpdated();
+      if (mounted) Navigator.of(context).pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return AlertDialog(
+      title: const Text('Editar Usuario'),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _usernameController,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre de usuario',
+                  prefixIcon: Icon(Icons.person),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Campo requerido';
+                  }
+                  if (value.length < 3) {
+                    return 'Mínimo 3 caracteres';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  prefixIcon: Icon(Icons.email),
+                ),
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Campo requerido';
+                  }
+                  if (!GetUtils.isEmail(value)) {
+                    return 'Email inválido';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _firstNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Nombre',
+                        prefixIcon: Icon(Icons.badge),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Campo requerido';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _lastNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Apellido',
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Campo requerido';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _phoneController,
+                decoration: const InputDecoration(
+                  labelText: 'Teléfono (opcional)',
+                  prefixIcon: Icon(Icons.phone),
+                ),
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<UserRole>(
+                value: _selectedRole,
+                decoration: const InputDecoration(
+                  labelText: 'Rol',
+                  prefixIcon: Icon(Icons.security),
+                ),
+                items: UserRole.values.map((role) {
+                  return DropdownMenuItem(
+                    value: role,
+                    child: Text(role.displayName),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() => _selectedRole = value!);
+                },
+              ),
+              const SizedBox(height: 16),
+              SwitchListTile(
+                title: const Text('Usuario activo'),
+                subtitle: Text(
+                  _isActive ? 'El usuario puede iniciar sesión' : 'El usuario no puede iniciar sesión',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                value: _isActive,
+                onChanged: (value) {
+                  setState(() => _isActive = value);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: _isLoading ? null : _updateUser,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: colorScheme.primary,
+            foregroundColor: colorScheme.onPrimary,
+          ),
+          child: _isLoading
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Guardar'),
+        ),
+      ],
+    );
   }
 }

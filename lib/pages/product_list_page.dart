@@ -8,6 +8,7 @@ import 'package:bellezapp/database/database_helper.dart';
 import 'package:bellezapp/pages/add_product_page.dart';
 import 'package:bellezapp/pages/edit_product_page.dart';
 import 'package:bellezapp/utils/utils.dart';
+import 'package:bellezapp/mixins/store_aware_mixin.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:barcode_widget/barcode_widget.dart';
@@ -25,7 +26,7 @@ class ProductListPage extends StatefulWidget {
   ProductListPageState createState() => ProductListPageState();
 }
 
-class ProductListPageState extends State<ProductListPage> {
+class ProductListPageState extends State<ProductListPage> with StoreAwareMixin {
   List<Map<String, dynamic>> _filteredProducts = [];
   List<Map<String, dynamic>> _allProducts = [];
   final dbHelper = DatabaseHelper();
@@ -33,6 +34,7 @@ class ProductListPageState extends State<ProductListPage> {
   final loadingC = Get.find<LoadingController>();
   final themeController = Get.find<ThemeController>();
   String _activeFilter = 'todos'; // Estado del filtro activo
+  Map<int, bool> _expandedBadges = {}; // Para controlar qué badges están expandidos
 
   @override
   void initState() {
@@ -40,6 +42,12 @@ class ProductListPageState extends State<ProductListPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadProducts();
     });
+  }
+
+  @override
+  void reloadData() {
+    print('🔄 Recargando productos por cambio de tienda');
+    _loadProducts();
   }
 
   void _loadProducts() async {
@@ -126,10 +134,10 @@ class ProductListPageState extends State<ProductListPage> {
       },
       child: AnimatedContainer(
         duration: Duration(milliseconds: 200),
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: isActive ? color : Colors.white,
-          borderRadius: BorderRadius.circular(25),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: color,
             width: 1.5,
@@ -148,16 +156,16 @@ class ProductListPageState extends State<ProductListPage> {
           children: [
             Icon(
               icon,
-              size: 18,
+              size: 14,
               color: isActive ? Colors.white : color,
             ),
-            SizedBox(width: 6),
+            SizedBox(width: 4),
             Text(
               label,
               style: TextStyle(
                 color: isActive ? Colors.white : color,
                 fontWeight: FontWeight.w600,
-                fontSize: 13,
+                fontSize: 11,
               ),
             ),
           ],
@@ -329,21 +337,23 @@ class ProductListPageState extends State<ProductListPage> {
                   children: [
                     // Campo de búsqueda prominente
                     Container(
+                      height: 40,
                       decoration: BoxDecoration(
                         color: Colors.grey[50],
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: Colors.grey[300]!),
                       ),
                       child: TextField(
                         controller: _searchController,
                         onChanged: _filterProducts,
+                        style: TextStyle(fontSize: 13),
                         decoration: InputDecoration(
                           hintText: 'Buscar productos por nombre, categoría, proveedor...',
-                          hintStyle: TextStyle(color: Colors.grey[500]),
-                          prefixIcon: Icon(Icons.search, color: Utils.colorBotones),
+                          hintStyle: TextStyle(color: Colors.grey[500], fontSize: 12),
+                          prefixIcon: Icon(Icons.search, color: Utils.colorBotones, size: 20),
                           suffixIcon: _searchController.text.isNotEmpty
                               ? IconButton(
-                                  icon: Icon(Icons.clear, color: Colors.grey),
+                                  icon: Icon(Icons.clear, color: Colors.grey, size: 18),
                                   onPressed: () {
                                     _searchController.clear();
                                     _filterProducts('');
@@ -351,7 +361,7 @@ class ProductListPageState extends State<ProductListPage> {
                                 )
                               : null,
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         ),
                       ),
                     ),
@@ -386,29 +396,27 @@ class ProductListPageState extends State<ProductListPage> {
                       ],
                     ),
                     SizedBox(height: 8),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _buildImprovedFilterChip('Todos', 'todos', Icons.inventory_2_outlined, Colors.blue),
-                          SizedBox(width: 8),
-                          _buildImprovedFilterChip('Stock bajo', 'stock', Icons.warning_amber_outlined, Colors.red),
-                          SizedBox(width: 8),
-                          _buildImprovedFilterChip('Prox. vencer', 'expiry', Icons.schedule_outlined, Colors.orange),
-                        ],
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildImprovedFilterChip('Todos', 'todos', Icons.inventory_2_outlined, Colors.blue),
+                        _buildImprovedFilterChip('Stock bajo', 'stock', Icons.warning_amber_outlined, Colors.red),
+                        _buildImprovedFilterChip('Prox. vencer', 'expiry', Icons.schedule_outlined, Colors.orange),
+                      ],
                     ),
                     SizedBox(height: 6),
                   ],
                 ),
               ),
               Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Wrap(
-                    spacing: 12, // Espaciado horizontal entre elementos
-                    runSpacing: 12, // Espaciado vertical entre filas
-                    children: _filteredProducts.map((product) {
+                child: _filteredProducts.isEmpty
+                    ? _buildEmptyState()
+                    : SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: Wrap(
+                          spacing: 12, // Espaciado horizontal entre elementos
+                          runSpacing: 12, // Espaciado vertical entre filas
+                          children: _filteredProducts.map((product) {
                       final stock = product['stock'] ?? 0;
                       final expiryDate =
                           DateTime.tryParse(product['expirity_date'] ?? '');
@@ -486,50 +494,78 @@ class ProductListPageState extends State<ProductListPage> {
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
                                       if (isLowStock)
-                                        Container(
-                                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: Colors.red,
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(Icons.warning, color: Colors.white, size: 12),
-                                              SizedBox(width: 4),
-                                              Text(
-                                                'Stock bajo',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ],
+                                        GestureDetector(
+                                          onTap: () {
+                                            setState(() {
+                                              final key = product['id'] * 2; // ID único para stock bajo
+                                              _expandedBadges[key] = !(_expandedBadges[key] ?? false);
+                                            });
+                                          },
+                                          child: AnimatedContainer(
+                                            duration: Duration(milliseconds: 200),
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 3,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.red,
+                                              borderRadius: BorderRadius.circular(10),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.warning, color: Colors.white, size: 10),
+                                                if (_expandedBadges[product['id'] * 2] ?? false) ...[
+                                                  SizedBox(width: 3),
+                                                  Text(
+                                                    'Stock bajo',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 9,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
                                           ),
                                         ),
-                                      if (isLowStock && isNearExpiry) SizedBox(height: 4),
+                                      if (isLowStock && isNearExpiry) SizedBox(height: 3),
                                       if (isNearExpiry)
-                                        Container(
-                                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: Colors.orange,
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(Icons.schedule, color: Colors.white, size: 12),
-                                              SizedBox(width: 4),
-                                              Text(
-                                                'Vence pronto',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ],
+                                        GestureDetector(
+                                          onTap: () {
+                                            setState(() {
+                                              final key = product['id'] * 2 + 1; // ID único para vencimiento
+                                              _expandedBadges[key] = !(_expandedBadges[key] ?? false);
+                                            });
+                                          },
+                                          child: AnimatedContainer(
+                                            duration: Duration(milliseconds: 200),
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 3,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.orange,
+                                              borderRadius: BorderRadius.circular(10),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.schedule, color: Colors.white, size: 10),
+                                                if (_expandedBadges[product['id'] * 2 + 1] ?? false) ...[
+                                                  SizedBox(width: 3),
+                                                  Text(
+                                                    'Vence pronto',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 9,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
                                           ),
                                         ),
                                     ],
@@ -544,17 +580,17 @@ class ProductListPageState extends State<ProductListPage> {
                                       _generateAndShowPdf(context, product['name']);
                                     },
                                     child: Container(
-                                      padding: EdgeInsets.all(6),
+                                      padding: EdgeInsets.all(4),
                                       decoration: BoxDecoration(
                                         color: Colors.white.withOpacity(0.9),
-                                        borderRadius: BorderRadius.circular(8),
+                                        borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: BarcodeWidget(
                                         backgroundColor: Colors.transparent,
                                         barcode: Barcode.qrCode(),
                                         data: product['name'] ?? '',
-                                        width: 32,
-                                        height: 32,
+                                        width: 21,
+                                        height: 21,
                                       ),
                                     ),
                                   ),
@@ -593,7 +629,7 @@ class ProductListPageState extends State<ProductListPage> {
                             ),
                             // Contenido de la card
                             Padding(
-                              padding: const EdgeInsets.all(12),
+                              padding: const EdgeInsets.all(8),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -608,7 +644,7 @@ class ProductListPageState extends State<ProductListPage> {
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                  SizedBox(height: 4),
+                                  SizedBox(height: 3),
                                   // Descripción
                                   Text(
                                     product['description'] ?? 'Sin descripción',
@@ -619,10 +655,10 @@ class ProductListPageState extends State<ProductListPage> {
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                  SizedBox(height: 12),
+                                  SizedBox(height: 8),
                                   // Información principal en formato grid
                                   Container(
-                                    padding: EdgeInsets.all(8),
+                                    padding: EdgeInsets.all(6),
                                     decoration: BoxDecoration(
                                       color: Colors.grey[50],
                                       borderRadius: BorderRadius.circular(8),
@@ -637,7 +673,7 @@ class ProductListPageState extends State<ProductListPage> {
                                             _buildInfoItem('Ubicación', locationName, Colors.blue, Icons.location_on),
                                           ],
                                         ),
-                                        SizedBox(height: 8),
+                                        SizedBox(height: 6),
                                         Row(
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
@@ -653,10 +689,10 @@ class ProductListPageState extends State<ProductListPage> {
                                       ],
                                     ),
                                   ),
-                                  SizedBox(height: 12),
+                                  SizedBox(height: 8),
                                   // Precios destacados
                                   Container(
-                                    padding: EdgeInsets.all(8),
+                                    padding: EdgeInsets.all(6),
                                     decoration: BoxDecoration(
                                       gradient: LinearGradient(
                                         colors: [Utils.colorBotones.withOpacity(0.1), Colors.transparent],
@@ -688,7 +724,7 @@ class ProductListPageState extends State<ProductListPage> {
                                             ),
                                           ],
                                         ),
-                                        SizedBox(height: 4),
+                                        SizedBox(height: 3),
                                         Row(
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
@@ -796,5 +832,76 @@ class ProductListPageState extends State<ProductListPage> {
     } finally {
       loadingC.setOffLoading();
     }
+  }
+
+  Widget _buildEmptyState() {
+    String mensaje;
+    IconData icono = Icons.inventory_2_outlined;
+
+    if (_searchController.text.isNotEmpty) {
+      mensaje = 'No se encontraron productos que coincidan con tu búsqueda.';
+    } else if (_activeFilter == 'stock') {
+      mensaje = 'No hay productos con stock bajo en esta tienda.';
+    } else if (_activeFilter == 'expiry') {
+      mensaje = 'No hay productos próximos a vencer en esta tienda.';
+    } else {
+      mensaje = 'No hay productos en esta tienda. Agrega tu primer producto usando el botón "+".';
+    }
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Utils.colorBotones.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icono,
+              size: 80,
+              color: Utils.colorBotones,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Sin Productos',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Utils.colorTexto,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              mensaje,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Utils.colorTexto.withOpacity(0.7),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () {
+              loadingC.setOnLoading();
+              _loadProducts();
+              loadingC.setOffLoading();
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Actualizar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Utils.colorBotones,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
