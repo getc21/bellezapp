@@ -347,6 +347,7 @@ class ProductListPageState extends State<ProductListPage> with StoreAwareMixin {
                         controller: _searchController,
                         onChanged: _filterProducts,
                         style: TextStyle(fontSize: 13),
+                        enableInteractiveSelection: true,
                         decoration: InputDecoration(
                           hintText: 'Buscar productos por nombre, categoría, proveedor...',
                           hintStyle: TextStyle(color: Colors.grey[500], fontSize: 12),

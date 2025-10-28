@@ -14,7 +14,7 @@ class AddDiscountPage extends StatefulWidget {
 }
 
 class _AddDiscountPageState extends State<AddDiscountPage> {
-  final DiscountController discountController = Get.find<DiscountController>();
+  late final DiscountController discountController;
   
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
@@ -33,6 +33,13 @@ class _AddDiscountPageState extends State<AddDiscountPage> {
   @override
   void initState() {
     super.initState();
+    // Intentar encontrar el controller, si no existe, crearlo
+    try {
+      discountController = Get.find<DiscountController>();
+    } catch (e) {
+      discountController = Get.put(DiscountController());
+    }
+    
     if (isEditing) {
       _loadDiscountData();
     }
@@ -557,45 +564,102 @@ class _AddDiscountPageState extends State<AddDiscountPage> {
       return;
     }
     
-    final value = double.parse(_valueController.text);
-    final minimumAmount = _minimumAmountController.text.isNotEmpty
-        ? double.parse(_minimumAmountController.text)
-        : null;
-    final maximumDiscount = _maximumDiscountController.text.isNotEmpty
-        ? double.parse(_maximumDiscountController.text)
-        : null;
+    // Mostrar loading
+    Get.dialog(
+      WillPopScope(
+        onWillPop: () async => false,
+        child: Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Guardando descuento...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      barrierDismissible: false,
+    );
     
-    bool success;
-    
-    if (isEditing) {
-      success = await discountController.updateDiscount(
-        id: widget.discount!.id!,
-        name: _nameController.text.trim(),
-        description: _descriptionController.text.trim(),
-        type: _selectedType,
-        value: value,
-        minimumAmount: minimumAmount,
-        maximumDiscount: maximumDiscount,
-        startDate: _startDate,
-        endDate: _endDate,
-        isActive: _isActive,
-      );
-    } else {
-      success = await discountController.addDiscount(
-        name: _nameController.text.trim(),
-        description: _descriptionController.text.trim(),
-        type: _selectedType,
-        value: value,
-        minimumAmount: minimumAmount,
-        maximumDiscount: maximumDiscount,
-        startDate: _startDate,
-        endDate: _endDate,
-        isActive: _isActive,
-      );
-    }
-    
-    if (success) {
-      Get.back();
+    try {
+      final value = double.parse(_valueController.text);
+      final minimumAmount = _minimumAmountController.text.isNotEmpty
+          ? double.parse(_minimumAmountController.text)
+          : null;
+      final maximumDiscount = _maximumDiscountController.text.isNotEmpty
+          ? double.parse(_maximumDiscountController.text)
+          : null;
+      
+      bool success;
+      
+      if (isEditing) {
+        success = await discountController.updateDiscount(
+          id: widget.discount!.id!,
+          name: _nameController.text.trim(),
+          description: _descriptionController.text.trim(),
+          type: _selectedType,
+          value: value,
+          minimumAmount: minimumAmount,
+          maximumDiscount: maximumDiscount,
+          startDate: _startDate,
+          endDate: _endDate,
+          isActive: _isActive,
+        );
+      } else {
+        success = await discountController.addDiscount(
+          name: _nameController.text.trim(),
+          description: _descriptionController.text.trim(),
+          type: _selectedType,
+          value: value,
+          minimumAmount: minimumAmount,
+          maximumDiscount: maximumDiscount,
+          startDate: _startDate,
+          endDate: _endDate,
+          isActive: _isActive,
+        );
+      }
+      
+      // Esperar un momento para que el snackbar del controller termine
+      await Future.delayed(Duration(milliseconds: 100));
+      
+      // Cerrar loading dialog si está abierto
+      if (Get.isDialogOpen == true) {
+        Navigator.of(context).pop();
+      }
+      
+      // Esperar otro momento antes de cerrar la página
+      await Future.delayed(Duration(milliseconds: 100));
+      
+      // Si fue exitoso, cerrar la página
+      if (success && mounted) {
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      print('Error al guardar descuento: $e');
+      
+      // Cerrar loading dialog si está abierto
+      if (Get.isDialogOpen == true) {
+        Navigator.of(context).pop();
+      }
+      
+      // Esperar antes de mostrar el error
+      await Future.delayed(Duration(milliseconds: 100));
+      
+      // Mostrar error
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al guardar descuento: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 }

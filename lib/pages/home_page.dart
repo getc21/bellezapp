@@ -35,6 +35,15 @@ class HomePageState extends State<HomePage> {
   final themeController = Get.find<ThemeController>();
   final authController = Get.find<AuthController>();
   
+  @override
+  void initState() {
+    super.initState();
+    // Asegurar que no haya ningún foco activo al iniciar
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusManager.instance.primaryFocus?.unfocus();
+    });
+  }
+  
   // Función para mostrar confirmación de salida
   Future<bool> _showExitConfirmation() async {
     final bool shouldExit = await showDialog(

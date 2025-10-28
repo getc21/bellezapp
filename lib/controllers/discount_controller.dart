@@ -24,6 +24,7 @@ class DiscountController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    print('🎬 DiscountController onInit() iniciando...');
     loadDiscounts();
     
     // Escuchar cambios en la búsqueda
@@ -37,18 +38,25 @@ class DiscountController extends GetxController {
         loadDiscounts();
       });
     } catch (e) {
-      // StoreController no disponible
+      print('⚠️ StoreController no disponible en DiscountController: $e');
     }
   }
 
   // Cargar todos los descuentos
   Future<void> loadDiscounts() async {
     try {
+      print('📥 Iniciando carga de descuentos...');
       isLoading.value = true;
       final discountList = await _databaseHelper.getDiscounts();
+      print('📊 Descuentos obtenidos de la BD: ${discountList.length}');
+      for (var d in discountList) {
+        print('  - ${d.name}: active=${d.isActive}, min=${d.minimumAmount}');
+      }
       discounts.value = discountList;
       filteredDiscounts.value = discountList;
+      print('✅ Descuentos cargados correctamente');
     } catch (e) {
+      print('❌ Error al cargar descuentos: $e');
       Get.snackbar(
         'Error',
         'Error al cargar descuentos: $e',
@@ -94,9 +102,24 @@ class DiscountController extends GetxController {
 
   // Obtener descuentos aplicables para un monto específico
   void updateApplicableDiscounts(double totalAmount) {
+    print('🔍 DEBUG updateApplicableDiscounts:');
+    print('  Total de descuentos cargados: ${discounts.length}');
+    print('  Monto total: \$${totalAmount.toStringAsFixed(2)}');
+    
+    for (var discount in discounts) {
+      print('  - ${discount.name}:');
+      print('    isActive: ${discount.isActive}');
+      print('    minimumAmount: ${discount.minimumAmount}');
+      print('    startDate: ${discount.startDate}');
+      print('    endDate: ${discount.endDate}');
+      print('    isApplicable: ${discount.isApplicable(totalAmount)}');
+    }
+    
     applicableDiscounts.value = discounts
         .where((discount) => discount.isApplicable(totalAmount))
         .toList();
+        
+    print('  Descuentos aplicables: ${applicableDiscounts.length}');
   }
 
   // Agregar nuevo descuento

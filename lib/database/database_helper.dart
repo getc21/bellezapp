@@ -26,7 +26,7 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'beauty_store.db');
     return await openDatabase(
       path,
-      version: 12, // Versión 12: Agregar store_id a locations
+      version: 13, // Versión 13: Agregar created_at a discounts
       onCreate: (db, version) async {
         // Tabla de tiendas
         db.execute('''
@@ -201,7 +201,8 @@ class DatabaseHelper {
             maximum_discount REAL,
             start_date TEXT,
             end_date TEXT,
-            is_active INTEGER NOT NULL DEFAULT 1
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL
           )
         ''');
         
@@ -630,6 +631,20 @@ class DatabaseHelper {
           }
           
           print('✅ Migración a versión 12 completada');
+        }
+        
+        if (oldVersion < 13) {
+          print('🔄 Migrando a versión 13: Agregando created_at a discounts');
+          
+          // Agregar created_at a discounts
+          try {
+            await db.execute('ALTER TABLE discounts ADD COLUMN created_at TEXT DEFAULT \'${DateTime.now().toIso8601String()}\'');
+            print('✅ Columna created_at agregada a discounts');
+          } catch (e) {
+            print('⚠️ Column created_at already exists in discounts: $e');
+          }
+          
+          print('✅ Migración a versión 13 completada');
         }
       },
     );

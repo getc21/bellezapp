@@ -5,21 +5,33 @@ import '../controllers/payment_controller.dart';
 import '../models/payment_method.dart';
 import '../utils/utils.dart';
 
-class PaymentMethodDialog extends StatelessWidget {
+class PaymentMethodDialog extends StatefulWidget {
   final double totalAmount;
   final VoidCallback? onPaymentConfirmed;
-  final PaymentController paymentController = Get.put(PaymentController());
 
-  PaymentMethodDialog({
+  const PaymentMethodDialog({
     super.key,
     required this.totalAmount,
     this.onPaymentConfirmed,
   });
 
   @override
-  Widget build(BuildContext context) {
-    // Resetear información de pago al abrir el diálogo
+  State<PaymentMethodDialog> createState() => _PaymentMethodDialogState();
+}
+
+class _PaymentMethodDialogState extends State<PaymentMethodDialog> {
+  late final PaymentController paymentController;
+
+  @override
+  void initState() {
+    super.initState();
+    paymentController = Get.put(PaymentController());
+    // Resetear información de pago solo una vez al inicializar
     paymentController.resetPaymentInfo();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     
     return AlertDialog(
       title: Row(
@@ -55,7 +67,7 @@ class PaymentMethodDialog extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '\$${totalAmount.toStringAsFixed(2)}',
+                      '\$${widget.totalAmount.toStringAsFixed(2)}',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -80,7 +92,7 @@ class PaymentMethodDialog extends StatelessWidget {
               
               // Mensaje de error
               Obx(() {
-                final errorMessage = paymentController.getValidationMessage(totalAmount);
+                final errorMessage = paymentController.getValidationMessage(widget.totalAmount);
                 return errorMessage.isNotEmpty
                     ? Container(
                         padding: const EdgeInsets.all(12),
@@ -165,7 +177,7 @@ class PaymentMethodDialog extends StatelessWidget {
         onChanged: (PaymentMethod? value) {
           if (value != null) {
             paymentController.selectPaymentMethod(value);
-            paymentController.calculateChange(totalAmount);
+            paymentController.calculateChange(widget.totalAmount);
           }
         },
         activeColor: Utils.colorBotones,
@@ -211,7 +223,7 @@ class PaymentMethodDialog extends StatelessWidget {
           onChanged: (value) {
             final amount = double.tryParse(value) ?? 0.0;
             paymentController.updateReceivedCashAmount(amount);
-            paymentController.calculateChange(totalAmount);
+            paymentController.calculateChange(widget.totalAmount);
           },
         ),
         
@@ -268,9 +280,9 @@ class PaymentMethodDialog extends StatelessWidget {
 
   void _processPayment(BuildContext context) {
     // Usar la validación que modifica estado solo al procesar
-    if (paymentController.validatePayment(totalAmount)) {
+    if (paymentController.validatePayment(widget.totalAmount)) {
       Navigator.of(context).pop();
-      onPaymentConfirmed?.call();
+      widget.onPaymentConfirmed?.call();
     }
     // Los errores se muestran automáticamente por el Obx
   }

@@ -18,12 +18,28 @@ class DiscountSelectionDialog extends StatefulWidget {
 }
 
 class _DiscountSelectionDialogState extends State<DiscountSelectionDialog> {
-  final DiscountController discountController = Get.find<DiscountController>();
+  late final DiscountController discountController;
   Discount? selectedDiscount;
   
   @override
   void initState() {
     super.initState();
+    // Inicializar el controlador
+    try {
+      discountController = Get.find<DiscountController>();
+    } catch (e) {
+      print('⚠️ DiscountController no encontrado, creando uno nuevo');
+      discountController = Get.put(DiscountController());
+    }
+    
+    // Recargar descuentos y actualizar aplicables
+    _loadDiscounts();
+  }
+  
+  Future<void> _loadDiscounts() async {
+    print('🔄 Recargando descuentos desde el diálogo...');
+    await discountController.loadDiscounts();
+    print('📋 Descuentos cargados: ${discountController.discounts.length}');
     // Actualizar descuentos aplicables cuando se abre el diálogo
     discountController.updateApplicableDiscounts(widget.totalAmount);
   }

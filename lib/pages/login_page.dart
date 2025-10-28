@@ -35,8 +35,13 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       if (success) {
+        // Esperar un poco antes de navegar para asegurar que el teclado esté cerrado
+        await Future.delayed(Duration(milliseconds: 300));
         // Navegar a la pantalla principal
         Get.offAll(() => HomePage());
+        // Asegurar que el foco se libere después de la navegación
+        await Future.delayed(Duration(milliseconds: 100));
+        FocusManager.instance.primaryFocus?.unfocus();
       }
     }
   }

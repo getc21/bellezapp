@@ -22,6 +22,7 @@ class OrderListPageState extends State<OrderListPage> with StoreAwareMixin {
   final RxList<Map<String, dynamic>> _orders = <Map<String, dynamic>>[].obs;
   final RxList<Map<String, dynamic>> _filteredOrders = <Map<String, dynamic>>[].obs;
   final TextEditingController _searchController = TextEditingController();
+  final RxDouble _totalSum = 0.0.obs;
 
   @override
   void initState() {
@@ -48,6 +49,12 @@ class OrderListPageState extends State<OrderListPage> with StoreAwareMixin {
     final sortedOrders = orders.reversed.toList();
     _orders.value = sortedOrders;
     _filteredOrders.value = sortedOrders;
+    _calculateTotalSum();
+  }
+
+  void _calculateTotalSum() {
+    _totalSum.value = _filteredOrders.fold(0.0, (sum, order) => 
+      sum + (double.tryParse(order['totalOrden'].toString()) ?? 0.0));
   }
 
   void _filterOrders(String searchText) {
@@ -73,6 +80,7 @@ class OrderListPageState extends State<OrderListPage> with StoreAwareMixin {
                hasProductMatch;
       }).toList();
     }
+    _calculateTotalSum();
   }
 
   // Método público para refrescar la lista desde fuera
@@ -150,107 +158,109 @@ class OrderListPageState extends State<OrderListPage> with StoreAwareMixin {
   }
 
   Widget _buildProductsTable(List<dynamic> items) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: DataTable(
-        headingRowHeight: 36,
-        dataRowHeight: 32,
-        horizontalMargin: 12,
-        columnSpacing: 8,
-        headingTextStyle: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 12,
-          color: Utils.colorGnav,
+    return RepaintBoundary(
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey[200]!),
         ),
-        dataTextStyle: TextStyle(
-          fontSize: 11,
-          color: Colors.grey[700],
-        ),
-        columns: [
-          DataColumn(
-            label: Expanded(
-              flex: 1,
-              child: Text('Cant.', textAlign: TextAlign.center),
-            ),
+        child: DataTable(
+          headingRowHeight: 36,
+          dataRowHeight: 32,
+          horizontalMargin: 12,
+          columnSpacing: 8,
+          headingTextStyle: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+            color: Utils.colorGnav,
           ),
-          DataColumn(
-            label: Expanded(
-              flex: 3,
-              child: Text('Producto'),
-            ),
+          dataTextStyle: TextStyle(
+            fontSize: 11,
+            color: Colors.grey[700],
           ),
-          DataColumn(
-            label: Expanded(
-              flex: 2,
-              child: Text('Precio', textAlign: TextAlign.end),
+          columns: [
+            DataColumn(
+              label: Expanded(
+                flex: 1,
+                child: Text('Cant.', textAlign: TextAlign.center),
+              ),
             ),
-          ),
-        ],
-        rows: items.map<DataRow>((item) {
-          return DataRow(cells: [
-            DataCell(
-              Container(
-                width: double.infinity,
-                alignment: Alignment.center,
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Utils.colorBotones.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${item['quantity']}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Utils.colorBotones,
+            DataColumn(
+              label: Expanded(
+                flex: 3,
+                child: Text('Producto'),
+              ),
+            ),
+            DataColumn(
+              label: Expanded(
+                flex: 2,
+                child: Text('Precio', textAlign: TextAlign.end),
+              ),
+            ),
+          ],
+          rows: items.map<DataRow>((item) {
+            return DataRow(cells: [
+              DataCell(
+                Container(
+                  width: double.infinity,
+                  alignment: Alignment.center,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Utils.colorBotones.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${item['quantity']}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Utils.colorBotones,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            DataCell(
-              Container(
-                width: double.infinity,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  item['product_name'] ?? 'Sin nombre',
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 2,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey[700],
+              DataCell(
+                Container(
+                  width: double.infinity,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    item['product_name'] ?? 'Sin nombre',
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey[700],
+                    ),
                   ),
                 ),
               ),
-            ),
-            DataCell(
-              Container(
-                width: double.infinity,
-                alignment: Alignment.centerRight,
-                child: Text(
-                  _formatCurrency(item['price']),
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Utils.colorTexto,
-                    fontSize: 11,
+              DataCell(
+                Container(
+                  width: double.infinity,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    _formatCurrency(item['price']),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Utils.colorTexto,
+                      fontSize: 11,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ]);
-        }).toList(),
+            ]);
+          }).toList(),
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() => Scaffold(
+    return Scaffold(
       backgroundColor: Utils.colorFondo,
       body: Column(
         children: [
@@ -302,7 +312,7 @@ class OrderListPageState extends State<OrderListPage> with StoreAwareMixin {
                 ),
                 SizedBox(height: 12),
                 // Header con contador y resumen
-                Row(
+                Obx(() => Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
@@ -339,8 +349,7 @@ class OrderListPageState extends State<OrderListPage> with StoreAwareMixin {
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
-                              _formatCurrency(_filteredOrders.fold(0.0, (sum, order) => 
-                                sum + (double.tryParse(order['totalOrden'].toString()) ?? 0.0))),
+                              _formatCurrency(_totalSum.value),
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -352,20 +361,21 @@ class OrderListPageState extends State<OrderListPage> with StoreAwareMixin {
                       ],
                     ),
                   ],
-                ),
+                )),
                 SizedBox(height: 6),
               ],
             ),
           ),
           // Lista de órdenes
           Expanded(
-            child: _filteredOrders.isEmpty
+            child: Obx(() => _filteredOrders.isEmpty
                 ? _buildEmptyState()
                 : RefreshIndicator(
                     onRefresh: _loadOrders,
                     child: ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: _filteredOrders.length,
+                      cacheExtent: 500,
                       itemBuilder: (context, index) {
                         final order = _filteredOrders[index];
                         final orderDate = DateFormat('dd/MM/yyyy')
@@ -373,161 +383,164 @@ class OrderListPageState extends State<OrderListPage> with StoreAwareMixin {
                         final orderTime = DateFormat('HH:mm')
                             .format(DateTime.parse(order['order_date']));
                         
-                        return Container(
-                          margin: EdgeInsets.only(bottom: 16),
-                          decoration: BoxDecoration(
-                            color: Utils.colorFondoCards,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.grey.shade200),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.grey.withOpacity(0.08),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Header de la orden
-                                Row(
-                                  children: [
-                                    Container(
-                                      width: 50,
-                                      height: 50,
-                                      decoration: BoxDecoration(
-                                        color: Utils.colorBotones.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(25),
-                                      ),
-                                      child: Icon(
-                                        Icons.receipt_long,
-                                        color: Utils.colorBotones,
-                                        size: 24,
-                                      ),
-                                    ),
-                                    SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Text(
-                                                'Orden #${order['id']}',
-                                                style: TextStyle(
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Utils.colorGnav,
-                                                ),
-                                              ),
-                                              SizedBox(width: 8),
-                                              Container(
-                                                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                decoration: BoxDecoration(
-                                                  color: Utils.colorBotones.withOpacity(0.1),
-                                                  borderRadius: BorderRadius.circular(12),
-                                                ),
-                                                child: Text(
-                                                  'COMPLETADA',
-                                                  style: TextStyle(
-                                                    fontSize: 10,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Utils.colorBotones,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          SizedBox(height: 4),
-                                          Row(
-                                            children: [
-                                              Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
-                                              SizedBox(width: 4),
-                                              Text(
-                                                orderDate,
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.grey[600],
-                                                ),
-                                              ),
-                                              SizedBox(width: 12),
-                                              Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
-                                              SizedBox(width: 4),
-                                              Text(
-                                                orderTime,
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.grey[600],
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(height: 16),
-                                // Productos de la orden
-                                Text(
-                                  'Productos (${order['items']?.length ?? 0} artículos)',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: Utils.colorGnav,
-                                  ),
-                                ),
-                                SizedBox(height: 8),
-                                _buildProductsTable(order['items'] ?? []),
-                                SizedBox(height: 12),
-                                // Total en la esquina inferior derecha
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    Container(
-                                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                      decoration: BoxDecoration(
-                                        color: Utils.colorBotones.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(
-                                          color: Utils.colorBotones.withOpacity(0.3),
-                                          width: 1,
-                                        ),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            'TOTAL: ',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                              color: Utils.colorTexto,
-                                            ),
-                                          ),
-                                          Text(
-                                            _formatCurrency(order['totalOrden']),
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: Utils.colorBotones,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
+                        return RepaintBoundary(
+                          child: Container(
+                            margin: EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              color: Utils.colorFondoCards,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.grey.shade200),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.08),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
                                 ),
                               ],
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Header de la orden
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 50,
+                                        height: 50,
+                                        decoration: BoxDecoration(
+                                          color: Utils.colorBotones.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(25),
+                                        ),
+                                        child: Icon(
+                                          Icons.receipt_long,
+                                          color: Utils.colorBotones,
+                                          size: 24,
+                                        ),
+                                      ),
+                                      SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Text(
+                                                  'Orden #${order['id']}',
+                                                  style: TextStyle(
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Utils.colorGnav,
+                                                  ),
+                                                ),
+                                                SizedBox(width: 8),
+                                                Container(
+                                                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                  decoration: BoxDecoration(
+                                                    color: Utils.colorBotones.withOpacity(0.1),
+                                                    borderRadius: BorderRadius.circular(12),
+                                                  ),
+                                                  child: Text(
+                                                    'COMPLETADA',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Utils.colorBotones,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            SizedBox(height: 4),
+                                            Row(
+                                              children: [
+                                                Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
+                                                SizedBox(width: 4),
+                                                Text(
+                                                  orderDate,
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey[600],
+                                                  ),
+                                                ),
+                                                SizedBox(width: 12),
+                                                Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
+                                                SizedBox(width: 4),
+                                                Text(
+                                                  orderTime,
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey[600],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 16),
+                                  // Productos de la orden
+                                  Text(
+                                    'Productos (${order['items']?.length ?? 0} artículos)',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: Utils.colorGnav,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  _buildProductsTable(order['items'] ?? []),
+                                  SizedBox(height: 12),
+                                  // Total en la esquina inferior derecha
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      Container(
+                                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                        decoration: BoxDecoration(
+                                          color: Utils.colorBotones.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: Utils.colorBotones.withOpacity(0.3),
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              'TOTAL: ',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                                color: Utils.colorTexto,
+                                              ),
+                                            ),
+                                            Text(
+                                              _formatCurrency(order['totalOrden']),
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                                color: Utils.colorBotones,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         );
                       },
                     ),
                   ),
+            ),
           ),
         ],
       ),
@@ -541,6 +554,6 @@ class OrderListPageState extends State<OrderListPage> with StoreAwareMixin {
         },
         child: const Icon(Icons.add, color: Colors.white),
       ),
-    ));
+    );
   }
 }
