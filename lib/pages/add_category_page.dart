@@ -1,12 +1,10 @@
-import 'package:bellezapp/pages/home_page.dart';
+import 'dart:io';
+import 'package:bellezapp/controllers/category_controller.dart';
 import 'package:bellezapp/utils/utils.dart';
 import 'package:flutter/material.dart';
-import 'package:bellezapp/database/database_helper.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:convert';
-import 'dart:io';
-import 'package:image/image.dart' as img;
+
 class AddCategoryPage extends StatefulWidget {
   const AddCategoryPage({super.key});
 
@@ -15,34 +13,108 @@ class AddCategoryPage extends StatefulWidget {
 }
 
 class AddCategoryPageState extends State<AddCategoryPage> {
-  final formKey = GlobalKey<FormState>();
+  final CategoryController categoryController = Get.find<CategoryController>();
+  final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _fotoController = TextEditingController();
-  File? _image;
+  File? _imageFile;
 
-  Future<void> _pickImage(ImageSource source) async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: source);
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
 
-    if (pickedFile != null) {
-      final imageFile = File(pickedFile.path);
-      final imageBytes = await imageFile.readAsBytes();
-      final img.Image? originalImage = img.decodeImage(imageBytes);
+  Future<void> _pickImage(String source) async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: source == 'camera' ? ImageSource.camera : ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 85,
+    );
 
-      if (originalImage != null) {
-        final img.Image resizedImage = img.copyResize(
-          originalImage,
-          height: 300,
-        );
+    if (image != null) {
+      setState(() {
+        _imageFile = File(image.path);
+      });
+    }
+  }
 
-        final resizedImageBytes = img.encodeJpg(resizedImage);
-        setState(() {
-          _image = imageFile;
-          _fotoController.text = base64Encode(resizedImageBytes);
+  Future<void> _saveCategory() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    print('🔄 Iniciando guardado de categoría...');
+    
+    final success = await categoryController.createCategory(
+      name: _nameController.text,
+      description: _descriptionController.text.isEmpty 
+          ? null 
+          : _descriptionController.text,
+      imageFile: _imageFile,
+    );
+
+    print('📊 Resultado del guardado: $success');
+
+    if (success) {
+      print('✅ Éxito! Ejecutando Navigator.pop()...');
+      
+      // Primero navegar de regreso
+      if (mounted) {
+        Navigator.of(context).pop();
+        
+        // Mostrar snackbar después de regresar
+        Future.delayed(Duration(milliseconds: 300), () {
+          Get.snackbar(
+            'Éxito',
+            'Categoría creada correctamente',
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: Colors.green.withOpacity(0.1),
+            colorText: Colors.green[800],
+            duration: Duration(seconds: 2),
+          );
         });
       }
+    } else {
+      print('❌ Error en el guardado, no se ejecuta Get.back()');
     }
+  }
+
+  Future<void> _showImageSourceDialog() async {
+    await Utils.showImageSourceDialog(
+      context,
+      onImageSelected: (source) => _pickImage(source),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12, top: 8),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Utils.colorBotones.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: Utils.colorBotones, size: 20),
+          ),
+          SizedBox(width: 12),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -50,216 +122,308 @@ class AddCategoryPageState extends State<AddCategoryPage> {
     return Scaffold(
       backgroundColor: Utils.colorFondo,
       appBar: AppBar(
+        elevation: 0,
         title: Row(
-          children: [
-            Icon(Icons.category, size: 24),
+          children: const [
+            Icon(Icons.category_rounded, size: 24),
             SizedBox(width: 8),
             Text('Nueva Categoría'),
           ],
         ),
-        backgroundColor: Utils.colorGnav,
+        backgroundColor: Utils.colorBotones,
         foregroundColor: Colors.white,
-        elevation: 2,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: formKey,
-          child: ListView(
-            children: [
-              // Sección: Información Básica
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Row(
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Sección de Imagen con Card
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.info_outline, color: Utils.colorBotones, size: 24),
-                    SizedBox(width: 8),
-                    Text(
-                      'Información Básica',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Utils.colorBotones,
+                    _buildSectionTitle('Imagen de categoría', Icons.image_rounded),
+                    SizedBox(height: 12),
+                    GestureDetector(
+                      onTap: _showImageSourceDialog,
+                      child: Container(
+                        height: 240,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Utils.colorBotones.withOpacity(0.3),
+                            width: 2,
+                            style: BorderStyle.solid,
+                          ),
+                        ),
+                        child: _imageFile != null
+                            ? Stack(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.file(
+                                      _imageFile!,
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                  // Badge "Cambiar"
+                                  Positioned(
+                                    bottom: 12,
+                                    right: 12,
+                                    child: Container(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Utils.colorBotones,
+                                            Utils.colorBotones.withOpacity(0.8),
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(20),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.3),
+                                            blurRadius: 8,
+                                            offset: Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.edit_rounded,
+                                            color: Colors.white,
+                                            size: 16,
+                                          ),
+                                          SizedBox(width: 6),
+                                          Text(
+                                            'Cambiar',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: EdgeInsets.all(20),
+                                    decoration: BoxDecoration(
+                                      color: Utils.colorBotones.withOpacity(0.1),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.add_photo_alternate_rounded,
+                                      size: 48,
+                                      color: Utils.colorBotones,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Toca para agregar imagen',
+                                    style: TextStyle(
+                                      color: Colors.grey[700],
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'JPG, PNG (máx. 1024x1024)',
+                                    style: TextStyle(
+                                      color: Colors.grey[500],
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
                       ),
                     ),
                   ],
                 ),
               ),
-              TextFormField(
-                controller: _nameController,
-                cursorColor: Utils.colorBotones,
-                decoration: InputDecoration(
-                  prefixIcon: Icon(Icons.label, color: Utils.colorBotones),
-                  floatingLabelStyle: TextStyle(
-                      color: Utils.colorBotones, fontWeight: FontWeight.bold),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Utils.colorBotones, width: 3),
-                  ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(),
-                  labelText: 'Nombre de la Categoría',
-                  hintText: 'Ej: Shampoos, Tintes, Cremas...',
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor ingrese el nombre';
-                  }
-                  return null;
-                },
+            ),
+            const SizedBox(height: 24),
+
+            // Información Básica con Card
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-              Utils.espacio10,
-              TextFormField(
-                controller: _descriptionController,
-                cursorColor: Utils.colorBotones,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  prefixIcon: Icon(Icons.description, color: Utils.colorBotones),
-                  floatingLabelStyle: TextStyle(
-                      color: Utils.colorBotones, fontWeight: FontWeight.bold),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Utils.colorBotones, width: 3),
-                  ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(),
-                  labelText: 'Descripción',
-                  hintText: 'Describe la categoría brevemente...',
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor ingrese la descripción';
-                  }
-                  return null;
-                },
-              ),
-              Utils.espacio10,
-              
-              // Sección: Imagen
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Row(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.photo_camera, color: Utils.colorBotones, size: 24),
-                    SizedBox(width: 8),
-                    Text(
-                      'Imagen de la Categoría',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Utils.colorBotones,
+                    _buildSectionTitle('Información Básica', Icons.info_outline_rounded),
+                    SizedBox(height: 12),
+
+                    // Nombre
+                    TextFormField(
+                      controller: _nameController,
+                      style: TextStyle(fontSize: 15),
+                      decoration: InputDecoration(
+                        labelText: 'Nombre de la categoría*',
+                        hintText: 'Ej: Maquillaje, Perfumes, Cuidado facial...',
+                        prefixIcon: Icon(Icons.label_rounded, color: Utils.colorBotones),
+                        filled: true,
+                        fillColor: Colors.grey[50],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: Utils.colorBotones,
+                            width: 2,
+                          ),
+                        ),
+                        errorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.red, width: 2),
+                        ),
                       ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'El nombre es obligatorio';
+                        }
+                        if (value.length < 3) {
+                          return 'Mínimo 3 caracteres';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Descripción
+                    TextFormField(
+                      controller: _descriptionController,
+                      style: TextStyle(fontSize: 15),
+                      decoration: InputDecoration(
+                        labelText: 'Descripción (opcional)',
+                        hintText: 'Describe brevemente esta categoría...',
+                        prefixIcon: Icon(Icons.description_rounded, color: Utils.colorBotones),
+                        filled: true,
+                        fillColor: Colors.grey[50],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: Utils.colorBotones,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                      maxLines: 4,
+                      maxLength: 200,
                     ),
                   ],
                 ),
               ),
-              Container(
-                padding: EdgeInsets.all(16),
+            ),
+            const SizedBox(height: 32),
+
+            // Botón guardar con diseño premium
+            Obx(() {
+              return Container(
+                height: 56,
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Utils.colorBotones.withOpacity(0.3), width: 2),
+                  borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: Offset(0, 4),
+                      color: Utils.colorBotones.withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: Offset(0, 6),
                     ),
                   ],
                 ),
-                child: Column(
-                  children: [
-                    if (_image == null) ...[
-                      Icon(Icons.add_photo_alternate, size: 64, color: Colors.grey[400]),
-                      SizedBox(height: 8),
-                      Text(
-                        'Selecciona una imagen para la categoría',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                        textAlign: TextAlign.center,
-                      ),
-                    ] else ...[
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.file(_image!, height: 200, fit: BoxFit.cover),
-                      ),
-                    ],
-                    SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Expanded(
-                          child: Utils.elevatedButtonWithIcon(
-                            'Cámara', 
-                            Utils.colorBotones, 
-                            () {
-                              _pickImage(ImageSource.camera);
-                            }, 
-                            Icons.camera_alt
-                          ),
-                        ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Utils.elevatedButtonWithIcon(
-                            'Galería', 
-                            Utils.colorBotones, 
-                            () {
-                              _pickImage(ImageSource.gallery);
-                            }, 
-                            Icons.photo_library
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 24),
-
-              // Botón de guardar destacado
-              Container(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    if (formKey.currentState?.validate() ?? false) {
-                      final newCategory = {
-                        'name': _nameController.text,
-                        'description': _descriptionController.text,
-                        'foto': _fotoController.text,
-                      };
-
-                      await DatabaseHelper().insertCategory(newCategory);
-
-                      Get.snackbar(
-                        '✓ Éxito',
-                        'Categoría guardada correctamente',
-                        snackPosition: SnackPosition.TOP,
-                        backgroundColor: Colors.green,
-                        colorText: Colors.white,
-                        duration: Duration(seconds: 2),
-                      );
-
-                      Get.to(HomePage());
-                    }
-                  },
-                  icon: Icon(Icons.save, size: 24),
-                  label: Text(
-                    'Guardar Categoría',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                child: ElevatedButton(
+                  onPressed: categoryController.isLoading ? null : _saveCategory,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Utils.colorBotones,
                     foregroundColor: Colors.white,
-                    elevation: 4,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                     ),
+                    elevation: 0,
                   ),
+                  child: categoryController.isLoading
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Text(
+                              'Guardando...',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.save_rounded, size: 22),
+                            SizedBox(width: 8),
+                            Text(
+                              'Guardar Categoría',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
                 ),
-              ),
-              SizedBox(height: 16),
-            ],
-          ),
+              );
+            }),
+            SizedBox(height: 24),
+          ],
         ),
       ),
     );

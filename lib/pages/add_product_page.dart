@@ -1,13 +1,15 @@
-import 'dart:convert';
 import 'dart:io';
-
-import 'package:bellezapp/pages/home_page.dart';
+import 'package:bellezapp/controllers/product_controller.dart';
+import 'package:bellezapp/controllers/category_controller.dart';
+import 'package:bellezapp/controllers/supplier_controller.dart';
+import 'package:bellezapp/controllers/location_controller.dart';
+import 'package:bellezapp/controllers/auth_controller.dart';
+import 'package:bellezapp/controllers/store_controller.dart';
 import 'package:bellezapp/utils/utils.dart';
 import 'package:flutter/material.dart';
-import 'package:bellezapp/database/database_helper.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:image/image.dart' as img;
 
 class AddProductPage extends StatefulWidget {
   const AddProductPage({super.key});
@@ -17,50 +19,406 @@ class AddProductPage extends StatefulWidget {
 }
 
 class AddProductPageState extends State<AddProductPage> {
-  final formKey = GlobalKey<FormState>();
+  final ProductController productController = Get.find<ProductController>();
+  final CategoryController categoryController = Get.put(CategoryController());
+  final SupplierController supplierController = Get.put(SupplierController());
+  final LocationController locationController = Get.put(LocationController());
+  final AuthController authController = Get.find<AuthController>();
+  final StoreController storeController = Get.find<StoreController>();
+  
+  final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _priceCompraController = TextEditingController();
-  final _priceVentaController = TextEditingController();
+  final _purchasePriceController = TextEditingController();
+  final _salePriceController = TextEditingController();
+  final _stockController = TextEditingController();
   final _weightController = TextEditingController();
-  int? _selectedCategoryId;
-  int? _selectedSupplierId;
-  int? _selectedLocationId;
-  final _fotoController = TextEditingController();
-  final _stockQuantityController = TextEditingController();
   final _expirityDateController = TextEditingController();
-
-  List<Map<String, dynamic>> _categories = [];
-  List<Map<String, dynamic>> _suppliers = [];
-  List<Map<String, dynamic>> _locations = [];
+  
+  String? _selectedCategoryId;
+  String? _selectedSupplierId;
+  String? _selectedLocationId;
+  File? _imageFile;
   DateTime? _selectedDate;
-  File? _image;
 
-  // Método para mostrar el selector de fecha
+  @override
+  void initState() {
+    super.initState();
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    // Cargar categorías
+    await categoryController.loadCategories();
+    
+    // Cargar proveedores
+    await supplierController.loadSuppliers();
+    
+    // Cargar ubicaciones de la tienda actual
+    final storeId = storeController.currentStore?['_id'];
+    if (storeId != null) {
+      await locationController.loadLocations(storeId: storeId);
+    } else {
+      // Si no hay tienda seleccionada, cargar todas
+      await locationController.loadLocations();
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    _purchasePriceController.dispose();
+    _salePriceController.dispose();
+    _stockController.dispose();
+    _weightController.dispose();
+    _expirityDateController.dispose();
+    super.dispose();
+  }
+
+  // Diálogo para crear categoría rápidamente
+  Future<void> _showCreateCategoryDialog() async {
+    final nameController = TextEditingController();
+    final descriptionController = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Nueva Categoría'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre',
+                  border: OutlineInputBorder(),
+                ),
+                textCapitalization: TextCapitalization.words,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Descripción (opcional)',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameController.text.isEmpty) {
+                Get.snackbar(
+                  'Error',
+                  'El nombre es requerido',
+                  snackPosition: SnackPosition.BOTTOM,
+                );
+                return;
+              }
+
+              final categoryController = Get.find<CategoryController>();
+
+              final success = await categoryController.createCategory(
+                name: nameController.text,
+                description: descriptionController.text.isEmpty ? null : descriptionController.text,
+              );
+
+              if (success) {
+                Navigator.pop(context, true);
+                Get.snackbar(
+                  'Éxito',
+                  'Categoría creada correctamente',
+                  snackPosition: SnackPosition.BOTTOM,
+                );
+              }
+            },
+            child: const Text('Crear'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true) {
+      await categoryController.loadCategories();
+      // Seleccionar la categoría recién creada
+      if (categoryController.categories.isNotEmpty) {
+        setState(() {
+          _selectedCategoryId = categoryController.categories.last['_id'];
+        });
+      }
+    }
+
+    nameController.dispose();
+    descriptionController.dispose();
+  }
+
+  // Diálogo para crear proveedor rápidamente
+  Future<void> _showCreateSupplierDialog() async {
+    final nameController = TextEditingController();
+    final emailController = TextEditingController();
+    final phoneController = TextEditingController();
+    final addressController = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Nuevo Proveedor'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre',
+                  border: OutlineInputBorder(),
+                ),
+                textCapitalization: TextCapitalization.words,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email (opcional)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.email),
+                ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: phoneController,
+                decoration: const InputDecoration(
+                  labelText: 'Teléfono (opcional)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.phone),
+                ),
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: addressController,
+                decoration: const InputDecoration(
+                  labelText: 'Dirección (opcional)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.location_on),
+                ),
+                maxLines: 2,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameController.text.isEmpty) {
+                Get.snackbar(
+                  'Error',
+                  'El nombre es requerido',
+                  snackPosition: SnackPosition.BOTTOM,
+                );
+                return;
+              }
+
+              final supplierController = Get.find<SupplierController>();
+
+              final success = await supplierController.createSupplier(
+                name: nameController.text,
+                contactEmail: emailController.text.isEmpty ? null : emailController.text,
+                contactPhone: phoneController.text.isEmpty ? null : phoneController.text,
+                address: addressController.text.isEmpty ? null : addressController.text,
+              );
+
+              if (success) {
+                Navigator.pop(context, true);
+                Get.snackbar(
+                  'Éxito',
+                  'Proveedor creado correctamente',
+                  snackPosition: SnackPosition.BOTTOM,
+                );
+              }
+            },
+            child: const Text('Crear'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true) {
+      await supplierController.loadSuppliers();
+      // Seleccionar el proveedor recién creado
+      if (supplierController.suppliers.isNotEmpty) {
+        setState(() {
+          _selectedSupplierId = supplierController.suppliers.last['_id'];
+        });
+      }
+    }
+
+    nameController.dispose();
+    emailController.dispose();
+    phoneController.dispose();
+    addressController.dispose();
+  }
+
+  // Diálogo para crear ubicación rápidamente
+  Future<void> _showCreateLocationDialog() async {
+    final nameController = TextEditingController();
+    final descriptionController = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Nueva Ubicación'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre',
+                  border: OutlineInputBorder(),
+                  hintText: 'Ej: Estante A, Bodega Principal',
+                ),
+                textCapitalization: TextCapitalization.words,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Descripción (opcional)',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameController.text.isEmpty) {
+                Get.snackbar(
+                  'Error',
+                  'El nombre es requerido',
+                  snackPosition: SnackPosition.BOTTOM,
+                );
+                return;
+              }
+
+              final locationController = Get.find<LocationController>();
+              final storeController = Get.find<StoreController>();
+              final storeId = storeController.currentStore?['_id'];
+
+              if (storeId == null) {
+                Get.snackbar(
+                  'Error',
+                  'No hay tienda seleccionada',
+                  snackPosition: SnackPosition.BOTTOM,
+                );
+                return;
+              }
+
+              final success = await locationController.createLocation(
+                storeId: storeId,
+                name: nameController.text,
+                description: descriptionController.text.isEmpty ? null : descriptionController.text,
+              );
+
+              if (success) {
+                Navigator.pop(context, true);
+                Get.snackbar(
+                  'Éxito',
+                  'Ubicación creada correctamente',
+                  snackPosition: SnackPosition.BOTTOM,
+                );
+              }
+            },
+            child: const Text('Crear'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true) {
+      final storeId = storeController.currentStore?['_id'];
+      if (storeId != null) {
+        await locationController.loadLocations(storeId: storeId);
+        // Seleccionar la ubicación recién creada
+        if (locationController.locations.isNotEmpty) {
+          setState(() {
+            _selectedLocationId = locationController.locations.last['_id'];
+          });
+        }
+      }
+    }
+
+    nameController.dispose();
+    descriptionController.dispose();
+  }
+
+  Future<void> _pickImage(String source) async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: source == 'camera' ? ImageSource.camera : ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 85,
+    );
+
+    if (image != null) {
+      setState(() {
+        _imageFile = File(image.path);
+      });
+    }
+  }
+
+  Future<void> _showImageSourceDialog() async {
+    await Utils.showImageSourceDialog(
+      context,
+      onImageSelected: (source) => _pickImage(source),
+    );
+  }
+
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? pickedDate = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(), // Fecha inicial
-      firstDate: DateTime(2000), // Fecha mínima
-      lastDate: DateTime(2100), // Fecha máxima
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2100),
       locale: const Locale('es', 'ES'),
       builder: (BuildContext context, Widget? child) {
         return Theme(
           data: ThemeData.light().copyWith(
             primaryColor: Utils.colorBotones,
             colorScheme: ColorScheme.light(
-                primary: Utils.colorBotones, secondary: Utils.colorGnav),
-            textTheme: TextTheme(
-              headlineMedium: TextStyle(color: Utils.colorTexto),
-              bodyMedium: TextStyle(color: Utils.colorTexto),
+              primary: Utils.colorBotones,
+              secondary: Utils.colorGnav,
             ),
-            buttonTheme: ButtonThemeData(
-              textTheme: ButtonTextTheme.primary,
-            ), dialogTheme: DialogThemeData(backgroundColor: Utils.colorFondo),
+            dialogTheme: DialogThemeData(
+              backgroundColor: Utils.colorFondo,
+            ),
           ),
           child: child!,
         );
-      }, // Idioma en español
+      },
     );
 
     if (pickedDate != null && pickedDate != _selectedDate) {
@@ -71,435 +429,495 @@ class AddProductPageState extends State<AddProductPage> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _loadCategories();
-    _loadSuppliers();
-    _loadLocations();
-  }
+  Future<void> _saveProduct() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
-  void _loadCategories() async {
-    final categories = await DatabaseHelper().getCategories();
-    setState(() {
-      _categories = categories;
-    });
-  }
+    if (_selectedCategoryId == null) {
+      Get.snackbar('Error', 'Selecciona una categoría',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white);
+      return;
+    }
 
-  void _loadSuppliers() async {
-    final suppliers = await DatabaseHelper().getSuppliers();
-    setState(() {
-      _suppliers = suppliers;
-    });
-  }
+    if (_selectedSupplierId == null) {
+      Get.snackbar('Error', 'Selecciona un proveedor',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white);
+      return;
+    }
 
-  void _loadLocations() async {
-    final locations = await DatabaseHelper().getLocations();
-    setState(() {
-      _locations = locations;
-    });
-  }
+    if (_selectedLocationId == null) {
+      Get.snackbar('Error', 'Selecciona una ubicación',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white);
+      return;
+    }
 
-  Future<void> _pickImage(ImageSource source) async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: source);
+    if (_selectedDate == null) {
+      Get.snackbar('Error', 'Selecciona una fecha de vencimiento',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white);
+      return;
+    }
 
-    if (pickedFile != null) {
-      final imageFile = File(pickedFile.path);
-      final imageBytes = await imageFile.readAsBytes();
-      final img.Image? originalImage = img.decodeImage(imageBytes);
+    // Obtener storeId de la tienda actual
+    final storeId = storeController.currentStore?['_id'];
+    if (storeId == null) {
+      Get.snackbar('Error', 'No hay tienda seleccionada',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white);
+      return;
+    }
 
-      if (originalImage != null) {
-        final img.Image resizedImage = img.copyResize(
-          originalImage,
-          height: 300,
-        );
+    final weightValue = _weightController.text.isEmpty ? null : double.tryParse(_weightController.text);
+    
+    print('DEBUG _saveProduct - Datos a enviar:');
+    print('  storeId: $storeId');
+    print('  name: ${_nameController.text}');
+    print('  categoryId: $_selectedCategoryId');
+    print('  supplierId: $_selectedSupplierId');
+    print('  locationId: $_selectedLocationId');
+    print('  weight: $weightValue');
+    print('  expiryDate: $_selectedDate');
+    
+    final success = await productController.createProduct(
+      storeId: storeId,
+      name: _nameController.text,
+      categoryId: _selectedCategoryId!,
+      supplierId: _selectedSupplierId!,
+      locationId: _selectedLocationId!,
+      purchasePrice: double.parse(_purchasePriceController.text),
+      salePrice: double.parse(_salePriceController.text),
+      stock: int.parse(_stockController.text),
+      expiryDate: _selectedDate!,
+      description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
+      weight: weightValue,
+      imageFile: _imageFile,
+    );
 
-        final resizedImageBytes = img.encodeJpg(resizedImage);
-        setState(() {
-          _image = imageFile;
-          _fotoController.text = base64Encode(resizedImageBytes);
-        });
-      }
+    print('DEBUG _saveProduct - Resultado: $success');
+
+    if (success) {
+      print('DEBUG _saveProduct - Producto creado exitosamente, volviendo atrás...');
+      
+      // Usar SchedulerBinding para ejecutar después del frame actual
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          print('DEBUG _saveProduct - Ejecutando Navigator.pop');
+          Navigator.of(context).pop(true);
+          print('DEBUG _saveProduct - Navegación completada');
+        }
+      });
+    } else {
+      print('DEBUG _saveProduct - Error al crear producto');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Icon(Icons.add_shopping_cart),
-            SizedBox(width: 8),
-            Text('Nuevo Producto'),
-          ],
-        ),
-        backgroundColor: Utils.colorGnav,
-        foregroundColor: Colors.white,
-        elevation: 2,
-      ),
       backgroundColor: Utils.colorFondo,
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: formKey,
-          child: ListView(
-            children: [
-              // Sección: Información Básica
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Utils.colorBotones, size: 24),
-                    SizedBox(width: 8),
-                    Text(
-                      'Información Básica',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Utils.colorBotones,
-                      ),
+      appBar: AppBar(
+        title: const Text('Agregar Producto'),
+        backgroundColor: Utils.colorBotones,
+        foregroundColor: Colors.white,
+      ),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Sección: Información Básica
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Utils.colorBotones, size: 24),
+                  SizedBox(width: 8),
+                  Text(
+                    'Información Básica',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Utils.colorBotones,
                     ),
-                  ],
-                ),
-              ),
-              TextFormField(
-                controller: _nameController,
-                cursorColor: Utils.colorBotones,
-                decoration: InputDecoration(
-                  prefixIcon: Icon(Icons.label, color: Utils.colorBotones),
-                  floatingLabelStyle: TextStyle(
-                      color: Utils.colorBotones, fontWeight: FontWeight.bold),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Utils.colorBotones, width: 3),
                   ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(),
-                  labelText: 'Nombre del Producto',
-                  hintText: 'Ej: Shampoo Dove 400ml',
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor ingrese el nombre';
-                  }
-                  return null;
-                },
+                ],
               ),
-              Utils.espacio10,
-              TextFormField(
-                controller: _descriptionController,
-                cursorColor: Utils.colorBotones,
-                maxLines: 3,
-                decoration: InputDecoration(
-                    prefixIcon: Icon(Icons.description, color: Utils.colorBotones),
-                    floatingLabelStyle: TextStyle(
-                        color: Utils.colorBotones, fontWeight: FontWeight.bold),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide:
-                          BorderSide(color: Utils.colorBotones, width: 3),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(),
-                    labelText: 'Descripción',
-                    hintText: 'Describe el producto brevemente...'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor ingrese la descripción';
-                  }
-                  return null;
-                },
-              ),
-              Utils.espacio10,
-              // Sección: Imagen del Producto
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Row(
-                  children: [
-                    Icon(Icons.photo_camera, color: Utils.colorBotones, size: 24),
-                    SizedBox(width: 8),
-                    Text(
-                      'Imagen del Producto',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Utils.colorBotones,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
+            ),
+            
+            // Nombre
+            TextFormField(
+              controller: _nameController,
+              decoration: InputDecoration(
+                labelText: 'Nombre del producto*',
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Utils.colorBotones.withOpacity(0.3), width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    if (_image == null) ...[
-                      Icon(Icons.add_photo_alternate, size: 64, color: Colors.grey[400]),
-                      SizedBox(height: 8),
-                      Text(
-                        'Selecciona una foto del producto',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                      ),
-                    ] else ...[
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.file(_image!, height: 200, fit: BoxFit.cover),
-                      ),
-                    ],
-                    SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Expanded(
-                          child: Utils.elevatedButtonWithIcon(
-                              'Cámara', Utils.colorBotones, () {
-                            _pickImage(ImageSource.camera);
-                          }, Icons.camera_alt),
-                        ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Utils.elevatedButtonWithIcon(
-                              'Galería', Utils.colorBotones, () {
-                            _pickImage(ImageSource.gallery);
-                          }, Icons.photo_library),
-                        ),
-                      ],
-                    ),
-                  ],
                 ),
               ),
-              Utils.espacio10,
-              // Sección: Detalles y Stock
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Row(
-                  children: [
-                    Icon(Icons.inventory, color: Utils.colorBotones, size: 24),
-                    SizedBox(width: 8),
-                    Text(
-                      'Detalles y Stock',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Utils.colorBotones,
-                      ),
-                    ),
-                  ],
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Campo requerido';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Descripción
+            TextFormField(
+              controller: _descriptionController,
+              decoration: InputDecoration(
+                labelText: 'Descripción',
+                prefixIcon: Icon(Icons.description, color: Utils.colorBotones),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
+                hintText: 'Describe el producto brevemente...',
               ),
-              Row(
+              maxLines: 3,
+            ),
+            const SizedBox(height: 16),
+
+            // Sección: Imagen del Producto
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Row(
                 children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _weightController,
-                      cursorColor: Utils.colorBotones,
-                      decoration: InputDecoration(
-                        prefixIcon: Icon(Icons.straighten, color: Utils.colorBotones),
-                        floatingLabelStyle: TextStyle(
-                            color: Utils.colorBotones,
-                            fontWeight: FontWeight.bold),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide:
-                              BorderSide(color: Utils.colorBotones, width: 3),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(),
-                        labelText: 'Tamaño/Peso',
-                        hintText: '500ml, 250g...',
-                      ),
-                      keyboardType: TextInputType.text,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Requerido';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _stockQuantityController,
-                      cursorColor: Utils.colorBotones,
-                      decoration: InputDecoration(
-                        prefixIcon: Icon(Icons.inventory_2, color: Utils.colorBotones),
-                        floatingLabelStyle: TextStyle(
-                            color: Utils.colorBotones,
-                            fontWeight: FontWeight.bold),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide:
-                              BorderSide(color: Utils.colorBotones, width: 3),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(),
-                        labelText: 'Stock Inicial',
-                        hintText: '0',
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Requerido';
-                        }
-                        return null;
-                      },
+                  Icon(Icons.photo_camera, color: Utils.colorBotones, size: 24),
+                  SizedBox(width: 8),
+                  Text(
+                    'Imagen del Producto',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Utils.colorBotones,
                     ),
                   ),
                 ],
               ),
-              Utils.espacio10,
-              // Sección: Precios
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Row(
-                  children: [
-                    Icon(Icons.attach_money, color: Utils.colorBotones, size: 24),
-                    SizedBox(width: 8),
-                    Text(
-                      'Precios',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Utils.colorBotones,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _priceCompraController,
-                      cursorColor: Utils.colorBotones,
-                      decoration: InputDecoration(
-                        prefixIcon: Icon(Icons.shopping_cart, color: Colors.orange),
-                        floatingLabelStyle: TextStyle(
-                            color: Utils.colorBotones,
-                            fontWeight: FontWeight.bold),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide:
-                              BorderSide(color: Utils.colorBotones, width: 3),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(),
-                        labelText: 'Precio de Compra',
-                        hintText: '\$0.00',
-                        helperText: 'Costo del proveedor',
-                      ),
-                      keyboardType: TextInputType.numberWithOptions(decimal: true),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Requerido';
-                        }
-                        return null;
-                      },
-                    ),
+            ),
+            GestureDetector(
+              onTap: _showImageSourceDialog,
+              child: Container(
+                height: 200,
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Utils.colorBotones.withOpacity(0.3),
+                    width: 2,
+                    style: BorderStyle.solid,
                   ),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _priceVentaController,
-                      cursorColor: Utils.colorBotones,
-                      decoration: InputDecoration(
-                        prefixIcon: Icon(Icons.sell, color: Colors.green),
-                        floatingLabelStyle: TextStyle(
-                            color: Utils.colorBotones,
-                            fontWeight: FontWeight.bold),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide:
-                              BorderSide(color: Utils.colorBotones, width: 3),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(),
-                        labelText: 'Precio de Venta',
-                        hintText: '\$0.00',
-                        helperText: 'Precio al público',
+                ),
+                child: _imageFile != null
+                    ? Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.file(
+                              _imageFile!,
+                              width: double.infinity,
+                              height: double.infinity,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          // Badge "Cambiar"
+                          Positioned(
+                            bottom: 12,
+                            right: 12,
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Utils.colorBotones,
+                                    Utils.colorBotones.withOpacity(0.8),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.3),
+                                    blurRadius: 8,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.edit_rounded,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Cambiar',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Utils.colorBotones.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.add_photo_alternate_rounded,
+                              size: 48,
+                              color: Utils.colorBotones,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Toca para agregar imagen',
+                            style: TextStyle(
+                              color: Colors.grey[700],
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'JPG, PNG (máx. 1024x1024)',
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ),
-                      keyboardType: TextInputType.numberWithOptions(decimal: true),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Requerido';
-                        }
-                        return null;
-                      },
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Sección: Detalles y Stock
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Row(
+                children: [
+                  Icon(Icons.inventory, color: Utils.colorBotones, size: 24),
+                  SizedBox(width: 8),
+                  Text(
+                    'Detalles y Stock',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Utils.colorBotones,
                     ),
                   ),
                 ],
               ),
-              Utils.espacio10,
-              // Sección: Clasificación
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Row(
-                  children: [
-                    Icon(Icons.category, color: Utils.colorBotones, size: 24),
-                    SizedBox(width: 8),
-                    Text(
-                      'Clasificación',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Utils.colorBotones,
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _weightController,
+                    decoration: InputDecoration(
+                      prefixIcon: Icon(Icons.straighten, color: Utils.colorBotones),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
+                      labelText: 'Tamaño/Peso',
+                      hintText: '500ml, 250g...',
                     ),
-                  ],
+                    keyboardType: TextInputType.text,
+                  ),
                 ),
-              ),
-              Row(
+                SizedBox(width: 10),
+                Expanded(
+                  child: TextFormField(
+                    controller: _stockController,
+                    decoration: InputDecoration(
+                      prefixIcon: Icon(Icons.inventory_2, color: Utils.colorBotones),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      labelText: 'Stock Inicial*',
+                      hintText: '0',
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Requerido';
+                      }
+                      if (int.tryParse(value) == null) {
+                        return 'Número inválido';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Sección: Precios
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Row(
                 children: [
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
+                  Icon(Icons.attach_money, color: Utils.colorBotones, size: 24),
+                  SizedBox(width: 8),
+                  Text(
+                    'Precios',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Utils.colorBotones,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _purchasePriceController,
+                    decoration: InputDecoration(
+                      prefixIcon: Icon(Icons.shopping_cart, color: Colors.orange),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      labelText: 'Precio de Compra*',
+                      hintText: '\$0.00',
+                      helperText: 'Costo del proveedor',
+                    ),
+                    keyboardType: TextInputType.numberWithOptions(decimal: true),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Requerido';
+                      }
+                      if (double.tryParse(value) == null) {
+                        return 'Número inválido';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: TextFormField(
+                    controller: _salePriceController,
+                    decoration: InputDecoration(
+                      prefixIcon: Icon(Icons.sell, color: Colors.green),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      labelText: 'Precio de Venta*',
+                      hintText: '\$0.00',
+                      helperText: 'Precio al público',
+                    ),
+                    keyboardType: TextInputType.numberWithOptions(decimal: true),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Requerido';
+                      }
+                      if (double.tryParse(value) == null) {
+                        return 'Número inválido';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Sección: Clasificación
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Row(
+                children: [
+                  Icon(Icons.category, color: Utils.colorBotones, size: 24),
+                  SizedBox(width: 8),
+                  Text(
+                    'Clasificación',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Utils.colorBotones,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Categoría con botón +
+            Row(
+              children: [
+                Expanded(
+                  child: Obx(() {
+                    final categories = categoryController.categories;
+                    return DropdownButtonFormField<String>(
                       value: _selectedCategoryId,
                       decoration: InputDecoration(
-                          prefixIcon: Icon(Icons.category_outlined, color: Utils.colorBotones),
-                          floatingLabelStyle: TextStyle(
-                              color: Utils.colorBotones, fontWeight: FontWeight.bold),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide:
-                                BorderSide(color: Utils.colorBotones, width: 3),
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(),
-                          labelText: 'Categoría',
-                          hintText: _categories.isEmpty ? 'No hay categorías disponibles' : 'Selecciona una categoría'),
-                      items: _categories.isEmpty
+                        prefixIcon: Icon(Icons.category_outlined, color: Utils.colorBotones),
+                        labelText: 'Categoría*',
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        hintText: categories.isEmpty ? 'No hay categorías disponibles' : 'Selecciona una categoría',
+                      ),
+                      items: categories.isEmpty
                           ? null
-                          : _categories.map((category) {
-                              return DropdownMenuItem<int>(
-                                value: category['id'],
-                                child: Text(category['name']),
+                          : categories.map((category) {
+                              return DropdownMenuItem(
+                                value: category['_id'].toString(),
+                                child: Text(category['name'] ?? 'Sin nombre'),
                               );
                             }).toList(),
-                      onChanged: _categories.isEmpty ? null : (value) {
+                      onChanged: categories.isEmpty ? null : (value) {
                         setState(() {
                           _selectedCategoryId = value;
                         });
                       },
                       validator: (value) {
-                        if (_categories.isEmpty) {
+                        if (categories.isEmpty) {
                           return 'Crea una categoría primero';
                         }
                         if (value == null) {
-                          return 'Seleccione una categoría';
+                          return 'Selecciona una categoría';
                         }
                         return null;
                       },
@@ -507,60 +925,62 @@ class AddProductPageState extends State<AddProductPage> {
                         'No hay categorías',
                         style: TextStyle(color: Colors.orange[700]),
                       ),
-                    ),
+                    );
+                  }),
+                ),
+                SizedBox(width: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Utils.colorBotones,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Utils.colorBotones,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: IconButton(
-                      icon: Icon(Icons.add, color: Colors.white, size: 28),
-                      tooltip: 'Crear nueva categoría',
-                      onPressed: () => _showCreateCategoryDialog(),
-                    ),
+                  child: IconButton(
+                    icon: Icon(Icons.add, color: Colors.white, size: 28),
+                    tooltip: 'Crear nueva categoría',
+                    onPressed: _showCreateCategoryDialog,
                   ),
-                ],
-              ),
-              Utils.espacio10,
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Proveedor con botón +
+            Row(
+              children: [
+                Expanded(
+                  child: Obx(() {
+                    final suppliers = supplierController.suppliers;
+                    return DropdownButtonFormField<String>(
                       value: _selectedSupplierId,
                       decoration: InputDecoration(
-                          prefixIcon: Icon(Icons.local_shipping, color: Utils.colorBotones),
-                          floatingLabelStyle: TextStyle(
-                              color: Utils.colorBotones, fontWeight: FontWeight.bold),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide:
-                                BorderSide(color: Utils.colorBotones, width: 3),
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(),
-                          labelText: 'Proveedor',
-                          hintText: _suppliers.isEmpty ? 'No hay proveedores disponibles' : 'Selecciona un proveedor'),
-                      items: _suppliers.isEmpty
+                        prefixIcon: Icon(Icons.local_shipping, color: Utils.colorBotones),
+                        labelText: 'Proveedor*',
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        hintText: suppliers.isEmpty ? 'No hay proveedores disponibles' : 'Selecciona un proveedor',
+                      ),
+                      items: suppliers.isEmpty
                           ? null
-                          : _suppliers.map((supplier) {
-                              return DropdownMenuItem<int>(
-                                value: supplier['id'],
-                                child: Text(supplier['name']),
+                          : suppliers.map((supplier) {
+                              return DropdownMenuItem(
+                                value: supplier['_id'].toString(),
+                                child: Text(supplier['name'] ?? 'Sin nombre'),
                               );
                             }).toList(),
-                      onChanged: _suppliers.isEmpty ? null : (value) {
+                      onChanged: suppliers.isEmpty ? null : (value) {
                         setState(() {
                           _selectedSupplierId = value;
                         });
                       },
                       validator: (value) {
-                        if (_suppliers.isEmpty) {
+                        if (suppliers.isEmpty) {
                           return 'Crea un proveedor primero';
                         }
                         if (value == null) {
-                          return 'Seleccione un proveedor';
+                          return 'Selecciona un proveedor';
                         }
                         return null;
                       },
@@ -568,60 +988,76 @@ class AddProductPageState extends State<AddProductPage> {
                         'No hay proveedores',
                         style: TextStyle(color: Colors.orange[700]),
                       ),
-                    ),
+                    );
+                  }),
+                ),
+                SizedBox(width: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Utils.colorBotones,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Utils.colorBotones,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: IconButton(
-                      icon: Icon(Icons.add, color: Colors.white, size: 28),
-                      tooltip: 'Crear nuevo proveedor',
-                      onPressed: () => _showCreateSupplierDialog(),
-                    ),
+                  child: IconButton(
+                    icon: Icon(Icons.add, color: Colors.white, size: 28),
+                    tooltip: 'Crear nuevo proveedor',
+                    onPressed: _showCreateSupplierDialog,
                   ),
-                ],
-              ),
-              Utils.espacio10,
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Ubicación con botón +
+            Row(
+              children: [
+                Expanded(
+                  child: Obx(() {
+                    final locations = locationController.locations;
+                    return DropdownButtonFormField<String>(
                       value: _selectedLocationId,
                       decoration: InputDecoration(
-                          prefixIcon: Icon(Icons.place, color: Utils.colorBotones),
-                          floatingLabelStyle: TextStyle(
-                              color: Utils.colorBotones, fontWeight: FontWeight.bold),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide:
-                                BorderSide(color: Utils.colorBotones, width: 3),
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(),
-                          labelText: 'Ubicación en Tienda',
-                          hintText: _locations.isEmpty ? 'No hay ubicaciones disponibles' : 'Selecciona una ubicación'),
-                      items: _locations.isEmpty
+                        prefixIcon: Icon(Icons.place, color: Utils.colorBotones),
+                        labelText: 'Ubicación en Tienda*',
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        hintText: locations.isEmpty ? 'No hay ubicaciones disponibles' : 'Selecciona una ubicación',
+                      ),
+                      items: locations.isEmpty
                           ? null
-                          : _locations.map((location) {
-                              return DropdownMenuItem<int>(
-                                value: location['id'],
-                                child: Text(location['name']),
+                          : locations.map((location) {
+                              final id = location['_id'].toString();
+                              final name = location['name'] ?? 'Sin nombre';
+                              final description = location['description'];
+                              
+                              // Nombre más corto: solo nombre y descripción
+                              String displayName = name;
+                              if (description != null && description.toString().isNotEmpty) {
+                                displayName += ' ($description)';
+                              }
+                              
+                              return DropdownMenuItem(
+                                value: id,
+                                child: Text(
+                                  displayName,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
                               );
                             }).toList(),
-                      onChanged: _locations.isEmpty ? null : (value) {
+                      onChanged: locations.isEmpty ? null : (value) {
                         setState(() {
                           _selectedLocationId = value;
                         });
                       },
                       validator: (value) {
-                        if (_locations.isEmpty) {
+                        if (locations.isEmpty) {
                           return 'Crea una ubicación primero';
                         }
                         if (value == null) {
-                          return 'Seleccione una ubicación';
+                          return 'Selecciona una ubicación';
                         }
                         return null;
                       },
@@ -629,105 +1065,77 @@ class AddProductPageState extends State<AddProductPage> {
                         'No hay ubicaciones',
                         style: TextStyle(color: Colors.orange[700]),
                       ),
-                    ),
+                    );
+                  }),
+                ),
+                SizedBox(width: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Utils.colorBotones,
+                    borderRadius: BorderRadius.circular(8),
                   ),
+                  child: IconButton(
+                    icon: Icon(Icons.add, color: Colors.white, size: 28),
+                    tooltip: 'Crear nueva ubicación',
+                    onPressed: _showCreateLocationDialog,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Sección: Fecha de Vencimiento
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Row(
+                children: [
+                  Icon(Icons.event, color: Utils.colorBotones, size: 24),
                   SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
+                  Text(
+                    'Fecha de Vencimiento',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                       color: Utils.colorBotones,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: IconButton(
-                      icon: Icon(Icons.add, color: Colors.white, size: 28),
-                      tooltip: 'Crear nueva ubicación',
-                      onPressed: () => _showCreateLocationDialog(),
                     ),
                   ),
                 ],
               ),
-              Utils.espacio10,
-              // Sección: Fecha de Vencimiento
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Row(
-                  children: [
-                    Icon(Icons.event, color: Utils.colorBotones, size: 24),
-                    SizedBox(width: 8),
-                    Text(
-                      'Fecha de Vencimiento',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Utils.colorBotones,
-                      ),
-                    ),
-                  ],
+            ),
+            TextFormField(
+              controller: _expirityDateController,
+              readOnly: true,
+              decoration: InputDecoration(
+                prefixIcon: Icon(Icons.calendar_today, color: Utils.colorBotones),
+                suffixIcon: Icon(Icons.arrow_drop_down),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
+                labelText: 'Fecha de vencimiento*',
+                hintText: 'Selecciona una fecha',
               ),
-              TextFormField(
-                controller: _expirityDateController,
-                cursorColor: Utils.colorBotones,
-                readOnly: true,
-                decoration: InputDecoration(
-                    prefixIcon: Icon(Icons.calendar_today, color: Utils.colorBotones),
-                    suffixIcon: Icon(Icons.arrow_drop_down),
-                    floatingLabelStyle: TextStyle(
-                        color: Utils.colorBotones, fontWeight: FontWeight.bold),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide:
-                          BorderSide(color: Utils.colorBotones, width: 3),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(),
-                    labelText: 'Fecha de vencimiento',
-                    hintText: 'Selecciona una fecha'),
-                keyboardType: TextInputType.datetime,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor ingrese la fecha de vencimiento';
-                  }
-                  return null;
-                },
-                onTap: () async {
-                  await _selectDate(context);
-                },
-              ),
-              SizedBox(height: 24),
-              Container(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    if (formKey.currentState?.validate() ?? false) {
-                      final newProduct = {
-                        'name': _nameController.text,
-                        'description': _descriptionController.text,
-                        'purchase_price': double.parse(_priceCompraController.text),
-                        'sale_price': double.parse(_priceVentaController.text),
-                        'weight': _weightController.text,
-                        'category_id': _selectedCategoryId,
-                        'supplier_id': _selectedSupplierId,
-                        'stock': int.parse(_stockQuantityController.text),
-                        'location_id': _selectedLocationId,
-                        'expirity_date': _expirityDateController.text,
-                        'foto': _fotoController.text,
-                      };
+              keyboardType: TextInputType.datetime,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'La fecha de vencimiento es requerida';
+                }
+                return null;
+              },
+              onTap: () async {
+                await _selectDate(context);
+              },
+            ),
+            SizedBox(height: 24),
 
-                      await DatabaseHelper().insertProduct(newProduct);
-
-                      Get.snackbar(
-                        '✓ Éxito',
-                        'Producto guardado correctamente',
-                        snackPosition: SnackPosition.TOP,
-                        backgroundColor: Colors.green,
-                        colorText: Colors.white,
-                        duration: Duration(seconds: 2),
-                      );
-
-                      Get.to(HomePage());
-                    }
-                  },
+            // Botón guardar
+            Container(
+              width: double.infinity,
+              height: 56,
+              child: Obx(() {
+                return ElevatedButton.icon(
+                  onPressed: productController.isLoading ? null : _saveProduct,
                   icon: Icon(Icons.save, size: 24),
                   label: Text(
                     'Guardar Producto',
@@ -741,502 +1149,12 @@ class AddProductPageState extends State<AddProductPage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                ),
-              ),
-              SizedBox(height: 16),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Método para mostrar diálogo de creación de categoría
-  void _showCreateCategoryDialog() {
-    final _formKey = GlobalKey<FormState>();
-    final _nameController = TextEditingController();
-    final _descriptionController = TextEditingController();
-    final _fotoController = TextEditingController();
-    File? _dialogImage;
-
-    Get.dialog(
-      StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: Row(
-              children: [
-                Icon(Icons.category, color: Utils.colorBotones),
-                SizedBox(width: 8),
-                Text('Nueva Categoría'),
-              ],
+                );
+              }),
             ),
-            content: SingleChildScrollView(
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextFormField(
-                      controller: _nameController,
-                      decoration: InputDecoration(
-                        labelText: 'Nombre',
-                        hintText: 'Ej: Shampoos',
-                        prefixIcon: Icon(Icons.label),
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'El nombre es requerido';
-                        }
-                        return null;
-                      },
-                    ),
-                    SizedBox(height: 16),
-                    TextFormField(
-                      controller: _descriptionController,
-                      decoration: InputDecoration(
-                        labelText: 'Descripción (opcional)',
-                        hintText: 'Descripción de la categoría',
-                        prefixIcon: Icon(Icons.description),
-                        border: OutlineInputBorder(),
-                      ),
-                      maxLines: 3,
-                    ),
-                    SizedBox(height: 16),
-                    // Sección de imagen
-                    Container(
-                      padding: EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        children: [
-                          if (_dialogImage == null) ...[
-                            Icon(Icons.image, size: 48, color: Colors.grey[400]),
-                            SizedBox(height: 8),
-                            Text(
-                              'Imagen (opcional)',
-                              style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                            ),
-                          ] else ...[
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.file(_dialogImage!, height: 120, fit: BoxFit.cover),
-                            ),
-                          ],
-                          SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: () async {
-                                    final picker = ImagePicker();
-                                    final pickedFile = await picker.pickImage(source: ImageSource.camera);
-                                    if (pickedFile != null) {
-                                      final imageFile = File(pickedFile.path);
-                                      final imageBytes = await imageFile.readAsBytes();
-                                      final img.Image? originalImage = img.decodeImage(imageBytes);
-                                      if (originalImage != null) {
-                                        final img.Image resizedImage = img.copyResize(originalImage, height: 300);
-                                        final resizedImageBytes = img.encodeJpg(resizedImage);
-                                        setDialogState(() {
-                                          _dialogImage = imageFile;
-                                          _fotoController.text = base64Encode(resizedImageBytes);
-                                        });
-                                      }
-                                    }
-                                  },
-                                  icon: Icon(Icons.camera_alt, size: 18),
-                                  label: Text('Cámara', style: TextStyle(fontSize: 12)),
-                                  style: OutlinedButton.styleFrom(
-                                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                                  ),
-                                ),
-                              ),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: () async {
-                                    final picker = ImagePicker();
-                                    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-                                    if (pickedFile != null) {
-                                      final imageFile = File(pickedFile.path);
-                                      final imageBytes = await imageFile.readAsBytes();
-                                      final img.Image? originalImage = img.decodeImage(imageBytes);
-                                      if (originalImage != null) {
-                                        final img.Image resizedImage = img.copyResize(originalImage, height: 300);
-                                        final resizedImageBytes = img.encodeJpg(resizedImage);
-                                        setDialogState(() {
-                                          _dialogImage = imageFile;
-                                          _fotoController.text = base64Encode(resizedImageBytes);
-                                        });
-                                      }
-                                    }
-                                  },
-                                  icon: Icon(Icons.photo_library, size: 18),
-                                  label: Text('Galería', style: TextStyle(fontSize: 12)),
-                                  style: OutlinedButton.styleFrom(
-                                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Get.back(),
-                child: Text('Cancelar'),
-              ),
-              ElevatedButton.icon(
-                onPressed: () async {
-                  if (_formKey.currentState?.validate() ?? false) {
-                    final newCategory = {
-                      'name': _nameController.text,
-                      'description': _descriptionController.text,
-                      'foto': _fotoController.text,
-                    };
-
-                    await DatabaseHelper().insertCategory(newCategory);
-                    _loadCategories();
-                    
-                    Get.back();
-                    Get.snackbar(
-                      '✓ Éxito',
-                      'Categoría creada correctamente',
-                      snackPosition: SnackPosition.TOP,
-                      backgroundColor: Colors.green,
-                      colorText: Colors.white,
-                      duration: Duration(seconds: 2),
-                    );
-                  }
-                },
-                icon: Icon(Icons.save),
-                label: Text('Guardar'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Utils.colorBotones,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  // Método para mostrar diálogo de creación de proveedor
-  void _showCreateSupplierDialog() {
-    final _formKey = GlobalKey<FormState>();
-    final _nameController = TextEditingController();
-    final _contactNameController = TextEditingController();
-    final _contactEmailController = TextEditingController();
-    final _contactPhoneController = TextEditingController();
-    final _addressController = TextEditingController();
-    final _fotoController = TextEditingController();
-    File? _dialogImage;
-
-    Get.dialog(
-      StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: Row(
-              children: [
-                Icon(Icons.business, color: Utils.colorBotones),
-                SizedBox(width: 8),
-                Text('Nuevo Proveedor'),
-              ],
-            ),
-            content: SingleChildScrollView(
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextFormField(
-                      controller: _nameController,
-                      decoration: InputDecoration(
-                        labelText: 'Nombre',
-                        hintText: 'Ej: Distribuidora XYZ',
-                        prefixIcon: Icon(Icons.business),
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'El nombre es requerido';
-                        }
-                        return null;
-                      },
-                    ),
-                    SizedBox(height: 16),
-                    TextFormField(
-                      controller: _contactNameController,
-                      decoration: InputDecoration(
-                        labelText: 'Nombre de contacto (opcional)',
-                        hintText: 'Ej: Juan Pérez',
-                        prefixIcon: Icon(Icons.person),
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    SizedBox(height: 16),
-                    TextFormField(
-                      controller: _contactEmailController,
-                      decoration: InputDecoration(
-                        labelText: 'Email (opcional)',
-                        hintText: 'ejemplo@correo.com',
-                        prefixIcon: Icon(Icons.email),
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                    SizedBox(height: 16),
-                    TextFormField(
-                      controller: _contactPhoneController,
-                      decoration: InputDecoration(
-                        labelText: 'Teléfono (opcional)',
-                        hintText: '123-456-7890',
-                        prefixIcon: Icon(Icons.phone),
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.phone,
-                    ),
-                    SizedBox(height: 16),
-                    TextFormField(
-                      controller: _addressController,
-                      decoration: InputDecoration(
-                        labelText: 'Dirección (opcional)',
-                        hintText: 'Dirección del proveedor',
-                        prefixIcon: Icon(Icons.location_on),
-                        border: OutlineInputBorder(),
-                      ),
-                      maxLines: 2,
-                    ),
-                    SizedBox(height: 16),
-                    // Sección de imagen
-                    Container(
-                      padding: EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        children: [
-                          if (_dialogImage == null) ...[
-                            Icon(Icons.image, size: 48, color: Colors.grey[400]),
-                            SizedBox(height: 8),
-                            Text(
-                              'Logo/Imagen (opcional)',
-                              style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                            ),
-                          ] else ...[
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.file(_dialogImage!, height: 120, fit: BoxFit.cover),
-                            ),
-                          ],
-                          SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: () async {
-                                    final picker = ImagePicker();
-                                    final pickedFile = await picker.pickImage(source: ImageSource.camera);
-                                    if (pickedFile != null) {
-                                      final imageFile = File(pickedFile.path);
-                                      final imageBytes = await imageFile.readAsBytes();
-                                      final img.Image? originalImage = img.decodeImage(imageBytes);
-                                      if (originalImage != null) {
-                                        final img.Image resizedImage = img.copyResize(originalImage, height: 300);
-                                        final resizedImageBytes = img.encodeJpg(resizedImage);
-                                        setDialogState(() {
-                                          _dialogImage = imageFile;
-                                          _fotoController.text = base64Encode(resizedImageBytes);
-                                        });
-                                      }
-                                    }
-                                  },
-                                  icon: Icon(Icons.camera_alt, size: 18),
-                                  label: Text('Cámara', style: TextStyle(fontSize: 12)),
-                                  style: OutlinedButton.styleFrom(
-                                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                                  ),
-                                ),
-                              ),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: () async {
-                                    final picker = ImagePicker();
-                                    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-                                    if (pickedFile != null) {
-                                      final imageFile = File(pickedFile.path);
-                                      final imageBytes = await imageFile.readAsBytes();
-                                      final img.Image? originalImage = img.decodeImage(imageBytes);
-                                      if (originalImage != null) {
-                                        final img.Image resizedImage = img.copyResize(originalImage, height: 300);
-                                        final resizedImageBytes = img.encodeJpg(resizedImage);
-                                        setDialogState(() {
-                                          _dialogImage = imageFile;
-                                          _fotoController.text = base64Encode(resizedImageBytes);
-                                        });
-                                      }
-                                    }
-                                  },
-                                  icon: Icon(Icons.photo_library, size: 18),
-                                  label: Text('Galería', style: TextStyle(fontSize: 12)),
-                                  style: OutlinedButton.styleFrom(
-                                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Get.back(),
-                child: Text('Cancelar'),
-              ),
-              ElevatedButton.icon(
-                onPressed: () async {
-                  if (_formKey.currentState?.validate() ?? false) {
-                    final newSupplier = {
-                      'foto': _fotoController.text,
-                      'name': _nameController.text,
-                      'contact_name': _contactNameController.text,
-                      'contact_email': _contactEmailController.text,
-                      'contact_phone': _contactPhoneController.text,
-                      'address': _addressController.text,
-                    };
-
-                    await DatabaseHelper().insertSupplier(newSupplier);
-                    _loadSuppliers();
-                    
-                    Get.back();
-                    Get.snackbar(
-                      '✓ Éxito',
-                      'Proveedor creado correctamente',
-                      snackPosition: SnackPosition.TOP,
-                      backgroundColor: Colors.green,
-                      colorText: Colors.white,
-                      duration: Duration(seconds: 2),
-                    );
-                  }
-                },
-                icon: Icon(Icons.save),
-                label: Text('Guardar'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Utils.colorBotones,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  // Método para mostrar diálogo de creación de ubicación
-  void _showCreateLocationDialog() {
-    final _formKey = GlobalKey<FormState>();
-    final _nameController = TextEditingController();
-    final _descriptionController = TextEditingController();
-
-    Get.dialog(
-      AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.place, color: Utils.colorBotones),
-            SizedBox(width: 8),
-            Text('Nueva Ubicación'),
+            SizedBox(height: 16),
           ],
         ),
-        content: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: 'Nombre',
-                  hintText: 'Ej: Estante A1',
-                  prefixIcon: Icon(Icons.label),
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'El nombre es requerido';
-                  }
-                  return null;
-                },
-              ),
-              SizedBox(height: 16),
-              TextFormField(
-                controller: _descriptionController,
-                decoration: InputDecoration(
-                  labelText: 'Descripción (opcional)',
-                  hintText: 'Descripción de la ubicación',
-                  prefixIcon: Icon(Icons.description),
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: Text('Cancelar'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () async {
-              if (_formKey.currentState?.validate() ?? false) {
-                final newLocation = {
-                  'name': _nameController.text,
-                  'description': _descriptionController.text,
-                };
-
-                await DatabaseHelper().insertLocation(newLocation);
-                _loadLocations();
-                
-                Get.back();
-                Get.snackbar(
-                  '✓ Éxito',
-                  'Ubicación creada correctamente',
-                  snackPosition: SnackPosition.TOP,
-                  backgroundColor: Colors.green,
-                  colorText: Colors.white,
-                  duration: Duration(seconds: 2),
-                );
-              }
-            },
-            icon: Icon(Icons.save),
-            label: Text('Guardar'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Utils.colorBotones,
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ],
       ),
     );
   }

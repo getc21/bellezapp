@@ -1,383 +1,418 @@
 import 'package:get/get.dart';
-import '../models/discount.dart';
-import '../database/database_helper.dart';
-import '../controllers/store_controller.dart';
+import '../providers/discount_provider.dart';
+import 'auth_controller.dart';
+import 'store_controller.dart';
 
 class DiscountController extends GetxController {
-  final DatabaseHelper _databaseHelper = DatabaseHelper();
+  final AuthController _authController = Get.find<AuthController>();
+  final StoreController _storeController = Get.find<StoreController>();
   
-  // Lista observable de descuentos
-  final RxList<Discount> discounts = <Discount>[].obs;
-  final RxList<Discount> filteredDiscounts = <Discount>[].obs;
-  final RxList<Discount> applicableDiscounts = <Discount>[].obs;
-  
-  // Estados de carga
-  final RxBool isLoading = false.obs;
-  
-  // Búsqueda
-  final RxString searchQuery = ''.obs;
-  
-  // Descuento seleccionado para aplicar a una orden
-  final Rx<Discount?> selectedDiscount = Rx<Discount?>(null);
-  final Rx<OrderDiscount?> appliedDiscount = Rx<OrderDiscount?>(null);
+  DiscountProvider get _discountProvider => DiscountProvider(_authController.token);
+
+  // Estados observables
+  final RxList<Map<String, dynamic>> _discounts = <Map<String, dynamic>>[].obs;
+  final RxList<Map<String, dynamic>> _filteredDiscounts = <Map<String, dynamic>>[].obs;
+  final RxList<Map<String, dynamic>> _applicableDiscounts = <Map<String, dynamic>>[].obs;
+  final RxBool _isLoading = false.obs;
+  final RxString _errorMessage = ''.obs;
+  final RxString _searchQuery = ''.obs;
+
+  // Getters
+  List<Map<String, dynamic>> get discounts => _discounts;
+  List<Map<String, dynamic>> get filteredDiscounts => _filteredDiscounts;
+  List<Map<String, dynamic>> get applicableDiscounts => _applicableDiscounts;
+  bool get isLoading => _isLoading.value;
+  String get errorMessage => _errorMessage.value;
+  String get searchQuery => _searchQuery.value;
 
   @override
   void onInit() {
     super.onInit();
-    print('🎬 DiscountController onInit() iniciando...');
-    loadDiscounts();
+    print('DiscountController.onInit - Initializing controller');
+    print('DiscountController.onInit - StoreController available: ${Get.isRegistered<StoreController>()}');
     
-    // Escuchar cambios en la búsqueda
-    ever(searchQuery, (_) => filterDiscounts());
-    
-    // Escuchar cambios en la tienda actual
-    try {
+    if (Get.isRegistered<StoreController>()) {
       final storeController = Get.find<StoreController>();
-      ever(storeController.currentStore, (_) {
-        print('🔄 Recargando descuentos por cambio de tienda');
-        loadDiscounts();
-      });
-    } catch (e) {
-      print('⚠️ StoreController no disponible en DiscountController: $e');
+      print('DiscountController.onInit - Current store: ${storeController.currentStore}');
     }
+    
+    loadDiscounts();
+    ever(_searchQuery, (_) => filterDiscounts());
+    print('DiscountController.onInit - Controller initialized');
   }
 
-  // Cargar todos los descuentos
-  Future<void> loadDiscounts() async {
-    try {
-      print('📥 Iniciando carga de descuentos...');
-      isLoading.value = true;
-      final discountList = await _databaseHelper.getDiscounts();
-      print('📊 Descuentos obtenidos de la BD: ${discountList.length}');
-      for (var d in discountList) {
-        print('  - ${d.name}: active=${d.isActive}, min=${d.minimumAmount}');
-      }
-      discounts.value = discountList;
-      filteredDiscounts.value = discountList;
-      print('✅ Descuentos cargados correctamente');
-    } catch (e) {
-      print('❌ Error al cargar descuentos: $e');
-      Get.snackbar(
-        'Error',
-        'Error al cargar descuentos: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-    } finally {
-      isLoading.value = false;
-    }
-  }
-
-  // Filtrar descuentos basado en la búsqueda
+  // Filtrar descuentos
   void filterDiscounts() {
-    if (searchQuery.value.isEmpty) {
-      filteredDiscounts.value = discounts;
+    print('DiscountController.filterDiscounts - Filtering discounts');
+    print('DiscountController.filterDiscounts - Search query: "${_searchQuery.value}"');
+    print('DiscountController.filterDiscounts - Total discounts: ${_discounts.length}');
+    
+    if (_searchQuery.value.isEmpty) {
+      _filteredDiscounts.value = _discounts;
+      print('DiscountController.filterDiscounts - No search query, showing all ${_discounts.length} discounts');
     } else {
-      filteredDiscounts.value = discounts.where((discount) {
-        final query = searchQuery.value.toLowerCase();
-        return discount.name.toLowerCase().contains(query) ||
-               discount.description.toLowerCase().contains(query);
+      final query = _searchQuery.value.toLowerCase();
+      _filteredDiscounts.value = _discounts.where((discount) {
+        final name = discount['name']?.toString().toLowerCase() ?? '';
+        final description = discount['description']?.toString().toLowerCase() ?? '';
+        return name.contains(query) || description.contains(query);
       }).toList();
-    }
-  }
-
-  // Buscar descuentos en base de datos
-  Future<void> searchDiscounts(String query) async {
-    try {
-      searchQuery.value = query;
-      
-      if (query.isEmpty) {
-        await loadDiscounts();
-      } else {
-        final searchResults = await _databaseHelper.searchDiscounts(query);
-        filteredDiscounts.value = searchResults;
-      }
-    } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Error en la búsqueda: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-    }
-  }
-
-  // Obtener descuentos aplicables para un monto específico
-  void updateApplicableDiscounts(double totalAmount) {
-    print('🔍 DEBUG updateApplicableDiscounts:');
-    print('  Total de descuentos cargados: ${discounts.length}');
-    print('  Monto total: \$${totalAmount.toStringAsFixed(2)}');
-    
-    for (var discount in discounts) {
-      print('  - ${discount.name}:');
-      print('    isActive: ${discount.isActive}');
-      print('    minimumAmount: ${discount.minimumAmount}');
-      print('    startDate: ${discount.startDate}');
-      print('    endDate: ${discount.endDate}');
-      print('    isApplicable: ${discount.isApplicable(totalAmount)}');
+      print('DiscountController.filterDiscounts - Filtered to ${_filteredDiscounts.length} discounts');
     }
     
-    applicableDiscounts.value = discounts
-        .where((discount) => discount.isApplicable(totalAmount))
-        .toList();
-        
-    print('  Descuentos aplicables: ${applicableDiscounts.length}');
+    print('DiscountController.filterDiscounts - Filtered discounts: $_filteredDiscounts');
   }
 
-  // Agregar nuevo descuento
-  Future<bool> addDiscount({
-    required String name,
-    required String description,
-    required DiscountType type,
-    required double value,
-    double? minimumAmount,
-    double? maximumDiscount,
-    DateTime? startDate,
-    DateTime? endDate,
-    bool isActive = true,
-  }) async {
-    try {
-      // Validar datos
-      if (name.trim().isEmpty) {
-        Get.snackbar('Error', 'El nombre es requerido');
-        return false;
-      }
-      
-      if (value <= 0) {
-        Get.snackbar('Error', 'El valor debe ser mayor a 0');
-        return false;
-      }
-      
-      if (type == DiscountType.percentage && value > 100) {
-        Get.snackbar('Error', 'El porcentaje no puede ser mayor a 100%');
-        return false;
-      }
-      
-      if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
-        Get.snackbar('Error', 'La fecha de inicio no puede ser posterior a la fecha de fin');
-        return false;
-      }
-      
-      // Crear nuevo descuento
-      final discount = Discount(
-        name: name.trim(),
-        description: description.trim(),
-        type: type,
-        value: value,
-        minimumAmount: minimumAmount,
-        maximumDiscount: maximumDiscount,
-        startDate: startDate,
-        endDate: endDate,
-        isActive: isActive,
-      );
-      
-      // Insertar en base de datos
-      final id = await _databaseHelper.insertDiscount(discount);
-      
-      // Agregar a la lista local
-      final newDiscount = discount.copyWith(id: id);
-      discounts.add(newDiscount);
-      filterDiscounts();
-      
-      Get.snackbar(
-        'Éxito',
-        'Descuento agregado correctamente',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      
-      return true;
-    } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Error al agregar descuento: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      return false;
-    }
-  }
-
-  // Actualizar descuento existente
-  Future<bool> updateDiscount({
-    required int id,
-    required String name,
-    required String description,
-    required DiscountType type,
-    required double value,
-    double? minimumAmount,
-    double? maximumDiscount,
-    DateTime? startDate,
-    DateTime? endDate,
-    bool isActive = true,
-  }) async {
-    try {
-      // Validar datos (mismas validaciones que en addDiscount)
-      if (name.trim().isEmpty) {
-        Get.snackbar('Error', 'El nombre es requerido');
-        return false;
-      }
-      
-      if (value <= 0) {
-        Get.snackbar('Error', 'El valor debe ser mayor a 0');
-        return false;
-      }
-      
-      if (type == DiscountType.percentage && value > 100) {
-        Get.snackbar('Error', 'El porcentaje no puede ser mayor a 100%');
-        return false;
-      }
-      
-      if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
-        Get.snackbar('Error', 'La fecha de inicio no puede ser posterior a la fecha de fin');
-        return false;
-      }
-      
-      // Buscar descuento actual
-      final currentDiscount = discounts.firstWhereOrNull((d) => d.id == id);
-      if (currentDiscount == null) {
-        Get.snackbar('Error', 'Descuento no encontrado');
-        return false;
-      }
-      
-      // Crear descuento actualizado
-      final updatedDiscount = currentDiscount.copyWith(
-        name: name.trim(),
-        description: description.trim(),
-        type: type,
-        value: value,
-        minimumAmount: minimumAmount,
-        maximumDiscount: maximumDiscount,
-        startDate: startDate,
-        endDate: endDate,
-        isActive: isActive,
-      );
-      
-      // Actualizar en base de datos
-      await _databaseHelper.updateDiscount(updatedDiscount);
-      
-      // Actualizar en lista local
-      final index = discounts.indexWhere((d) => d.id == id);
-      if (index != -1) {
-        discounts[index] = updatedDiscount;
-        filterDiscounts();
-      }
-      
-      Get.snackbar(
-        'Éxito',
-        'Descuento actualizado correctamente',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      
-      return true;
-    } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Error al actualizar descuento: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      return false;
-    }
-  }
-
-  // Eliminar descuento
-  Future<bool> deleteDiscount(int id) async {
-    try {
-      await _databaseHelper.deleteDiscount(id);
-      
-      // Remover de lista local
-      discounts.removeWhere((d) => d.id == id);
-      filterDiscounts();
-      
-      Get.snackbar(
-        'Éxito',
-        'Descuento eliminado correctamente',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      
-      return true;
-    } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Error al eliminar descuento: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      return false;
-    }
-  }
-
-  // Aplicar descuento a un total
-  void applyDiscount(Discount? discount, double totalAmount) {
-    if (discount == null) {
-      appliedDiscount.value = null;
-      selectedDiscount.value = null;
-      return;
-    }
-
-    if (!discount.isApplicable(totalAmount)) {
-      Get.snackbar(
-        'Error',
-        'Este descuento no es aplicable al monto actual',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      return;
-    }
-
-    final discountAmount = discount.calculateDiscountAmount(totalAmount);
-    final finalAmount = totalAmount - discountAmount;
-
-    appliedDiscount.value = OrderDiscount(
-      discount: discount,
-      originalAmount: totalAmount,
-      discountAmount: discountAmount,
-      finalAmount: finalAmount,
-    );
-    
-    selectedDiscount.value = discount;
-  }
-
-  // Remover descuento aplicado
-  void removeDiscount() {
-    appliedDiscount.value = null;
-    selectedDiscount.value = null;
-  }
-
-  // Activar/desactivar descuento
-  Future<bool> toggleDiscountStatus(int id) async {
-    try {
-      final discount = discounts.firstWhereOrNull((d) => d.id == id);
-      if (discount == null) return false;
-
-      final updatedDiscount = discount.copyWith(isActive: !discount.isActive);
-      await _databaseHelper.updateDiscount(updatedDiscount);
-
-      final index = discounts.indexWhere((d) => d.id == id);
-      if (index != -1) {
-        discounts[index] = updatedDiscount;
-        filterDiscounts();
-      }
-
-      return true;
-    } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Error al cambiar estado del descuento: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      return false;
-    }
-  }
-
-  // Obtener descuentos activos
-  List<Discount> getActiveDiscounts() {
-    return discounts.where((d) => d.isActive).toList();
+  // Buscar descuentos
+  void searchDiscounts(String query) {
+    _searchQuery.value = query;
   }
 
   // Limpiar búsqueda
   void clearSearch() {
-    searchQuery.value = '';
-    filteredDiscounts.value = discounts;
+    _searchQuery.value = '';
   }
 
-  // Refrescar datos
-  @override
+  // Toggle estado del descuento
+  Future<bool> toggleDiscountStatus(String id) async {
+    final discount = _discounts.firstWhere((d) => d['_id'] == id);
+    final currentStatus = discount['isActive'] ?? false;
+    
+    return updateDiscount(
+      id: id,
+      isActive: !currentStatus,
+    );
+  }
+
+  // Refrescar lista
   Future<void> refresh() async {
     await loadDiscounts();
+  }
+
+  // ⭐ MÉTODO PARA REFRESCAR CUANDO CAMBIE LA TIENDA
+  Future<void> refreshForStore() async {
+    await loadDiscounts();
+  }
+
+  // ⭐ MÉTODO DE PRUEBA: Cargar TODOS los descuentos sin filtro de tienda
+  Future<void> loadAllDiscountsForTesting() async {
+    print('DiscountController.loadAllDiscountsForTesting - Loading ALL discounts without store filter');
+    _isLoading.value = true;
+    _errorMessage.value = '';
+
+    try {
+      final result = await _discountProvider.getDiscounts(
+        active: null,
+        storeId: null, // ⭐ SIN FILTRO DE TIENDA
+      );
+
+      print('DiscountController.loadAllDiscountsForTesting - API result: $result');
+
+      if (result['success']) {
+        final discountsData = List<Map<String, dynamic>>.from(result['data']);
+        _discounts.value = discountsData;
+        print('DiscountController.loadAllDiscountsForTesting - Loaded ${discountsData.length} discounts');
+        print('DiscountController.loadAllDiscountsForTesting - Discounts: $discountsData');
+        filterDiscounts();
+      } else {
+        print('DiscountController.loadAllDiscountsForTesting - API error: ${result['message']}');
+        _errorMessage.value = result['message'] ?? 'Error cargando descuentos';
+        Get.snackbar('Error', _errorMessage.value, snackPosition: SnackPosition.TOP);
+      }
+    } catch (e) {
+      print('DiscountController.loadAllDiscountsForTesting - Exception: $e');
+      _errorMessage.value = 'Error de conexión: $e';
+      Get.snackbar('Error', _errorMessage.value, snackPosition: SnackPosition.TOP);
+    } finally {
+      _isLoading.value = false;
+      print('DiscountController.loadAllDiscountsForTesting - Finished');
+    }
+  }
+
+  // Actualizar descuentos aplicables según monto total
+  void updateApplicableDiscounts(double totalAmount) {
+    print('DiscountController.updateApplicableDiscounts - Total amount: $totalAmount');
+    print('DiscountController.updateApplicableDiscounts - Available discounts count: ${_discounts.length}');
+    print('DiscountController.updateApplicableDiscounts - All discounts: $_discounts');
+    
+    final now = DateTime.now();
+    final applicableList = _discounts.where((discount) {
+      print('DiscountController.updateApplicableDiscounts - Checking discount: ${discount['name']}');
+      
+      // Verificar si está activo
+      if (discount['isActive'] != true) {
+        print('  → Rejected: not active (${discount['isActive']})');
+        return false;
+      }
+      
+      // Verificar monto mínimo
+      final minAmount = discount['minimumAmount'];
+      if (minAmount != null && totalAmount < minAmount) {
+        print('  → Rejected: total amount $totalAmount < minimum $minAmount');
+        return false;
+      }
+      
+      // Verificar fecha de inicio
+      final startDateStr = discount['startDate'];
+      if (startDateStr != null) {
+        final startDate = DateTime.parse(startDateStr);
+        if (now.isBefore(startDate)) {
+          print('  → Rejected: current date $now < start date $startDate');
+          return false;
+        }
+      }
+      
+      // Verificar fecha de fin
+      final endDateStr = discount['endDate'];
+      if (endDateStr != null) {
+        final endDate = DateTime.parse(endDateStr);
+        if (now.isAfter(endDate)) {
+          print('  → Rejected: current date $now > end date $endDate');
+          return false;
+        }
+      }
+      
+      print('  → Accepted: discount passes all filters');
+      return true;
+    }).toList();
+    
+    _applicableDiscounts.value = applicableList;
+    print('DiscountController.updateApplicableDiscounts - Final applicable discounts: ${_applicableDiscounts.length}');
+    print('DiscountController.updateApplicableDiscounts - Applicable discounts: $applicableList');
+  }
+
+  // Cargar descuentos
+  Future<void> loadDiscounts({bool? active}) async {
+    print('DiscountController.loadDiscounts - Starting, active filter: $active');
+    _isLoading.value = true;
+    _errorMessage.value = '';
+
+    try {
+      // ⭐ OBTENER EL STORE ID ACTUAL (opcional)
+      final currentStoreId = _storeController.currentStore?['_id'];
+      print('DiscountController.loadDiscounts - Current store: ${_storeController.currentStore}');
+      print('DiscountController.loadDiscounts - Current store ID: $currentStoreId');
+      
+      // ⭐ PERMITIR CARGAR DESCUENTOS INCLUSO SIN TIENDA SELECCIONADA
+      print('DiscountController.loadDiscounts - Making API call with storeId: $currentStoreId');
+      final result = await _discountProvider.getDiscounts(
+        active: active,
+        storeId: currentStoreId, // Puede ser null
+      );
+
+      print('DiscountController.loadDiscounts - API result: $result');
+
+      if (result['success']) {
+        final discountsData = List<Map<String, dynamic>>.from(result['data']);
+        _discounts.value = discountsData;
+        print('DiscountController.loadDiscounts - Loaded ${discountsData.length} discounts');
+        print('DiscountController.loadDiscounts - Discounts: $discountsData');
+        filterDiscounts();
+      } else {
+        print('DiscountController.loadDiscounts - API error: ${result['message']}');
+        _errorMessage.value = result['message'] ?? 'Error cargando descuentos';
+        Get.snackbar('Error', _errorMessage.value, snackPosition: SnackPosition.TOP);
+      }
+    } catch (e) {
+      print('DiscountController.loadDiscounts - Exception: $e');
+      _errorMessage.value = 'Error de conexión: $e';
+      Get.snackbar('Error', _errorMessage.value, snackPosition: SnackPosition.TOP);
+    } finally {
+      _isLoading.value = false;
+      print('DiscountController.loadDiscounts - Finished');
+    }
+  }
+
+  // Crear descuento
+  Future<bool> createDiscount({
+    required String name,
+    String? description,
+    required String type,
+    required double value,
+    double? minimumAmount,
+    double? maximumDiscount,
+    DateTime? startDate,
+    DateTime? endDate,
+    bool? active,
+  }) async {
+    print('DiscountController.createDiscount - Starting creation');
+    _isLoading.value = true;
+
+    try {
+      // ⭐ OBTENER EL STORE ID ACTUAL PARA ASIGNAR AL DESCUENTO
+      final currentStoreId = _storeController.currentStore?['_id'];
+      print('DiscountController.createDiscount - Current store ID: $currentStoreId');
+      
+      final result = await _discountProvider.createDiscount(
+        name: name,
+        description: description,
+        type: type,
+        value: value,
+        minimumAmount: minimumAmount,
+        maximumDiscount: maximumDiscount,
+        startDate: startDate?.toIso8601String(),
+        endDate: endDate?.toIso8601String(),
+        active: active,
+        storeId: currentStoreId, // ⭐ AGREGAR STORE ID
+      );
+
+      print('DiscountController.createDiscount - API result: $result');
+
+      if (result['success']) {
+        Get.snackbar('Éxito', 'Descuento creado correctamente', snackPosition: SnackPosition.TOP);
+        await loadDiscounts();
+        return true;
+      } else {
+        Get.snackbar('Error', result['message'] ?? 'Error creando descuento', snackPosition: SnackPosition.TOP);
+        return false;
+      }
+    } catch (e) {
+      print('DiscountController.createDiscount - Exception: $e');
+      Get.snackbar('Error', 'Error de conexión: $e', snackPosition: SnackPosition.TOP);
+      return false;
+    } finally {
+      _isLoading.value = false;
+    }
+  }
+
+  // Alias para compatibilidad con add_discount_page
+  Future<bool> addDiscount({
+    required String name,
+    required String description,
+    required dynamic type,  // Accept DiscountType enum
+    required double value,
+    double? minimumAmount,
+    double? maximumDiscount,
+    DateTime? startDate,
+    DateTime? endDate,
+    required bool isActive,
+  }) async {
+    print('DiscountController.addDiscount - Starting creation');
+    
+    // Convert DiscountType enum to string if necessary
+    final typeStr = type.toString().contains('.') 
+        ? type.toString().split('.').last 
+        : type.toString();
+    
+    // ⭐ OBTENER EL STORE ID ACTUAL
+    final currentStoreId = _storeController.currentStore?['_id'];
+    print('DiscountController.addDiscount - Current store ID: $currentStoreId');
+    
+    return createDiscount(
+      name: name,
+      description: description,
+      type: typeStr,
+      value: value,
+      minimumAmount: minimumAmount,
+      maximumDiscount: maximumDiscount,
+      startDate: startDate,
+      endDate: endDate,
+      active: isActive,
+    );
+  }
+
+  // Actualizar descuento
+  Future<bool> updateDiscount({
+    required String id,
+    String? name,
+    String? description,
+    dynamic type,  // Accept DiscountType enum or String
+    double? value,
+    double? minimumAmount,
+    double? maximumDiscount,
+    DateTime? startDate,
+    DateTime? endDate,
+    bool? isActive,
+  }) async {
+    print('DiscountController.updateDiscount - Starting update for ID: $id');
+    _isLoading.value = true;
+
+    try {
+      // Convert DiscountType enum to string if necessary
+      String? typeStr;
+      if (type != null) {
+        typeStr = type.toString().contains('.') 
+            ? type.toString().split('.').last 
+            : type.toString();
+      }
+
+      print('DiscountController.updateDiscount - Update data: name=$name, type=$typeStr, value=$value');
+
+      final result = await _discountProvider.updateDiscount(
+        id: id,
+        name: name,
+        description: description,
+        type: typeStr,
+        value: value,
+        minimumAmount: minimumAmount,
+        maximumDiscount: maximumDiscount,
+        startDate: startDate?.toIso8601String(),
+        endDate: endDate?.toIso8601String(),
+        active: isActive,
+      );
+
+      print('DiscountController.updateDiscount - Provider result: $result');
+
+      if (result['success']) {
+        print('DiscountController.updateDiscount - Update successful, reloading discounts');
+        Get.snackbar('Éxito', 'Descuento actualizado correctamente', snackPosition: SnackPosition.TOP);
+        await loadDiscounts();
+        return true;
+      } else {
+        print('DiscountController.updateDiscount - Update failed: ${result['message']}');
+        Get.snackbar('Error', result['message'] ?? 'Error actualizando descuento', snackPosition: SnackPosition.TOP);
+        return false;
+      }
+    } catch (e) {
+      print('DiscountController.updateDiscount - Exception: $e');
+      Get.snackbar('Error', 'Error de conexión: $e', snackPosition: SnackPosition.TOP);
+      return false;
+    } finally {
+      _isLoading.value = false;
+      print('DiscountController.updateDiscount - Finished');
+    }
+  }
+
+  // Eliminar descuento
+  Future<bool> deleteDiscount(String id) async {
+    print('DiscountController.deleteDiscount - Starting deletion for ID: $id');
+    _isLoading.value = true;
+
+    try {
+      final result = await _discountProvider.deleteDiscount(id);
+      print('DiscountController.deleteDiscount - Provider result: $result');
+
+      if (result['success']) {
+        print('DiscountController.deleteDiscount - Deletion successful, updating list');
+        
+        // Remover de la lista local
+        final beforeCount = _discounts.length;
+        _discounts.removeWhere((d) => d['_id'] == id);
+        final afterCount = _discounts.length;
+        
+        print('DiscountController.deleteDiscount - Discounts before: $beforeCount, after: $afterCount');
+        
+        // Forzar actualización de filtros
+        filterDiscounts();
+        
+        Get.snackbar('Éxito', 'Descuento eliminado correctamente', snackPosition: SnackPosition.TOP);
+        return true;
+      } else {
+        print('DiscountController.deleteDiscount - Deletion failed: ${result['message']}');
+        Get.snackbar('Error', result['message'] ?? 'Error eliminando descuento', snackPosition: SnackPosition.TOP);
+        return false;
+      }
+    } catch (e) {
+      print('DiscountController.deleteDiscount - Exception: $e');
+      Get.snackbar('Error', 'Error de conexión: $e', snackPosition: SnackPosition.TOP);
+      return false;
+    } finally {
+      _isLoading.value = false;
+      print('DiscountController.deleteDiscount - Finished');
+    }
+  }
+
+  void clearError() {
+    _errorMessage.value = '';
   }
 }

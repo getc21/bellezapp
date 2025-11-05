@@ -1,26 +1,37 @@
 import 'package:bellezapp/utils/utils.dart';
+import 'package:bellezapp/widgets/store_aware_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/discount_controller.dart';
-import '../models/discount.dart';
 import 'add_discount_page.dart';
 
 class DiscountListPage extends StatelessWidget {
   final DiscountController discountController = Get.put(DiscountController());
 
-  DiscountListPage({super.key});
+  DiscountListPage({super.key}) {
+    print('DiscountListPage - Constructor called');
+    print('DiscountListPage - DiscountController instance: $discountController');
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Gestión de Descuentos'),
+      appBar: StoreAwareAppBar(
+        title: 'Gestión de Descuentos',
+        icon: Icons.local_offer_outlined,
         backgroundColor: Utils.colorGnav,
-        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => discountController.refresh(),
+            onPressed: () async => await discountController.refresh(),
+          ),
+          // ⭐ BOTÓN DE PRUEBA: Cargar todos los descuentos
+          IconButton(
+            icon: const Icon(Icons.bug_report),
+            onPressed: () async {
+              print('DiscountListPage - Testing: Loading all discounts');
+              await discountController.loadAllDiscountsForTesting();
+            },
           ),
         ],
       ),
@@ -38,7 +49,7 @@ class DiscountListPage extends StatelessWidget {
                   hintText: 'Buscar descuentos...',
                   hintStyle: TextStyle(fontSize: 12),
                   prefixIcon: Icon(Icons.search, size: 20),
-                  suffixIcon: Obx(() => discountController.searchQuery.value.isNotEmpty
+                  suffixIcon: Obx(() => discountController.searchQuery.isNotEmpty
                       ? IconButton(
                           icon: Icon(Icons.clear, size: 18),
                           onPressed: () => discountController.clearSearch(),
@@ -61,10 +72,10 @@ class DiscountListPage extends StatelessWidget {
           Obx(() {
             final totalDiscounts = discountController.discounts.length;
             final activeDiscounts = discountController.discounts
-                .where((d) => d.isActive)
+                .where((d) => d['isActive'] ?? false)
                 .length;
             final percentageDiscounts = discountController.discounts
-                .where((d) => d.type == DiscountType.percentage)
+                .where((d) => d['type'] == 'percentage')
                 .length;
             
             return Container(
@@ -83,11 +94,19 @@ class DiscountListPage extends StatelessWidget {
           // Lista de descuentos
           Expanded(
             child: Obx(() {
-              if (discountController.isLoading.value) {
+              print('DiscountListPage - Building discount list');
+              print('DiscountListPage - IsLoading: ${discountController.isLoading}');
+              print('DiscountListPage - Total discounts: ${discountController.discounts.length}');
+              print('DiscountListPage - Filtered discounts: ${discountController.filteredDiscounts.length}');
+              print('DiscountListPage - Error message: ${discountController.errorMessage}');
+              
+              if (discountController.isLoading) {
+                print('DiscountListPage - Showing loading indicator');
                 return const Center(child: CircularProgressIndicator());
               }
               
               if (discountController.filteredDiscounts.isEmpty) {
+                print('DiscountListPage - No discounts to show, showing empty state');
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -99,7 +118,7 @@ class DiscountListPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        discountController.searchQuery.value.isEmpty
+                        discountController.searchQuery.isEmpty
                             ? 'No hay descuentos registrados'
                             : 'No se encontraron descuentos',
                         style: TextStyle(
@@ -109,7 +128,7 @@ class DiscountListPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        discountController.searchQuery.value.isEmpty
+                        discountController.searchQuery.isEmpty
                             ? 'Agrega tu primer descuento usando el botón +'
                             : 'Intenta con otros términos de búsqueda',
                         style: TextStyle(
@@ -122,8 +141,9 @@ class DiscountListPage extends StatelessWidget {
                 );
               }
               
+              print('DiscountListPage - Showing discount list with ${discountController.filteredDiscounts.length} items');
               return RefreshIndicator(
-                onRefresh: discountController.refresh,
+                onRefresh: () async => await discountController.refresh(),
                 child: ListView.builder(
                   padding: const EdgeInsets.all(16.0),
                   itemCount: discountController.filteredDiscounts.length,
@@ -175,7 +195,7 @@ class DiscountListPage extends StatelessWidget {
     );
   }
 
-  Widget _buildDiscountCard(BuildContext context, Discount discount) {
+  Widget _buildDiscountCard(BuildContext context, Map<String, dynamic> discount) {
     return Card(
       margin: const EdgeInsets.only(bottom: 8.0),
       elevation: 2,
@@ -188,23 +208,23 @@ class DiscountListPage extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    discount.name,
+                    discount['name']?.toString() ?? 'Sin nombre',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-                _buildDiscountTypeChip(discount.type),
+                _buildDiscountTypeChip(discount['type']?.toString() ?? 'percentage'),
                 const SizedBox(width: 8),
-                _buildActiveStatusChip(discount.isActive),
+                _buildActiveStatusChip(discount['isActive'] ?? false),
               ],
             ),
             
             const SizedBox(height: 8),
             
             Text(
-              discount.description,
+              discount['description']?.toString() ?? '',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey[600],
@@ -222,7 +242,7 @@ class DiscountListPage extends StatelessWidget {
                 border: Border.all(color: Colors.green.withOpacity(0.3)),
               ),
               child: Text(
-                discount.displayValue,
+                _getDisplayValue(discount),
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -234,10 +254,10 @@ class DiscountListPage extends StatelessWidget {
             const SizedBox(height: 12),
             
             // Condiciones
-            if (discount.minimumAmount != null || 
-                discount.maximumDiscount != null ||
-                discount.startDate != null ||
-                discount.endDate != null)
+            if (discount['minimumAmount'] != null || 
+                discount['maximumDiscount'] != null ||
+                discount['startDate'] != null ||
+                discount['endDate'] != null)
               _buildConditionsSection(discount),
             
             const SizedBox(height: 12),
@@ -248,8 +268,8 @@ class DiscountListPage extends StatelessWidget {
               children: [
                 IconButton(
                   icon: Icon(
-                    discount.isActive ? Icons.toggle_on : Icons.toggle_off,
-                    color: discount.isActive ? Colors.green : Colors.grey,
+                    (discount['isActive'] ?? false) ? Icons.toggle_on : Icons.toggle_off,
+                    color: (discount['isActive'] ?? false) ? Colors.green : Colors.grey,
                     size: 30,
                   ),
                   onPressed: () => _toggleDiscountStatus(discount),
@@ -270,19 +290,22 @@ class DiscountListPage extends StatelessWidget {
     );
   }
 
-  Widget _buildDiscountTypeChip(DiscountType type) {
+  Widget _buildDiscountTypeChip(String type) {
     Color color;
     String label;
     
     switch (type) {
-      case DiscountType.percentage:
+      case 'percentage':
         color = Colors.orange;
         label = '%';
         break;
-      case DiscountType.fixed:
+      case 'fixed':
         color = Colors.blue;
         label = '\$';
         break;
+      default:
+        color = Colors.grey;
+        label = '?';
     }
     
     return Container(
@@ -301,6 +324,17 @@ class DiscountListPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _getDisplayValue(Map<String, dynamic> discount) {
+    final type = discount['type']?.toString() ?? 'percentage';
+    final value = (discount['value'] as num?)?.toDouble() ?? 0.0;
+    
+    if (type == 'percentage') {
+      return '${value.toStringAsFixed(0)}% OFF';
+    } else {
+      return '\$${value.toStringAsFixed(2)} OFF';
+    }
   }
 
   Widget _buildActiveStatusChip(bool isActive) {
@@ -324,33 +358,35 @@ class DiscountListPage extends StatelessWidget {
     );
   }
 
-  Widget _buildConditionsSection(Discount discount) {
+  Widget _buildConditionsSection(Map<String, dynamic> discount) {
     List<Widget> conditions = [];
     
-    if (discount.minimumAmount != null) {
+    if (discount['minimumAmount'] != null) {
       conditions.add(_buildConditionChip(
-        'Min: \$${discount.minimumAmount!.toStringAsFixed(2)}',
+        'Min: \$${discount['minimumAmount'].toStringAsFixed(2)}',
         Colors.purple,
       ));
     }
     
-    if (discount.maximumDiscount != null) {
+    if (discount['maximumDiscount'] != null) {
       conditions.add(_buildConditionChip(
-        'Max: \$${discount.maximumDiscount!.toStringAsFixed(2)}',
+        'Max: \$${discount['maximumDiscount'].toStringAsFixed(2)}',
         Colors.red,
       ));
     }
     
-    if (discount.startDate != null) {
+    if (discount['startDate'] != null) {
+      final startDate = DateTime.parse(discount['startDate']);
       conditions.add(_buildConditionChip(
-        'Desde: ${discount.startDate!.day}/${discount.startDate!.month}/${discount.startDate!.year}',
+        'Desde: ${startDate.day}/${startDate.month}/${startDate.year}',
         Colors.blue,
       ));
     }
     
-    if (discount.endDate != null) {
+    if (discount['endDate'] != null) {
+      final endDate = DateTime.parse(discount['endDate']);
       conditions.add(_buildConditionChip(
-        'Hasta: ${discount.endDate!.day}/${discount.endDate!.month}/${discount.endDate!.year}',
+        'Hasta: ${endDate.day}/${endDate.month}/${endDate.year}',
         Colors.orange,
       ));
     }
@@ -380,28 +416,34 @@ class DiscountListPage extends StatelessWidget {
     );
   }
 
-  void _toggleDiscountStatus(Discount discount) {
-    discountController.toggleDiscountStatus(discount.id!);
+  void _toggleDiscountStatus(Map<String, dynamic> discount) {
+    discountController.toggleDiscountStatus(discount['_id']!.toString());
   }
 
-  void _editDiscount(Discount discount) {
+  void _editDiscount(Map<String, dynamic> discount) {
     Get.to(() => AddDiscountPage(discount: discount));
   }
 
-  void _deleteDiscount(BuildContext context, Discount discount) {
+  void _deleteDiscount(BuildContext context, Map<String, dynamic> discount) {
     Get.dialog(
       AlertDialog(
         title: const Text('Confirmar eliminación'),
-        content: Text('¿Estás seguro de eliminar el descuento "${discount.name}"?'),
+        content: Text('¿Estás seguro de eliminar el descuento "${discount['name']}"?'),
         actions: [
           TextButton(
             onPressed: () => Get.back(),
             child: const Text('Cancelar'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Get.back();
-              discountController.deleteDiscount(discount.id!);
+              print('DiscountListPage - Deleting discount: ${discount['name']}');
+              final success = await discountController.deleteDiscount(discount['_id']!.toString());
+              if (success) {
+                print('DiscountListPage - Discount deleted successfully, list should update automatically');
+              } else {
+                print('DiscountListPage - Failed to delete discount');
+              }
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Eliminar'),

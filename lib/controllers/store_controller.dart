@@ -1,295 +1,468 @@
 import 'package:get/get.dart';
-import '../models/store.dart';
-import '../services/auth_service.dart';
-import '../database/database_helper.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../providers/store_provider.dart';
+import 'auth_controller.dart';
+// Imports de controladores que necesitan refrescarse
+import 'product_controller.dart';
+import 'order_controller.dart';
+import 'customer_controller.dart';
+import 'discount_controller.dart';
+import 'cash_controller.dart';
+import 'location_controller.dart';
 
 class StoreController extends GetxController {
-  final Rx<Store?> currentStore = Rx<Store?>(null);
-  final RxList<Store> availableStores = <Store>[].obs;
-  final RxBool isAdmin = false.obs;
-  final RxBool isLoading = false.obs;
+  final AuthController _authController = Get.find<AuthController>();
+  
+  StoreProvider get _storeProvider => StoreProvider(_authController.token);
 
-  final AuthService _authService = AuthService.instance;
-  final DatabaseHelper _dbHelper = DatabaseHelper();
+  // Estados observables
+  final RxList<Map<String, dynamic>> _stores = <Map<String, dynamic>>[].obs;
+  final Rx<Map<String, dynamic>?> _currentStore = Rx<Map<String, dynamic>?>(null);
+  final RxBool _isLoading = false.obs;
+  final RxString _errorMessage = ''.obs;
+
+  // Getters
+  List<Map<String, dynamic>> get stores => _stores;
+  List<Map<String, dynamic>> get availableStores => _stores; // Alias para compatibilidad
+  Map<String, dynamic>? get currentStore => _currentStore.value;
+  Rx<Map<String, dynamic>?> get currentStoreRx => _currentStore; // Para observar cambios
+  bool get isLoading => _isLoading.value;
+  String get errorMessage => _errorMessage.value;
+  bool get isAdmin => _authController.isAdmin;
 
   @override
   void onInit() {
     super.onInit();
-    // No cargar tiendas automáticamente, esperar a que el usuario esté autenticado
-  }
-
-  /// Inicializar tiendas después del login
-  Future<void> initializeAfterLogin() async {
-    await _loadUserStores();
-  }
-
-  /// Cargar tiendas del usuario actual
-  Future<void> _loadUserStores() async {
-    isLoading.value = true;
-    try {
-      isAdmin.value = _authService.isAdmin;
-      print('🔍 Cargando tiendas para usuario: ${_authService.currentUser?.username}');
-      print('👤 Es admin: $isAdmin');
-      
-      if (_authService.isAdmin) {
-        // Admin: cargar todas las tiendas
-        final stores = await _dbHelper.getAllStores();
-        availableStores.value = stores.map((s) => Store.fromMap(s)).toList();
-        print('📦 Admin - Tiendas cargadas: ${availableStores.length}');
-      } else if (_authService.currentUser != null) {
-        // Otros roles: cargar solo tiendas asignadas
-        print('🔑 Usuario ID: ${_authService.currentUser!.id}');
-        final stores = await _dbHelper.getUserAssignedStores(_authService.currentUser!.id!);
-        availableStores.value = stores.map((s) => Store.fromMap(s)).toList();
-        print('📦 Empleado - Tiendas asignadas: ${availableStores.length}');
-        if (availableStores.isNotEmpty) {
-          print('   Tiendas: ${availableStores.map((s) => s.name).join(", ")}');
-        }
-      }
-      
-      // Establecer tienda por defecto
-      if (availableStores.isNotEmpty) {
-        if (_authService.currentStore != null) {
-          currentStore.value = _authService.currentStore;
-          print('✅ Tienda actual (desde auth): ${currentStore.value?.name}');
-        } else {
-          currentStore.value = availableStores.first;
-          await _authService.switchStore(availableStores.first);
-          print('✅ Tienda actual (primera disponible): ${currentStore.value?.name}');
-        }
-      } else {
-        print('⚠️ No se encontraron tiendas disponibles');
-      }
-    } catch (e) {
-      print('❌ Error cargando tiendas: $e');
-    } finally {
-      isLoading.value = false;
+    // No cargar tiendas automáticamente, solo cuando el usuario esté autenticado
+    if (_authController.isLoggedIn) {
+      loadStores();
     }
   }
 
-  /// Cambiar tienda actual
-  Future<void> switchStore(Store store) async {
+  // Cargar tiendas
+  Future<void> loadStores() async {
+    // Verificar que haya un token antes de intentar cargar
+    if (_authController.token.isEmpty) {
+      _errorMessage.value = 'No hay sesión activa';
+      return;
+    }
+
+    _isLoading.value = true;
+    _errorMessage.value = '';
+
     try {
-      // Verificar que el usuario tenga acceso a esta tienda
-      if (!isAdmin.value) {
-        final hasAccess = availableStores.any((s) => s.id == store.id);
-        if (!hasAccess) {
-          Get.snackbar(
-            'Acceso denegado',
-            'No tienes permisos para acceder a esta tienda',
-            snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: Get.theme.colorScheme.error,
-            colorText: Get.theme.colorScheme.onError,
-          );
+      final result = await _storeProvider.getStores();
+
+      if (result['success']) {
+        _stores.value = List<Map<String, dynamic>>.from(result['data']);
+        
+        // ⭐ MEJORAR LA SELECCIÓN DE TIENDA
+        await _selectInitialStore();
+      } else {
+        _errorMessage.value = result['message'] ?? 'Error cargando tiendas';
+        Get.snackbar(
+          'Error',
+          _errorMessage.value,
+          snackPosition: SnackPosition.TOP,
+        );
+      }
+    } catch (e) {
+      _errorMessage.value = 'Error de conexión: $e';
+      Get.snackbar(
+        'Error',
+        _errorMessage.value,
+        snackPosition: SnackPosition.TOP,
+      );
+    } finally {
+      _isLoading.value = false;
+    }
+  }
+
+  // ⭐ NUEVO MÉTODO PARA SELECCIONAR LA TIENDA INICIAL
+  Future<void> _selectInitialStore() async {
+    if (_stores.isEmpty) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedStoreId = prefs.getString('selected_store_id');
+      
+      // Intentar restaurar la tienda previamente seleccionada
+      if (savedStoreId != null) {
+        final savedStore = _stores.firstWhere(
+          (store) => store['_id'].toString() == savedStoreId,
+          orElse: () => {},
+        );
+        
+        if (savedStore.isNotEmpty) {
+          _currentStore.value = savedStore;
+          print('✅ Tienda restaurada: ${savedStore['name']}');
           return;
         }
       }
       
-      await _authService.switchStore(store);
-      currentStore.value = store;
+      // Si no hay tienda guardada o no se encontró, seleccionar la primera
+      _currentStore.value = _stores.first;
+      await _saveSelectedStore(_stores.first);
+      print('✅ Tienda seleccionada por defecto: ${_stores.first['name']}');
       
-      // Notificar a otros controladores que recarguen sus datos
-      _notifyStoreChanged();
-      
-      Get.snackbar(
-        'Tienda cambiada',
-        'Ahora estás viendo: ${store.name}',
-        snackPosition: SnackPosition.BOTTOM,
-        duration: Duration(seconds: 2),
-      );
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'No se pudo cambiar de tienda: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      print('Error seleccionando tienda inicial: $e');
+      // Fallback: seleccionar la primera tienda
+      if (_stores.isNotEmpty) {
+        _currentStore.value = _stores.first;
+      }
     }
   }
 
-  /// Notificar a todos los controladores que la tienda cambió
-  void _notifyStoreChanged() {
-    print('🔄 Tienda cambiada a: ${currentStore.value?.name}');
-    print('📢 Notificando a los controladores para recargar datos...');
+  // ⭐ GUARDAR LA TIENDA SELECCIONADA
+  Future<void> _saveSelectedStore(Map<String, dynamic> store) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('selected_store_id', store['_id'].toString());
+    } catch (e) {
+      print('Error guardando tienda seleccionada: $e');
+    }
+  }
+
+  // Seleccionar tienda actual
+  void selectStore(Map<String, dynamic> store) {
+    final previousStore = _currentStore.value;
+    _currentStore.value = store;
     
-    // Disparar actualización en todos los observadores
-    // Los controladores que necesiten reaccionar al cambio deben
-    // usar ever() en su onInit() para escuchar currentStore
-    update(); // Notifica a todos los widgets que usan GetBuilder
+    // ⭐ GUARDAR LA SELECCIÓN AUTOMÁTICAMENTE
+    _saveSelectedStore(store);
+    print('🏪 Tienda seleccionada: ${store['name']}');
+    
+    // ⭐ REFRESCAR TODOS LOS DATOS CUANDO CAMBIE LA TIENDA
+    if (previousStore?['_id'] != store['_id']) {
+      _refreshAllControllersData();
+    }
   }
 
-  /// Refrescar lista de tiendas
+  // ⭐ NUEVO MÉTODO PARA REFRESCAR TODOS LOS CONTROLADORES
+  Future<void> _refreshAllControllersData() async {
+    print('🔄 Refrescando datos para tienda: ${_currentStore.value?['name']}');
+    
+    try {
+      // Buscar y refrescar controladores que dependen de la tienda
+      if (Get.isRegistered<ProductController>()) {
+        final productController = Get.find<ProductController>();
+        await productController.refreshForStore();
+      }
+      
+      if (Get.isRegistered<OrderController>()) {
+        final orderController = Get.find<OrderController>();
+        await orderController.refreshForStore();
+      }
+      
+      if (Get.isRegistered<CustomerController>()) {
+        final customerController = Get.find<CustomerController>();
+        await customerController.refreshForStore();
+      }
+      
+      // CategoryController NO necesita refresh (es global)
+      
+      if (Get.isRegistered<DiscountController>()) {
+        final discountController = Get.find<DiscountController>();
+        await discountController.refreshForStore();
+      }
+      
+      // CashController - Sistema de caja
+      if (Get.isRegistered<CashController>()) {
+        final cashController = Get.find<CashController>();
+        await cashController.refreshForStore();
+      }
+      
+      // LocationController - Ubicaciones por tienda
+      if (Get.isRegistered<LocationController>()) {
+        final locationController = Get.find<LocationController>();
+        await locationController.refreshForStore();
+      }
+      
+      Get.snackbar(
+        'Tienda cambiada',
+        'Datos actualizados para ${_currentStore.value?['name']}',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+      );
+      
+    } catch (e) {
+      print('Error refrescando datos para nueva tienda: $e');
+    }
+  }
+
+  // ⭐ LIMPIAR TIENDAS AL CERRAR SESIÓN
+  void clearStores() {
+    _stores.clear();
+    _currentStore.value = null;
+    print('🧹 Tiendas limpiadas al cerrar sesión');
+  }
+
+  // Cambiar a otra tienda (alias para compatibilidad)
+  Future<void> switchStore(dynamic store) async {
+    if (store is Map<String, dynamic>) {
+      selectStore(store);
+    } else {
+      // Si es un objeto Store, convertirlo a Map
+      final storeMap = {
+        '_id': (store as dynamic).id,
+        'name': store.name,
+        'address': store.address,
+        'phone': store.phone,
+        'email': store.email,
+        'status': store.status,
+        'createdAt': store.createdAt.toIso8601String(),
+      };
+      selectStore(storeMap);
+    }
+  }
+
+  // Refrescar lista de tiendas
   Future<void> refreshStores() async {
-    await _loadUserStores();
+    await loadStores();
   }
 
-  /// Crear nueva tienda (solo admin)
+  // Obtener tienda por ID
+  Future<Map<String, dynamic>?> getStoreById(String id) async {
+    _isLoading.value = true;
+
+    try {
+      final result = await _storeProvider.getStoreById(id);
+
+      if (result['success']) {
+        return result['data'];
+      } else {
+        Get.snackbar(
+          'Error',
+          result['message'] ?? 'Error obteniendo tienda',
+          snackPosition: SnackPosition.TOP,
+        );
+        return null;
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Error de conexión: $e',
+        snackPosition: SnackPosition.TOP,
+      );
+      return null;
+    } finally {
+      _isLoading.value = false;
+    }
+  }
+
+  // Crear tienda (solo admin)
   Future<bool> createStore({
     required String name,
     String? address,
     String? phone,
     String? email,
   }) async {
-    if (!isAdmin.value) {
-      Get.snackbar('Error', 'Solo los administradores pueden crear tiendas');
+    if (!_authController.isAdmin) {
+      Get.snackbar(
+        'Error',
+        'No tienes permisos para crear tiendas',
+        snackPosition: SnackPosition.TOP,
+      );
       return false;
     }
 
+    _isLoading.value = true;
+
     try {
-      final store = Store(
+      final result = await _storeProvider.createStore(
         name: name,
         address: address,
         phone: phone,
         email: email,
-        status: 'active',
       );
 
-      await _dbHelper.insertStore(store.toMap());
-      await refreshStores();
-      
-      Get.snackbar(
-        'Éxito',
-        'Tienda creada correctamente',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      
-      return true;
+      if (result['success']) {
+        Get.snackbar(
+          'Éxito',
+          'Tienda creada correctamente',
+          snackPosition: SnackPosition.TOP,
+        );
+        await loadStores();
+        return true;
+      } else {
+        Get.snackbar(
+          'Error',
+          result['message'] ?? 'Error creando tienda',
+          snackPosition: SnackPosition.TOP,
+        );
+        return false;
+      }
     } catch (e) {
       Get.snackbar(
         'Error',
-        'No se pudo crear la tienda: $e',
-        snackPosition: SnackPosition.BOTTOM,
+        'Error de conexión: $e',
+        snackPosition: SnackPosition.TOP,
       );
       return false;
+    } finally {
+      _isLoading.value = false;
     }
   }
 
-  /// Actualizar tienda (solo admin)
-  Future<bool> updateStore(Store store) async {
-    if (!isAdmin.value) {
-      Get.snackbar('Error', 'Solo los administradores pueden actualizar tiendas');
+  // Actualizar tienda (solo admin)
+  Future<bool> updateStore({
+    required String id,
+    String? name,
+    String? address,
+    String? phone,
+    String? email,
+  }) async {
+    if (!_authController.isAdmin) {
+      Get.snackbar(
+        'Error',
+        'No tienes permisos para actualizar tiendas',
+        snackPosition: SnackPosition.TOP,
+      );
       return false;
     }
+
+    _isLoading.value = true;
 
     try {
-      await _dbHelper.updateStore(store.toMap());
-      await refreshStores();
-      
-      Get.snackbar(
-        'Éxito',
-        'Tienda actualizada correctamente',
-        snackPosition: SnackPosition.BOTTOM,
+      final result = await _storeProvider.updateStore(
+        id: id,
+        name: name,
+        address: address,
+        phone: phone,
+        email: email,
       );
-      
-      return true;
+
+      if (result['success']) {
+        Get.snackbar(
+          'Éxito',
+          'Tienda actualizada correctamente',
+          snackPosition: SnackPosition.TOP,
+        );
+        await loadStores();
+        return true;
+      } else {
+        Get.snackbar(
+          'Error',
+          result['message'] ?? 'Error actualizando tienda',
+          snackPosition: SnackPosition.TOP,
+        );
+        return false;
+      }
     } catch (e) {
       Get.snackbar(
         'Error',
-        'No se pudo actualizar la tienda: $e',
-        snackPosition: SnackPosition.BOTTOM,
+        'Error de conexión: $e',
+        snackPosition: SnackPosition.TOP,
       );
       return false;
+    } finally {
+      _isLoading.value = false;
     }
   }
 
-  /// Eliminar tienda (solo admin)
-  Future<bool> deleteStore(int storeId) async {
-    if (!isAdmin.value) {
-      Get.snackbar('Error', 'Solo los administradores pueden eliminar tiendas');
+  // Eliminar tienda (solo admin)
+  Future<bool> deleteStore(String id) async {
+    if (!_authController.isAdmin) {
+      Get.snackbar(
+        'Error',
+        'No tienes permisos para eliminar tiendas',
+        snackPosition: SnackPosition.TOP,
+      );
       return false;
     }
+
+    _isLoading.value = true;
 
     try {
-      await _dbHelper.deleteStore(storeId);
-      await refreshStores();
-      
-      Get.snackbar(
-        'Éxito',
-        'Tienda eliminada correctamente',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      
-      return true;
+      final result = await _storeProvider.deleteStore(id);
+
+      if (result['success']) {
+        Get.snackbar(
+          'Éxito',
+          'Tienda eliminada correctamente',
+          snackPosition: SnackPosition.TOP,
+        );
+        _stores.removeWhere((s) => s['_id'] == id);
+        
+        // Si eliminamos la tienda actual, seleccionar otra
+        if (_currentStore.value?['_id'] == id && _stores.isNotEmpty) {
+          _currentStore.value = _stores.first;
+        }
+        
+        return true;
+      } else {
+        Get.snackbar(
+          'Error',
+          result['message'] ?? 'Error eliminando tienda',
+          snackPosition: SnackPosition.TOP,
+        );
+        return false;
+      }
     } catch (e) {
       Get.snackbar(
         'Error',
-        'No se pudo eliminar la tienda: $e',
-        snackPosition: SnackPosition.BOTTOM,
+        'Error de conexión: $e',
+        snackPosition: SnackPosition.TOP,
       );
       return false;
+    } finally {
+      _isLoading.value = false;
     }
   }
 
-  /// Asignar usuario a tienda (solo admin)
-  Future<bool> assignUserToStore(int userId, int storeId) async {
-    if (!isAdmin.value) {
-      Get.snackbar('Error', 'Solo los administradores pueden asignar usuarios');
-      return false;
-    }
+  // Limpiar mensaje de error
+  void clearError() {
+    _errorMessage.value = '';
+  }
 
+  // Asignar usuario a tienda
+  Future<bool> assignUserToStore(String userId, String storeId) async {
     try {
-      await _dbHelper.assignUserToStore(
-        userId,
-        storeId,
-        assignedBy: _authService.currentUser?.id,
-      );
-      
-      Get.snackbar(
-        'Éxito',
-        'Usuario asignado a la tienda correctamente',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      
-      return true;
+      final result = await _storeProvider.assignUserToStore(userId, storeId);
+
+      if (result['success']) {
+        return true;
+      } else {
+        Get.snackbar(
+          'Error',
+          result['message'] ?? 'Error asignando usuario a tienda',
+          snackPosition: SnackPosition.TOP,
+        );
+        return false;
+      }
     } catch (e) {
       Get.snackbar(
         'Error',
-        'No se pudo asignar el usuario: $e',
-        snackPosition: SnackPosition.BOTTOM,
+        'Error de conexión: $e',
+        snackPosition: SnackPosition.TOP,
       );
       return false;
     }
   }
 
-  /// Desasignar usuario de tienda (solo admin)
-  Future<bool> unassignUserFromStore(int userId, int storeId) async {
-    if (!isAdmin.value) {
-      Get.snackbar('Error', 'Solo los administradores pueden desasignar usuarios');
-      return false;
-    }
-
+  // Desasignar usuario de tienda
+  Future<bool> unassignUserFromStore(String userId, String storeId) async {
     try {
-      await _dbHelper.unassignUserFromStore(userId, storeId);
-      
-      Get.snackbar(
-        'Éxito',
-        'Usuario desasignado de la tienda correctamente',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      
-      return true;
+      final result = await _storeProvider.unassignUserFromStore(userId, storeId);
+
+      if (result['success']) {
+        return true;
+      } else {
+        Get.snackbar(
+          'Error',
+          result['message'] ?? 'Error desasignando usuario de tienda',
+          snackPosition: SnackPosition.TOP,
+        );
+        return false;
+      }
     } catch (e) {
       Get.snackbar(
         'Error',
-        'No se pudo desasignar el usuario: $e',
-        snackPosition: SnackPosition.BOTTOM,
+        'Error de conexión: $e',
+        snackPosition: SnackPosition.TOP,
       );
       return false;
     }
-  }
-
-  /// Obtener ID de la tienda actual
-  int? get currentStoreId => currentStore.value?.id;
-
-  /// Verificar si hay una tienda seleccionada
-  bool get hasStoreSelected => currentStore.value != null;
-
-  /// Obtener nombre de la tienda actual
-  String get currentStoreName => currentStore.value?.name ?? 'Sin tienda';
-}
-
-// Stub para ProductController (si no existe)
-class ProductController extends GetxController {
-  void loadProducts() {
-    // Implementar carga de productos filtrados por tienda
   }
 }

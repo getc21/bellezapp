@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/discount_controller.dart';
-import '../models/discount.dart';
 
 class DiscountSelectionDialog extends StatefulWidget {
   final double totalAmount;
-  final Function(Discount?) onDiscountSelected;
+  final Function(Map<String, dynamic>?) onDiscountSelected;
 
   const DiscountSelectionDialog({
     super.key,
@@ -19,7 +18,7 @@ class DiscountSelectionDialog extends StatefulWidget {
 
 class _DiscountSelectionDialogState extends State<DiscountSelectionDialog> {
   late final DiscountController discountController;
-  Discount? selectedDiscount;
+  Map<String, dynamic>? selectedDiscount;
   
   @override
   void initState() {
@@ -37,11 +36,19 @@ class _DiscountSelectionDialogState extends State<DiscountSelectionDialog> {
   }
   
   Future<void> _loadDiscounts() async {
-    print('🔄 Recargando descuentos desde el diálogo...');
+    print('🔄 DiscountSelectionDialog._loadDiscounts - Starting...');
+    print('🔄 DiscountSelectionDialog._loadDiscounts - Total amount: ${widget.totalAmount}');
+    
     await discountController.loadDiscounts();
-    print('📋 Descuentos cargados: ${discountController.discounts.length}');
+    
+    print('📋 DiscountSelectionDialog._loadDiscounts - Discounts loaded: ${discountController.discounts.length}');
+    print('📋 DiscountSelectionDialog._loadDiscounts - All discounts: ${discountController.discounts}');
+    
     // Actualizar descuentos aplicables cuando se abre el diálogo
     discountController.updateApplicableDiscounts(widget.totalAmount);
+    
+    print('🎯 DiscountSelectionDialog._loadDiscounts - Applicable discounts: ${discountController.applicableDiscounts.length}');
+    print('🎯 DiscountSelectionDialog._loadDiscounts - Applicable list: ${discountController.applicableDiscounts}');
   }
 
   @override
@@ -113,7 +120,7 @@ class _DiscountSelectionDialogState extends State<DiscountSelectionDialog> {
                           style: TextStyle(color: Colors.grey[600]),
                         ),
                         Text(
-                          '-\$${selectedDiscount!.calculateDiscountAmount(widget.totalAmount).toStringAsFixed(2)}',
+                          '-\$${_calculateDiscountAmount(selectedDiscount!, widget.totalAmount).toStringAsFixed(2)}',
                           style: const TextStyle(
                             color: Colors.red,
                             fontWeight: FontWeight.bold,
@@ -128,7 +135,7 @@ class _DiscountSelectionDialogState extends State<DiscountSelectionDialog> {
                           style: TextStyle(color: Colors.grey[600]),
                         ),
                         Text(
-                          '\$${(widget.totalAmount - selectedDiscount!.calculateDiscountAmount(widget.totalAmount)).toStringAsFixed(2)}',
+                          '\$${(widget.totalAmount - _calculateDiscountAmount(selectedDiscount!, widget.totalAmount)).toStringAsFixed(2)}',
                           style: const TextStyle(
                             color: Colors.green,
                             fontWeight: FontWeight.bold,
@@ -145,11 +152,15 @@ class _DiscountSelectionDialogState extends State<DiscountSelectionDialog> {
             // Lista de descuentos aplicables
             Expanded(
               child: Obx(() {
-                if (discountController.isLoading.value) {
+                print('🔍 DiscountSelectionDialog.build - isLoading: ${discountController.isLoading}');
+                print('🔍 DiscountSelectionDialog.build - applicableDiscounts count: ${discountController.applicableDiscounts.length}');
+                
+                if (discountController.isLoading) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 
                 final applicableDiscounts = discountController.applicableDiscounts;
+                print('🔍 DiscountSelectionDialog.build - Final applicable discounts: $applicableDiscounts');
                 
                 if (applicableDiscounts.isEmpty) {
                   return Center(
@@ -177,6 +188,14 @@ class _DiscountSelectionDialogState extends State<DiscountSelectionDialog> {
                             color: Colors.grey[500],
                           ),
                         ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Total discounts loaded: ${discountController.discounts.length}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[400],
+                          ),
+                        ),
                       ],
                     ),
                   );
@@ -197,11 +216,11 @@ class _DiscountSelectionDialogState extends State<DiscountSelectionDialog> {
                     }
                     
                     final discount = applicableDiscounts[index - 1];
-                    final savingsAmount = discount.calculateDiscountAmount(widget.totalAmount);
+                    final savingsAmount = _calculateDiscountAmount(discount, widget.totalAmount);
                     
                     return _buildDiscountOption(
-                      title: discount.name,
-                      subtitle: discount.description,
+                      title: discount['name'] ?? 'Sin nombre',
+                      subtitle: discount['description'] ?? '',
                       discount: discount,
                       savingsAmount: savingsAmount,
                     );
@@ -252,7 +271,7 @@ class _DiscountSelectionDialogState extends State<DiscountSelectionDialog> {
   Widget _buildDiscountOption({
     required String title,
     required String subtitle,
-    required Discount? discount,
+    required Map<String, dynamic>? discount,
     required double savingsAmount,
   }) {
     final isSelected = selectedDiscount == discount;
@@ -263,7 +282,7 @@ class _DiscountSelectionDialogState extends State<DiscountSelectionDialog> {
       color: isSelected ? Colors.pink[50] : null,
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
-        leading: Radio<Discount?>(
+        leading: Radio<Map<String, dynamic>?>(
           value: discount,
           groupValue: selectedDiscount,
           onChanged: (value) {
@@ -295,7 +314,7 @@ class _DiscountSelectionDialogState extends State<DiscountSelectionDialog> {
                       border: Border.all(color: Colors.green.withOpacity(0.3)),
                     ),
                     child: Text(
-                      discount.displayValue,
+                      _getDisplayValue(discount),
                       style: const TextStyle(
                         color: Colors.green,
                         fontWeight: FontWeight.bold,
@@ -314,11 +333,11 @@ class _DiscountSelectionDialogState extends State<DiscountSelectionDialog> {
                   ),
                 ],
               ),
-              if (discount.minimumAmount != null)
+              if (discount['minimumAmount'] != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
-                    'Compra mínima: \$${discount.minimumAmount!.toStringAsFixed(2)}',
+                    'Compra mínima: \$${discount['minimumAmount'].toStringAsFixed(2)}',
                     style: TextStyle(
                       fontSize: 10,
                       color: Colors.grey[600],
@@ -336,14 +355,44 @@ class _DiscountSelectionDialogState extends State<DiscountSelectionDialog> {
       ),
     );
   }
+
+  // Helper method to calculate discount amount
+  double _calculateDiscountAmount(Map<String, dynamic> discount, double totalAmount) {
+    final type = discount['type']?.toString() ?? 'percentage';
+    final value = (discount['value'] as num?)?.toDouble() ?? 0.0;
+    final maxDiscount = (discount['maximumDiscount'] as num?)?.toDouble();
+    
+    if (type == 'percentage') {
+      double discountAmount = totalAmount * (value / 100);
+      if (maxDiscount != null && discountAmount > maxDiscount) {
+        return maxDiscount;
+      }
+      return discountAmount;
+    } else if (type == 'fixed') {
+      return value;
+    }
+    return 0.0;
+  }
+
+  // Helper method to get display value
+  String _getDisplayValue(Map<String, dynamic> discount) {
+    final type = discount['type']?.toString() ?? 'percentage';
+    final value = (discount['value'] as num?)?.toDouble() ?? 0.0;
+    
+    if (type == 'percentage') {
+      return '${value.toStringAsFixed(0)}% OFF';
+    } else {
+      return '\$${value.toStringAsFixed(2)} OFF';
+    }
+  }
 }
 
 // Función helper para mostrar el diálogo
-Future<Discount?> showDiscountSelectionDialog({
+Future<Map<String, dynamic>?> showDiscountSelectionDialog({
   required BuildContext context,
   required double totalAmount,
 }) async {
-  Discount? selectedDiscount;
+  Map<String, dynamic>? selectedDiscount;
   
   await showDialog<void>(
     context: context,

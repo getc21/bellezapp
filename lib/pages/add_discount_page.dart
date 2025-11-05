@@ -2,10 +2,9 @@ import 'package:bellezapp/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/discount_controller.dart';
-import '../models/discount.dart';
 
 class AddDiscountPage extends StatefulWidget {
-  final Discount? discount;
+  final Map<String, dynamic>? discount;
 
   const AddDiscountPage({super.key, this.discount});
 
@@ -23,7 +22,7 @@ class _AddDiscountPageState extends State<AddDiscountPage> {
   final _minimumAmountController = TextEditingController();
   final _maximumDiscountController = TextEditingController();
   
-  DiscountType _selectedType = DiscountType.percentage;
+  String _selectedType = 'percentage';
   bool _isActive = true;
   DateTime? _startDate;
   DateTime? _endDate;
@@ -47,21 +46,25 @@ class _AddDiscountPageState extends State<AddDiscountPage> {
 
   void _loadDiscountData() {
     final discount = widget.discount!;
-    _nameController.text = discount.name;
-    _descriptionController.text = discount.description;
-    _valueController.text = discount.value.toString();
-    _selectedType = discount.type;
-    _isActive = discount.isActive;
+    _nameController.text = discount['name']?.toString() ?? '';
+    _descriptionController.text = discount['description']?.toString() ?? '';
+    _valueController.text = discount['value']?.toString() ?? '';
+    _selectedType = discount['type']?.toString() ?? 'percentage';
+    _isActive = discount['isActive'] ?? true;
     
-    if (discount.minimumAmount != null) {
-      _minimumAmountController.text = discount.minimumAmount.toString();
+    if (discount['minimumAmount'] != null) {
+      _minimumAmountController.text = discount['minimumAmount'].toString();
     }
-    if (discount.maximumDiscount != null) {
-      _maximumDiscountController.text = discount.maximumDiscount.toString();
+    if (discount['maximumDiscount'] != null) {
+      _maximumDiscountController.text = discount['maximumDiscount'].toString();
     }
     
-    _startDate = discount.startDate;
-    _endDate = discount.endDate;
+    if (discount['startDate'] != null) {
+      _startDate = DateTime.parse(discount['startDate']);
+    }
+    if (discount['endDate'] != null) {
+      _endDate = DateTime.parse(discount['endDate']);
+    }
   }
 
   @override
@@ -120,7 +123,7 @@ class _AddDiscountPageState extends State<AddDiscountPage> {
               _buildSectionTitle('Condiciones (Opcional)'),
               _buildMinimumAmountField(),
               const SizedBox(height: 16),
-              if (_selectedType == DiscountType.percentage)
+              if (_selectedType == 'percentage')
                 Column(
                   children: [
                     _buildMaximumDiscountField(),
@@ -213,10 +216,10 @@ class _AddDiscountPageState extends State<AddDiscountPage> {
         Row(
           children: [
             Expanded(
-              child: RadioListTile<DiscountType>(
+              child: RadioListTile<String>(
                 title: const Text('Porcentaje (%)'),
                 subtitle: const Text('Ej: 15% de descuento'),
-                value: DiscountType.percentage,
+                value: 'percentage',
                 groupValue: _selectedType,
                 onChanged: (value) {
                   setState(() {
@@ -226,10 +229,10 @@ class _AddDiscountPageState extends State<AddDiscountPage> {
               ),
             ),
             Expanded(
-              child: RadioListTile<DiscountType>(
+              child: RadioListTile<String>(
                 title: const Text('Monto fijo (\$)'),
                 subtitle: const Text('Ej: \$50 de descuento'),
-                value: DiscountType.fixed,
+                value: 'fixed',
                 groupValue: _selectedType,
                 onChanged: (value) {
                   setState(() {
@@ -249,17 +252,17 @@ class _AddDiscountPageState extends State<AddDiscountPage> {
       controller: _valueController,
       keyboardType: TextInputType.number,
       decoration: InputDecoration(
-        labelText: _selectedType == DiscountType.percentage 
+        labelText: _selectedType == 'percentage' 
             ? 'Porcentaje de descuento *' 
             : 'Monto del descuento *',
-        hintText: _selectedType == DiscountType.percentage 
+        hintText: _selectedType == 'percentage' 
             ? 'Ej: 15 (para 15%)' 
             : 'Ej: 50.00',
         border: const OutlineInputBorder(),
-        prefixIcon: Icon(_selectedType == DiscountType.percentage 
+        prefixIcon: Icon(_selectedType == 'percentage' 
             ? Icons.percent 
             : Icons.attach_money),
-        suffixText: _selectedType == DiscountType.percentage ? '%' : '\$',
+        suffixText: _selectedType == 'percentage' ? '%' : '\$',
       ),
       validator: (value) {
         if (value == null || value.trim().isEmpty) {
@@ -271,7 +274,7 @@ class _AddDiscountPageState extends State<AddDiscountPage> {
           return 'Ingresa un valor válido mayor a 0';
         }
         
-        if (_selectedType == DiscountType.percentage && doubleValue > 100) {
+        if (_selectedType == 'percentage' && doubleValue > 100) {
           return 'El porcentaje no puede ser mayor a 100%';
         }
         
@@ -482,7 +485,7 @@ class _AddDiscountPageState extends State<AddDiscountPage> {
                 border: Border.all(color: Colors.green.withOpacity(0.3)),
               ),
               child: Text(
-                _selectedType == DiscountType.percentage
+                _selectedType == 'percentage'
                     ? '${value.toStringAsFixed(0)}%'
                     : '\$${value.toStringAsFixed(2)}',
                 style: const TextStyle(
@@ -600,7 +603,7 @@ class _AddDiscountPageState extends State<AddDiscountPage> {
       
       if (isEditing) {
         success = await discountController.updateDiscount(
-          id: widget.discount!.id!,
+          id: widget.discount!['_id']!.toString(),
           name: _nameController.text.trim(),
           description: _descriptionController.text.trim(),
           type: _selectedType,

@@ -2,19 +2,18 @@ import 'package:bellezapp/controllers/indexpage_controller.dart';
 import 'package:bellezapp/controllers/loading_controller.dart';
 import 'package:bellezapp/controllers/theme_controller.dart';
 import 'package:bellezapp/controllers/auth_controller.dart';
+import 'package:bellezapp/controllers/store_controller.dart';
 import 'package:bellezapp/pages/cash_register_page.dart';
 import 'package:bellezapp/pages/category_list_page.dart';
 import 'package:bellezapp/pages/customer_list_page.dart';
 import 'package:bellezapp/pages/discount_list_page.dart';
-import 'package:bellezapp/pages/financial_report_page.dart';
 import 'package:bellezapp/pages/location_list_page.dart';
 import 'package:bellezapp/pages/order_list_page.dart';
 import 'package:bellezapp/pages/product_list_page.dart';
-import 'package:bellezapp/pages/report_page.dart';
-import 'package:bellezapp/pages/sales_history_page.dart';
 import 'package:bellezapp/pages/supplier_list_page.dart';
 import 'package:bellezapp/pages/theme_settings_page.dart';
 import 'package:bellezapp/pages/user_management_page.dart';
+import 'package:bellezapp/pages/advanced_reports_page.dart';
 import 'package:bellezapp/utils/utils.dart';
 import 'package:bellezapp/widgets/store_selector.dart';
 import 'package:flutter/material.dart';
@@ -34,6 +33,7 @@ class HomePageState extends State<HomePage> {
   final loadingC = Get.find<LoadingController>();
   final themeController = Get.find<ThemeController>();
   final authController = Get.find<AuthController>();
+  final storeController = Get.find<StoreController>();
   
   @override
   void initState() {
@@ -145,29 +145,34 @@ class HomePageState extends State<HomePage> {
               ),
               SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'BellezApp',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
+                child: Obx(() {
+                  final currentStore = storeController.currentStore;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'BellezaApp',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
                       ),
-                    ),
-                    Text(
-                      'Control de Almacenes',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
+                      Text(
+                        currentStore != null 
+                          ? currentStore['name'] ?? 'Sin tienda' 
+                          : 'Cargando tienda...',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  );
+                }),
               ),
             ],
           ),
@@ -361,33 +366,13 @@ class HomePageState extends State<HomePage> {
                         // Sección de Reportes
                         _buildSectionHeader('Reportes y Análisis'),
                         _buildModernDrawerTile(
-                          'Rotación de Productos',
-                          'Análisis de movimiento de inventario',
-                          Icons.insert_chart_outlined,
-                          Colors.indigo,
+                          'Reportes Avanzados',
+                          'Análisis financiero detallado',
+                          Icons.analytics_outlined,
+                          Colors.deepPurple,
                           () {
                             Navigator.pop(context);
-                            Get.to(ReportPage());
-                          },
-                        ),
-                        _buildModernDrawerTile(
-                          'Reporte de Ventas',
-                          'Historial y estadísticas de ventas',
-                          Icons.trending_up_outlined,
-                          Colors.green,
-                          () {
-                            Navigator.pop(context);
-                            Get.to(SalesHistoryPage());
-                          },
-                        ),
-                        _buildModernDrawerTile(
-                          'Reporte Financiero',
-                          'Análisis financiero completo',
-                          Icons.monetization_on_outlined,
-                          Colors.teal,
-                          () {
-                            Navigator.pop(context);
-                            Get.to(FinancialReportPage());
+                            Get.to(() => AdvancedReportsPage());
                           },
                         ),
                         
@@ -412,7 +397,7 @@ class HomePageState extends State<HomePage> {
                                 radius: 24,
                                 backgroundColor: Utils.colorGnav,
                                 child: Text(
-                                  authController.currentUser?.initials ?? 'U',
+                                  authController.userInitials,
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
@@ -426,7 +411,7 @@ class HomePageState extends State<HomePage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      authController.currentUser?.fullName ?? 'Usuario',
+                                      authController.userFullName,
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 14,
@@ -434,7 +419,7 @@ class HomePageState extends State<HomePage> {
                                       ),
                                     ),
                                     Text(
-                                      authController.currentUser?.role.displayName ?? '',
+                                      authController.userRoleDisplay,
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: Utils.colorTexto.withOpacity(0.7),

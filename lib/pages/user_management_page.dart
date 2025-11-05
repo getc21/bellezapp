@@ -1,8 +1,9 @@
 ﻿import 'package:bellezapp/utils/utils.dart';
+import 'package:bellezapp/utils/user_extensions.dart';
+import 'package:bellezapp/widgets/store_aware_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/auth_controller.dart';
-import '../models/user.dart';
 
 class UserManagementPage extends StatefulWidget {
   const UserManagementPage({super.key});
@@ -14,8 +15,8 @@ class UserManagementPage extends StatefulWidget {
 class _UserManagementPageState extends State<UserManagementPage> {
   final AuthController authController = Get.find<AuthController>();
   final TextEditingController _searchController = TextEditingController();
-  List<User> _users = [];
-  List<User> _filteredUsers = [];
+  List<Map<String, dynamic>> _users = [];
+  List<Map<String, dynamic>> _filteredUsers = [];
   bool _isLoading = true;
 
   @override
@@ -69,7 +70,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
     );
   }
 
-  void _showUserDetails(User user) {
+  void _showUserDetails(Map<String, dynamic> user) {
     showDialog(
       context: context,
       builder: (context) => UserDetailsDialog(
@@ -84,10 +85,10 @@ class _UserManagementPageState extends State<UserManagementPage> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Gestión de Usuarios'),
+      appBar: StoreAwareAppBar(
+        title: 'Gestión de Usuarios',
+        icon: Icons.admin_panel_settings_outlined,
         backgroundColor: Utils.colorGnav,
-        foregroundColor: colorScheme.onPrimary,
       ),
       body: Column(
         children: [
@@ -177,7 +178,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                           borderRadius: BorderRadius.circular(12),
                                         ),
                                         child: Text(
-                                          user.role.displayName,
+                                          user.roleDisplay,
                                           style: const TextStyle(
                                             color: Colors.white,
                                             fontSize: 12,
@@ -230,14 +231,16 @@ class _UserManagementPageState extends State<UserManagementPage> {
     );
   }
 
-  Color _getRoleColor(UserRole role) {
+  Color _getRoleColor(String role) {
     switch (role) {
-      case UserRole.admin:
+      case 'admin':
         return Colors.red;
-      case UserRole.manager:
+      case 'manager':
         return Colors.orange;
-      case UserRole.employee:
+      case 'employee':
         return Colors.blue;
+      default:
+        return Colors.grey;
     }
   }
 }
@@ -260,7 +263,7 @@ class _AddUserDialogState extends State<AddUserDialog> {
   final _lastNameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _phoneController = TextEditingController();
-  UserRole _selectedRole = UserRole.employee;
+  String _selectedRole = 'employee';
   bool _isLoading = false;
 
   @override
@@ -286,7 +289,6 @@ class _AddUserDialogState extends State<AddUserDialog> {
       lastName: _lastNameController.text.trim(),
       password: _passwordController.text,
       role: _selectedRole,
-      phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
     );
 
     setState(() => _isLoading = false);
@@ -445,18 +447,17 @@ class _AddUserDialogState extends State<AddUserDialog> {
                         keyboardType: TextInputType.phone,
                       ),
                       const SizedBox(height: 16),
-                      DropdownButtonFormField<UserRole>(
-                        initialValue: _selectedRole,
+                      DropdownButtonFormField<String>(
+                        value: _selectedRole,
                         decoration: const InputDecoration(
                           labelText: 'Rol',
                           prefixIcon: Icon(Icons.security),
                         ),
-                        items: UserRole.values.map((role) {
-                          return DropdownMenuItem(
-                            value: role,
-                            child: Text(role.displayName),
-                          );
-                        }).toList(),
+                        items: const [
+                          DropdownMenuItem(value: 'admin', child: Text('Administrador')),
+                          DropdownMenuItem(value: 'manager', child: Text('Gerente')),
+                          DropdownMenuItem(value: 'employee', child: Text('Empleado')),
+                        ],
                         onChanged: (value) {
                           setState(() => _selectedRole = value!);
                         },
@@ -510,7 +511,7 @@ class _AddUserDialogState extends State<AddUserDialog> {
 }
 
 class UserDetailsDialog extends StatelessWidget {
-  final User user;
+  final Map<String, dynamic> user;
   final VoidCallback onUserUpdated;
 
   const UserDetailsDialog({
@@ -575,7 +576,7 @@ class UserDetailsDialog extends StatelessWidget {
                     _buildDetailRow('Usuario:', user.username),
                     _buildDetailRow('Email:', user.email),
                     _buildDetailRow('Nombre completo:', user.fullName),
-                    _buildDetailRow('Rol:', user.role.displayName),
+                    _buildDetailRow('Rol:', user.roleDisplay),
                     _buildDetailRow('Teléfono:', user.phone ?? 'No especificado'),
                     _buildDetailRow('Estado:', user.isActive ? 'Activo' : 'Inactivo'),
                     _buildDetailRow('Creado:', _formatDate(user.createdAt)),
@@ -691,13 +692,14 @@ class UserDetailsDialog extends StatelessWidget {
     );
   }
 
-  String _formatDate(DateTime date) {
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'N/A';
     return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 }
 // Dialog para editar usuario existente
 class EditUserDialog extends StatefulWidget {
-  final User user;
+  final Map<String, dynamic> user;
   final VoidCallback onUserUpdated;
 
   const EditUserDialog({
@@ -718,7 +720,7 @@ class _EditUserDialogState extends State<EditUserDialog> {
   late final TextEditingController _firstNameController;
   late final TextEditingController _lastNameController;
   late final TextEditingController _phoneController;
-  late UserRole _selectedRole;
+  late String _selectedRole;
   late bool _isActive;
   bool _isLoading = false;
 
@@ -749,21 +751,17 @@ class _EditUserDialogState extends State<EditUserDialog> {
 
     setState(() => _isLoading = true);
 
-    final updatedUser = User(
-      id: widget.user.id,
-      username: _usernameController.text.trim(),
-      email: _emailController.text.trim(),
-      firstName: _firstNameController.text.trim(),
-      lastName: _lastNameController.text.trim(),
-      phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
-      role: _selectedRole,
-      isActive: _isActive,
-      passwordHash: widget.user.passwordHash,
-      createdAt: widget.user.createdAt,
-      lastLoginAt: widget.user.lastLoginAt,
-      profileImageUrl: widget.user.profileImageUrl,
-      permissions: widget.user.permissions,
-    );
+    final updatedUser = {
+      'id': widget.user.id,
+      '_id': widget.user.id,
+      'username': _usernameController.text.trim(),
+      'email': _emailController.text.trim(),
+      'firstName': _firstNameController.text.trim(),
+      'lastName': _lastNameController.text.trim(),
+      'phone': _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+      'role': _selectedRole,
+      'isActive': _isActive,
+    };
 
     final success = await authController.updateUser(updatedUser);
 
@@ -905,18 +903,17 @@ class _EditUserDialogState extends State<EditUserDialog> {
                         keyboardType: TextInputType.phone,
                       ),
                       const SizedBox(height: 16),
-                      DropdownButtonFormField<UserRole>(
+                      DropdownButtonFormField<String>(
                         value: _selectedRole,
                         decoration: const InputDecoration(
                           labelText: 'Rol',
                           prefixIcon: Icon(Icons.security),
                         ),
-                        items: UserRole.values.map((role) {
-                          return DropdownMenuItem(
-                            value: role,
-                            child: Text(role.displayName),
-                          );
-                        }).toList(),
+                        items: const [
+                          DropdownMenuItem(value: 'admin', child: Text('Administrador')),
+                          DropdownMenuItem(value: 'manager', child: Text('Gerente')),
+                          DropdownMenuItem(value: 'employee', child: Text('Empleado')),
+                        ],
                         onChanged: (value) {
                           setState(() => _selectedRole = value!);
                         },

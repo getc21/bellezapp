@@ -52,7 +52,7 @@ class StoreManagementPage extends StatelessWidget {
           ),
         ),
         child: Obx(() {
-          if (storeController.isLoading.value) {
+          if (storeController.isLoading) {
             return Center(child: Utils.loadingCustom());
           }
 
@@ -61,12 +61,13 @@ class StoreManagementPage extends StatelessWidget {
           }
 
           return RefreshIndicator(
-            onRefresh: () => storeController.refreshStores(),
+            onRefresh: () async => await storeController.refreshStores(),
             child: ListView.builder(
               padding: EdgeInsets.all(16),
               itemCount: storeController.availableStores.length,
               itemBuilder: (context, index) {
-                final store = storeController.availableStores[index];
+                final storeMap = storeController.availableStores[index];
+                final store = Store.fromMap(storeMap);
                 return _buildStoreCard(context, store, storeController);
               },
             ),
@@ -129,7 +130,7 @@ class StoreManagementPage extends StatelessWidget {
 
   Widget _buildStoreCard(BuildContext context, Store store, StoreController controller) {
     final isActive = store.status == 'active';
-    final isCurrent = controller.currentStore.value?.id == store.id;
+    final isCurrent = controller.currentStore?['_id'] == store.id;
 
     return Container(
       margin: EdgeInsets.only(bottom: 16),
@@ -538,14 +539,13 @@ class StoreManagementPage extends StatelessWidget {
 
                           bool success;
                           if (isEdit) {
-                            final updatedStore = store.copyWith(
+                            success = await controller.updateStore(
+                              id: store.id!,
                               name: nameController.text,
                               address: addressController.text.isEmpty ? null : addressController.text,
                               phone: phoneController.text.isEmpty ? null : phoneController.text,
                               email: emailController.text.isEmpty ? null : emailController.text,
-                              status: statusValue.value,
                             );
-                            success = await controller.updateStore(updatedStore);
                           } else {
                             success = await controller.createStore(
                               name: nameController.text,

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/customer_controller.dart';
-import '../models/customer.dart';
 
 class AddCustomerPage extends StatefulWidget {
-  final Customer? customer; // null para nuevo, con datos para editar
+  final Map<String, dynamic>? customer; // null para nuevo, con datos para editar
 
   const AddCustomerPage({super.key, this.customer});
 
@@ -32,11 +31,11 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
     super.initState();
     
     // Inicializar controladores con datos existentes si se está editando
-    _nameController = TextEditingController(text: widget.customer?.name ?? '');
-    _phoneController = TextEditingController(text: widget.customer?.phone ?? '');
-    _emailController = TextEditingController(text: widget.customer?.email ?? '');
-    _addressController = TextEditingController(text: widget.customer?.address ?? '');
-    _notesController = TextEditingController(text: widget.customer?.notes ?? '');
+    _nameController = TextEditingController(text: widget.customer?['name']?.toString() ?? '');
+    _phoneController = TextEditingController(text: widget.customer?['phone']?.toString() ?? '');
+    _emailController = TextEditingController(text: widget.customer?['email']?.toString() ?? '');
+    _addressController = TextEditingController(text: widget.customer?['address']?.toString() ?? '');
+    _notesController = TextEditingController(text: widget.customer?['notes']?.toString() ?? '');
   }
 
   @override
@@ -279,7 +278,7 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
     );
   }
 
-  Widget _buildCustomerStats(Customer customer) {
+  Widget _buildCustomerStats(Map<String, dynamic> customer) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -310,7 +309,7 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
                 Expanded(
                   child: _buildStatItem(
                     'Total Gastado',
-                    customer.totalSpentFormatted,
+                    '\$${customer['totalSpent'] ?? 0}',
                     Icons.attach_money,
                     Colors.green,
                   ),
@@ -318,7 +317,7 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
                 Expanded(
                   child: _buildStatItem(
                     'Compras',
-                    customer.totalOrders.toString(),
+                    (customer['orderCount'] ?? customer['totalOrders'] ?? 0).toString(),
                     Icons.shopping_cart,
                     Colors.blue,
                   ),
@@ -333,7 +332,9 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
                 Expanded(
                   child: _buildStatItem(
                     'Cliente desde',
-                    customer.customerSince,
+                    customer['createdAt'] != null 
+                        ? DateTime.parse(customer['createdAt']).year.toString()
+                        : 'N/A',
                     Icons.calendar_today,
                     Colors.orange,
                   ),
@@ -341,7 +342,7 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
                 Expanded(
                   child: _buildStatItem(
                     'Última compra',
-                    customer.lastPurchaseFormatted,
+                    customer['lastPurchase'] ?? 'Sin compras',
                     Icons.schedule,
                     Colors.purple,
                   ),
@@ -404,7 +405,7 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
       bool success;
       if (isEditing) {
         success = await controller.updateCustomer(
-          id: widget.customer!.id!,
+          id: widget.customer!['_id']!.toString(),
           name: _nameController.text,
           phone: _phoneController.text,
           email: _emailController.text.trim().isEmpty ? null : _emailController.text,

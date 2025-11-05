@@ -1,10 +1,7 @@
-import 'package:bellezapp/controllers/theme_controller.dart';
-import 'package:bellezapp/database/database_helper.dart';
+import 'package:bellezapp/controllers/location_controller.dart';
 import 'package:bellezapp/pages/add_location_page.dart';
 import 'package:bellezapp/pages/edit_location_page.dart';
-import 'package:bellezapp/pages/location_products_page.dart';
 import 'package:bellezapp/utils/utils.dart';
-import 'package:bellezapp/mixins/store_aware_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -15,23 +12,25 @@ class LocationListPage extends StatefulWidget {
   State<LocationListPage> createState() => LocationListPageState();
 }
 
-class LocationListPageState extends State<LocationListPage> with StoreAwareMixin {
-  final RxList<Map<String, dynamic>> _locations = <Map<String, dynamic>>[].obs;
-  final RxList<Map<String, dynamic>> _filteredLocations = <Map<String, dynamic>>[].obs;
+class LocationListPageState extends State<LocationListPage> {
+  late final LocationController locationController;
   final TextEditingController _searchController = TextEditingController();
-  final dbHelper = DatabaseHelper();
-  final themeController = Get.find<ThemeController>();
 
   @override
   void initState() {
     super.initState();
+    // Usar la misma instancia del controlador que ya existe
+    try {
+      locationController = Get.find<LocationController>();
+    } catch (e) {
+      locationController = Get.put(LocationController());
+    }
     _loadLocations();
   }
 
-  @override
-  void reloadData() {
-    print('🔄 Recargando ubicaciones por cambio de tienda');
-    _loadLocations();
+  void _loadLocations() {
+    // Cargar ubicaciones para la tienda actual
+    locationController.loadLocations();
   }
 
   @override
@@ -40,80 +39,40 @@ class LocationListPageState extends State<LocationListPage> with StoreAwareMixin
     super.dispose();
   }
 
-  void _loadLocations() async {
-    final locations = await dbHelper.getLocations();
-    _locations.value = locations;
-    _filteredLocations.value = locations;
-  }
-
-  void _filterLocations(String searchText) {
+  List<Map<String, dynamic>> get _filteredLocations {
+    final searchText = _searchController.text.toLowerCase();
     if (searchText.isEmpty) {
-      _filteredLocations.value = List.from(_locations);
-    } else {
-      _filteredLocations.value = _locations.where((location) {
-        final name = (location['name'] ?? '').toString().toLowerCase();
-        final description = (location['description'] ?? '').toString().toLowerCase();
-        final searchLower = searchText.toLowerCase();
-        return name.contains(searchLower) || description.contains(searchLower);
-      }).toList();
+      return locationController.locations;
     }
+    
+    return locationController.locations.where((location) {
+      final name = (location['name'] ?? '').toString().toLowerCase();
+      final description = (location['description'] ?? '').toString().toLowerCase();
+      return name.contains(searchText) || description.contains(searchText);
+    }).toList();
   }
 
-  void _deleteLocation(int id) async {
+  Future<void> _deleteLocation(String id) async {
     final confirmed = await Utils.showConfirmationDialog(
       context,
       'Confirmar eliminación',
       '¿Estás seguro de que deseas eliminar esta ubicación?',
     );
+    
     if (confirmed) {
-      await dbHelper.deleteLocation(id);
-      _loadLocations();
+      await locationController.deleteLocation(id);
     }
-  }
-
-  Widget _buildCompactActionButton({
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-    required String tooltip,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: [
-              BoxShadow(
-                color: color.withOpacity(0.3),
-                blurRadius: 4,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Icon(
-            icon,
-            color: Colors.white,
-            size: 18,
-          ),
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() => Scaffold(
+    return Scaffold(
       backgroundColor: Utils.colorFondo,
       body: Column(
         children: [
-          // Header moderno con búsqueda
+          // Header mejorado con búsqueda prominente
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
@@ -127,6 +86,34 @@ class LocationListPageState extends State<LocationListPage> with StoreAwareMixin
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Título de la sección
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Utils.colorBotones.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.place_rounded,
+                        color: Utils.colorBotones,
+                        size: 24,
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Text(
+                      'Ubicaciones',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 16),
+                
                 // Campo de búsqueda prominente
                 Container(
                   height: 40,
@@ -137,10 +124,10 @@ class LocationListPageState extends State<LocationListPage> with StoreAwareMixin
                   ),
                   child: TextField(
                     controller: _searchController,
-                    onChanged: _filterLocations,
+                    onChanged: (value) => setState(() {}),
                     style: TextStyle(fontSize: 13),
                     decoration: InputDecoration(
-                      hintText: 'Buscar ubicaciones...',
+                      hintText: 'Buscar ubicaciones por nombre o descripción...',
                       hintStyle: TextStyle(color: Colors.grey[500], fontSize: 12),
                       prefixIcon: Icon(Icons.search, color: Utils.colorBotones, size: 20),
                       suffixIcon: _searchController.text.isNotEmpty
@@ -148,7 +135,7 @@ class LocationListPageState extends State<LocationListPage> with StoreAwareMixin
                               icon: Icon(Icons.clear, color: Colors.grey, size: 18),
                               onPressed: () {
                                 _searchController.clear();
-                                _filterLocations('');
+                                setState(() {});
                               },
                             )
                           : null,
@@ -158,19 +145,20 @@ class LocationListPageState extends State<LocationListPage> with StoreAwareMixin
                   ),
                 ),
                 SizedBox(height: 12),
-                // Header con contador
+                
+                // Contador de ubicaciones
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Ubicaciones',
+                      'Todas las ubicaciones',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: Colors.grey[700],
                       ),
                     ),
-                    Container(
+                    Obx(() => Container(
                       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: Utils.colorBotones.withOpacity(0.1),
@@ -184,218 +172,314 @@ class LocationListPageState extends State<LocationListPage> with StoreAwareMixin
                           color: Utils.colorBotones,
                         ),
                       ),
-                    ),
+                    )),
                   ],
                 ),
                 SizedBox(height: 6),
               ],
             ),
           ),
+
           // Lista de ubicaciones
           Expanded(
-            child: _filteredLocations.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _filteredLocations.length,
-              itemBuilder: (context, index) {
-                final location = _filteredLocations[index];
-                
-                return Container(
-                  margin: EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Utils.colorFondoCards,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade200),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.08),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: () {
-                        Get.to(LocationProductsPage(
-                          locationId: location['id'],
-                          locationName: location['name'],
-                        ));
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            // Ícono de ubicación
-                            Container(
-                              width: 60,
-                              height: 60,
-                              decoration: BoxDecoration(
-                                color: Utils.colorBotones.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                              child: Icon(
-                                Icons.location_on,
-                                color: Utils.colorBotones,
-                                size: 32,
-                              ),
-                            ),
-                            SizedBox(width: 16),
-                            // Contenido de la ubicación
+            child: Obx(() {
+              if (locationController.isLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final locations = _filteredLocations;
+
+              if (locations.isEmpty) {
+                return _buildEmptyState();
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: (locations.length / 2).ceil(),
+                itemBuilder: (context, rowIndex) {
+                  final leftIndex = rowIndex * 2;
+                  final rightIndex = leftIndex + 1;
+                  
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: _buildLocationCard(locations[leftIndex]),
+                          ),
+                          if (rightIndex < locations.length) ...[
+                            const SizedBox(width: 12),
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Nombre de la ubicación
-                                  Text(
-                                    location['name'] ?? 'Sin nombre',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Utils.colorGnav,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  SizedBox(height: 8),
-                                  // Descripción
-                                  Text(
-                                    location['description'] ?? 'Sin descripción',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey[600],
-                                    ),
-                                    maxLines: 3,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  SizedBox(height: 12),
-                                  // Indicador de navegación
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.arrow_forward_ios,
-                                        size: 12,
-                                        color: Utils.colorBotones,
-                                      ),
-                                      SizedBox(width: 4),
-                                      Text(
-                                        'Ver productos',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Utils.colorBotones,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                              child: _buildLocationCard(locations[rightIndex]),
                             ),
-                            // Botones de acción
-                            Column(
-                              children: [
-                                _buildCompactActionButton(
-                                  icon: Icons.edit,
-                                  color: Utils.edit,
-                                  onTap: () => Get.to(EditLocationPage(location: location)),
-                                  tooltip: 'Editar ubicación',
-                                ),
-                                SizedBox(height: 8),
-                                _buildCompactActionButton(
-                                  icon: Icons.delete,
-                                  color: Utils.delete,
-                                  onTap: () => _deleteLocation(location['id']),
-                                  tooltip: 'Eliminar ubicación',
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                          ] else
+                            const Expanded(child: SizedBox()),
+                        ],
                       ),
                     ),
-                  ),
-                );
-              },
-            ),
+                  );
+                },
+              );
+            }),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: Utils.colorBotones,
         onPressed: () async {
-          final result = await Get.to(AddLocationPage());
-          if (result != null) {
-            _loadLocations();
+          final result = await Get.to(() => const AddLocationPage());
+          if (result == true || result == null) {
+            locationController.loadLocations();
           }
         },
         child: const Icon(Icons.add, color: Colors.white),
       ),
-    ));
+    );
   }
 
   Widget _buildEmptyState() {
-    String mensaje;
-    
-    if (_searchController.text.isNotEmpty) {
-      mensaje = 'No se encontraron ubicaciones que coincidan con tu búsqueda.';
-    } else {
-      mensaje = 'No hay ubicaciones registradas en esta tienda. Agrega tu primera ubicación usando el botón "+".';
-    }
-
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(32),
             decoration: BoxDecoration(
               color: Utils.colorBotones.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
-              Icons.location_on_outlined,
+              _searchController.text.isEmpty
+                  ? Icons.place_outlined
+                  : Icons.search_off,
               size: 80,
-              color: Utils.colorBotones,
+              color: Utils.colorBotones.withOpacity(0.5),
             ),
           ),
           const SizedBox(height: 24),
           Text(
-            'Sin Ubicaciones',
+            _searchController.text.isEmpty
+                ? 'No hay ubicaciones'
+                : 'No se encontraron ubicaciones',
             style: TextStyle(
-              fontSize: 24,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Utils.colorTexto,
+              color: Colors.grey[700],
             ),
           ),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Text(
-              mensaje,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Utils.colorTexto.withOpacity(0.7),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () {
-              _loadLocations();
-            },
-            icon: const Icon(Icons.refresh),
-            label: const Text('Actualizar'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Utils.colorBotones,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          const SizedBox(height: 8),
+          Text(
+            _searchController.text.isEmpty
+                ? 'Comienza agregando tu primera ubicación'
+                : 'Intenta con otros términos de búsqueda',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[500],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLocationCard(Map<String, dynamic> location) {
+    final name = location['name'] ?? 'Sin nombre';
+    final description = location['description'] ?? '';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Utils.colorFondoCards,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Encabezado con ícono grande y gradiente
+          Stack(
+            children: [
+              Container(
+                height: 100,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Utils.colorBotones.withOpacity(0.1),
+                      Utils.colorBotones.withOpacity(0.05),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.location_on_rounded,
+                    size: 50,
+                    color: Utils.colorBotones,
+                  ),
+                ),
+              ),
+              
+              // Botones de acción en la esquina superior
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.95),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildCompactActionButton(
+                        icon: Icons.edit_rounded,
+                        color: Utils.edit,
+                        onTap: () async {
+                          final result = await Get.to(() => EditLocationPage(location: location));
+                          if (result == true || result == null) {
+                            locationController.loadLocations();
+                          }
+                        },
+                        tooltip: 'Editar',
+                      ),
+                      const SizedBox(width: 4),
+                      _buildCompactActionButton(
+                        icon: Icons.delete_rounded,
+                        color: Utils.delete,
+                        onTap: () => _deleteLocation(location['_id'].toString()),
+                        tooltip: 'Eliminar',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          // Información
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Nombre con icono
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Utils.colorBotones.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.label_rounded,
+                        color: Utils.colorBotones,
+                        size: 16,
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        name,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                
+                if (description.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.description_outlined,
+                          size: 14,
+                          color: Colors.grey[600],
+                        ),
+                        SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            description,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[600],
+                              height: 1.3,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactActionButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+    required String tooltip,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(6),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.4),
+                blurRadius: 3,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Icon(
+            icon,
+            color: Colors.white,
+            size: 14,
+          ),
+        ),
       ),
     );
   }

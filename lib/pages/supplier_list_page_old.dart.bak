@@ -1,0 +1,409 @@
+import 'package:bellezapp/controllers/supplier_controller.dart';
+import 'package:bellezapp/pages/add_supplier_page_new.dart';
+import 'package:bellezapp/pages/edit_supplier_page_new.dart';
+import 'package:bellezapp/utils/utils.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+class SupplierListPage extends StatefulWidget {
+  const SupplierListPage({super.key});
+
+  @override
+  State<SupplierListPage> createState() => SupplierListPageState();
+}
+
+class SupplierListPageState extends State<SupplierListPage> {
+  final SupplierController supplierController = Get.put(SupplierController());
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    supplierController.loadSuppliers();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<Map<String, dynamic>> get _filteredSuppliers {
+    final searchText = _searchController.text.toLowerCase();
+    if (searchText.isEmpty) {
+      return supplierController.suppliers;
+    }
+    
+    return supplierController.suppliers.where((supplier) {
+      final name = (supplier['name'] ?? '').toString().toLowerCase();
+      final contactName = (supplier['contactName'] ?? '').toString().toLowerCase();
+      final email = (supplier['contactEmail'] ?? '').toString().toLowerCase();
+      final phone = (supplier['contactPhone'] ?? '').toString().toLowerCase();
+      final address = (supplier['address'] ?? '').toString().toLowerCase();
+      return name.contains(searchText) ||
+             contactName.contains(searchText) ||
+             email.contains(searchText) ||
+             phone.contains(searchText) ||
+             address.contains(searchText);
+    }).toList();
+  }
+
+  Future<void> _deleteSupplier(String id) async {
+    final confirmed = await Utils.showConfirmationDialog(
+      context,
+      'Confirmar eliminación',
+      '¿Estás seguro de que deseas eliminar este proveedor?',
+    );
+    
+    if (confirmed) {
+      await supplierController.deleteSupplier(id);
+    }
+  }
+
+  Future<void> _makePhoneCall(String phone) async {
+    final uri = Uri.parse('tel:$phone');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+
+  Future<void> _sendEmail(String email) async {
+    final uri = Uri.parse('mailto:$email');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+
+  String _getImageUrl(Map<String, dynamic> supplier) {
+    final foto = supplier['foto'];
+    if (foto == null || foto.toString().isEmpty) {
+      return '';
+    }
+    return foto.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Utils.colorFondo,
+      appBar: AppBar(
+        title: const Text('Proveedores'),
+        backgroundColor: Utils.colorBotones,
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () async {
+              await Get.to(() => const AddSupplierPage());
+              supplierController.loadSuppliers();
+            },
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Barra de búsqueda
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.white,
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) => setState(() {}),
+              decoration: InputDecoration(
+                hintText: 'Buscar proveedores...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: Colors.grey[100],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+
+          // Lista de proveedores
+          Expanded(
+            child: Obx(() {
+              if (supplierController.isLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final suppliers = _filteredSuppliers;
+
+              if (suppliers.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.business_outlined, 
+                        size: 80, 
+                        color: Colors.grey[400]
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _searchController.text.isEmpty
+                            ? 'No hay proveedores'
+                            : 'No se encontraron proveedores',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: suppliers.length,
+                itemBuilder: (context, index) {
+                  final supplier = suppliers[index];
+                  return _buildSupplierCard(supplier);
+                },
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSupplierCard(Map<String, dynamic> supplier) {
+    final name = supplier['name'] ?? 'Sin nombre';
+    final contactName = supplier['contactName'] ?? '';
+    final email = supplier['contactEmail'] ?? '';
+    final phone = supplier['contactPhone'] ?? '';
+    final address = supplier['address'] ?? '';
+    final imageUrl = _getImageUrl(supplier);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Utils.colorFondoCards,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Cabecera con imagen y acciones
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // Imagen
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: imageUrl.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: imageUrl,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                            errorWidget: (context, url, error) => Icon(
+                              Icons.business,
+                              size: 40,
+                              color: Colors.grey[400],
+                            ),
+                          )
+                        : Icon(
+                            Icons.business,
+                            size: 40,
+                            color: Colors.grey[400],
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+
+                // Información principal
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (contactName.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Contacto: $contactName',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                // Botones de acción
+                Column(
+                  children: [
+                    _buildActionButton(
+                      icon: Icons.edit,
+                      color: Colors.blue,
+                      onTap: () async {
+                        await Get.to(() => EditSupplierPage(supplier: supplier));
+                        supplierController.loadSuppliers();
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    _buildActionButton(
+                      icon: Icons.delete,
+                      color: Colors.red,
+                      onTap: () => _deleteSupplier(supplier['_id'].toString()),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Información de contacto
+          if (phone.isNotEmpty || email.isNotEmpty || address.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(16),
+                  bottomRight: Radius.circular(16),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (phone.isNotEmpty)
+                    _buildContactRow(
+                      icon: Icons.phone,
+                      label: phone,
+                      color: Colors.green,
+                      onTap: () => _makePhoneCall(phone),
+                    ),
+                  if (email.isNotEmpty) ...[
+                    if (phone.isNotEmpty) const SizedBox(height: 8),
+                    _buildContactRow(
+                      icon: Icons.email,
+                      label: email,
+                      color: Colors.blue,
+                      onTap: () => _sendEmail(email),
+                    ),
+                  ],
+                  if (address.isNotEmpty) ...[
+                    if (phone.isNotEmpty || email.isNotEmpty) 
+                      const SizedBox(height: 8),
+                    _buildContactRow(
+                      icon: Icons.location_on,
+                      label: address,
+                      color: Colors.orange,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.3),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Icon(
+          icon,
+          color: Colors.white,
+          size: 18,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContactRow({
+    required IconData icon,
+    required String label,
+    required Color color,
+    VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 16, color: color),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                color: onTap != null ? color : Colors.grey[700],
+                decoration: onTap != null ? TextDecoration.underline : null,
+              ),
+            ),
+          ),
+          if (onTap != null)
+            Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey[400]),
+        ],
+      ),
+    );
+  }
+}

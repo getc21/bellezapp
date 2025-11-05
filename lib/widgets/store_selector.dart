@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/store_controller.dart';
-import '../models/store.dart';
 import '../utils/utils.dart';
 import '../pages/store_management_page.dart';
 
@@ -15,7 +14,7 @@ class StoreSelector extends StatelessWidget {
       final storeController = Get.find<StoreController>();
       
       return Obx(() {
-        if (storeController.isLoading.value) {
+        if (storeController.isLoading) {
           return Container(
             padding: EdgeInsets.all(8),
             child: SizedBox(
@@ -43,12 +42,12 @@ class StoreSelector extends StatelessWidget {
         }
 
         // Si el usuario NO es admin y solo tiene 1 tienda asignada, no mostrar selector
-        if (!storeController.isAdmin.value && storeController.availableStores.length == 1) {
+        if (!storeController.isAdmin && storeController.availableStores.length == 1) {
           return SizedBox.shrink(); // No mostrar nada
         }
 
-        return PopupMenuButton<Store?>(
-          tooltip: storeController.currentStore.value?.name ?? 'Seleccionar tienda',
+        return PopupMenuButton<Map<String, dynamic>?>(
+          tooltip: storeController.currentStore?['name'] ?? 'Seleccionar tienda',
           offset: Offset(0, 50),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -67,8 +66,8 @@ class StoreSelector extends StatelessWidget {
             ),
           ),
           itemBuilder: (context) => [
-            if (storeController.isAdmin.value)
-              PopupMenuItem<Store?>(
+            if (storeController.isAdmin)
+              PopupMenuItem<Map<String, dynamic>?>(
                 value: null,
                 child: Container(
                   padding: EdgeInsets.symmetric(vertical: 4),
@@ -113,15 +112,15 @@ class StoreSelector extends StatelessWidget {
                   ),
                 ),
               ),
-            if (storeController.isAdmin.value)
-              PopupMenuItem<Store?>(
+            if (storeController.isAdmin)
+              PopupMenuItem<Map<String, dynamic>?>(
                 enabled: false,
                 child: Divider(height: 1),
               ),
             ...storeController.availableStores.map((store) {
-              final isSelected = storeController.currentStore.value?.id == store.id;
+              final isSelected = storeController.currentStore?['_id'] == store['_id'];
               
-              return PopupMenuItem<Store>(
+              return PopupMenuItem<Map<String, dynamic>>(
                 value: store,
                 child: Container(
                   padding: EdgeInsets.symmetric(vertical: 4),
@@ -149,16 +148,16 @@ class StoreSelector extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              store.name,
+                              store['name'] ?? 'Sin nombre',
                               style: TextStyle(
                                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                                 fontSize: 14,
                                 color: Utils.colorTexto,
                               ),
                             ),
-                            if (store.address != null && store.address!.isNotEmpty)
+                            if (store['address'] != null && (store['address'] as String).isNotEmpty)
                               Text(
-                                store.address!,
+                                store['address'],
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: Utils.colorTexto.withOpacity(0.6),
@@ -187,13 +186,13 @@ class StoreSelector extends StatelessWidget {
                 ),
               );
             }).toList(),
-            if (storeController.isAdmin.value)
-              PopupMenuItem<Store?>(
+            if (storeController.isAdmin)
+              PopupMenuItem<Map<String, dynamic>?>(
                 enabled: false,
                 child: Divider(height: 1),
               ),
-            if (storeController.isAdmin.value)
-              PopupMenuItem<Store?>(
+            if (storeController.isAdmin)
+              PopupMenuItem<Map<String, dynamic>?>(
                 value: null,
                 child: Container(
                   padding: EdgeInsets.symmetric(vertical: 4),

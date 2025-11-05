@@ -1,5 +1,5 @@
 class Customer {
-  final int? id;
+  final String? id;  // Changed from int? to String? for MongoDB _id
   final String name;
   final String phone;
   final String? email;
@@ -27,35 +27,35 @@ class Customer {
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      if (id != null) '_id': id,
       'name': name,
       'phone': phone,
-      'email': email,
-      'address': address,
-      'notes': notes,
-      'created_at': createdAt.toIso8601String(),
-      'last_purchase': lastPurchase?.toIso8601String(),
-      'total_spent': totalSpent,
-      'total_orders': totalOrders,
-      'loyalty_points': loyaltyPoints,
+      if (email != null) 'email': email,
+      if (address != null) 'address': address,
+      if (notes != null) 'notes': notes,
+      'createdAt': createdAt.toIso8601String(),
+      if (lastPurchase != null) 'lastPurchase': lastPurchase!.toIso8601String(),
+      'totalSpent': totalSpent,
+      'totalOrders': totalOrders,
+      'loyaltyPoints': loyaltyPoints,
     };
   }
 
   factory Customer.fromMap(Map<String, dynamic> map) {
     return Customer(
-      id: map['id'],
+      id: map['_id']?.toString() ?? map['id']?.toString(),
       name: map['name'] ?? '',
       phone: map['phone'] ?? '',
       email: map['email'],
       address: map['address'],
       notes: map['notes'],
-      createdAt: DateTime.tryParse(map['created_at'] ?? '') ?? DateTime.now(),
-      lastPurchase: map['last_purchase'] != null 
-          ? DateTime.tryParse(map['last_purchase']) 
+      createdAt: DateTime.tryParse(map['createdAt'] ?? map['created_at'] ?? '') ?? DateTime.now(),
+      lastPurchase: map['lastPurchase'] != null || map['last_purchase'] != null
+          ? DateTime.tryParse(map['lastPurchase'] ?? map['last_purchase'] ?? '') 
           : null,
-      totalSpent: (map['total_spent'] ?? 0.0).toDouble(),
-      totalOrders: map['total_orders'] ?? 0,
-      loyaltyPoints: map['loyalty_points'] ?? 0,
+      totalSpent: (map['totalSpent'] ?? map['total_spent'] ?? 0.0).toDouble(),
+      totalOrders: (map['totalOrders'] ?? map['total_orders'] ?? 0) as int,
+      loyaltyPoints: (map['loyaltyPoints'] ?? map['loyalty_points'] ?? 0) as int,
     );
   }
 
@@ -130,7 +130,7 @@ class Customer {
 
   // Crear nuevo cliente con datos actualizados
   Customer copyWith({
-    int? id,
+    String? id,
     String? name,
     String? phone,
     String? email,

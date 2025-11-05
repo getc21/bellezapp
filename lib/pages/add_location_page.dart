@@ -1,7 +1,6 @@
-import 'package:bellezapp/pages/home_page.dart';
+import 'package:bellezapp/controllers/location_controller.dart';
 import 'package:bellezapp/utils/utils.dart';
 import 'package:flutter/material.dart';
-import 'package:bellezapp/database/database_helper.dart';
 import 'package:get/get.dart';
 
 class AddLocationPage extends StatefulWidget {
@@ -12,148 +11,181 @@ class AddLocationPage extends StatefulWidget {
 }
 
 class AddLocationPageState extends State<AddLocationPage> {
-  final formKey = GlobalKey<FormState>();
+  late final LocationController locationController;
+  final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
 
+  @override
+  void initState() {
+    super.initState();
+    // Usar la misma instancia del controlador que ya existe
+    try {
+      locationController = Get.find<LocationController>();
+    } catch (e) {
+      locationController = Get.put(LocationController());
+    }
+  }
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveLocation() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    print('🔄 Iniciando guardado de ubicación...');
+
+    // TODO: Obtener storeId del contexto de la tienda actual
+    final storeId = '000000000000000000000001'; // Temporal
+
+    final success = await locationController.createLocation(
+      storeId: storeId,
+      name: _nameController.text,
+      description: _descriptionController.text.isEmpty 
+          ? null 
+          : _descriptionController.text,
+    );
+
+    print('📊 Resultado del guardado: $success');
+
+    if (success) {
+      print('✅ Éxito! Ejecutando Navigator.pop()...');
+      
+      // Primero navegar de regreso
+      if (mounted) {
+        Navigator.of(context).pop();
+        
+        // Mostrar snackbar después de regresar
+        Future.delayed(Duration(milliseconds: 300), () {
+          Get.snackbar(
+            'Éxito',
+            'Ubicación creada correctamente',
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: Colors.green.withOpacity(0.1),
+            colorText: Colors.green[800],
+            duration: Duration(seconds: 2),
+          );
+        });
+      }
+    } else {
+      print('❌ Error en el guardado, no se ejecuta Navigator.pop()');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Utils.colorFondo,
       appBar: AppBar(
         title: Row(
-          children: [
+          children: const [
             Icon(Icons.location_on, size: 24),
             SizedBox(width: 8),
             Text('Nueva Ubicación'),
           ],
         ),
-        backgroundColor: Utils.colorGnav,
+        backgroundColor: Utils.colorBotones,
         foregroundColor: Colors.white,
-        elevation: 2,
       ),
-      backgroundColor: Utils.colorFondo,
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: formKey,
-          child: ListView(
-            children: [
-              // Sección: Información de la Ubicación
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Utils.colorBotones, size: 24),
-                    SizedBox(width: 8),
-                    Text(
-                      'Información de la Ubicación',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Utils.colorBotones,
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Información
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Utils.colorBotones, size: 24),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Información de la Ubicación',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Utils.colorBotones
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Nombre
+            TextFormField(
+              controller: _nameController,
+              decoration: InputDecoration(
+                labelText: 'Nombre de la ubicación*',
+                prefixIcon: Icon(Icons.label, color: Utils.colorBotones),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Campo requerido';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Descripción
+            TextFormField(
+              controller: _descriptionController,
+              decoration: InputDecoration(
+                labelText: 'Descripción',
+                prefixIcon: Icon(Icons.description, color: Utils.colorBotones),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              maxLines: 3,
+            ),
+            const SizedBox(height: 32),
+
+            // Botón guardar
+            Obx(() {
+              return ElevatedButton(
+                onPressed: locationController.isLoading ? null : _saveLocation,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Utils.colorBotones,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: locationController.isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text(
+                        'Guardar Ubicación',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              TextFormField(
-                controller: _nameController,
-                cursorColor: Utils.colorBotones,
-                decoration: InputDecoration(
-                  prefixIcon: Icon(Icons.location_on, color: Utils.colorBotones),
-                  floatingLabelStyle: TextStyle(
-                      color: Utils.colorBotones, fontWeight: FontWeight.bold),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Utils.colorBotones, width: 3),
-                  ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(),
-                  labelText: 'Nombre de la Ubicación',
-                  hintText: 'Ej: Estante A1, Almacén Principal, Vitrina...',
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor ingrese el nombre';
-                  }
-                  return null;
-                },
-              ),
-              Utils.espacio10,
-              TextFormField(
-                controller: _descriptionController,
-                cursorColor: Utils.colorBotones,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  prefixIcon: Icon(Icons.description, color: Utils.colorBotones),
-                  floatingLabelStyle: TextStyle(
-                      color: Utils.colorBotones, fontWeight: FontWeight.bold),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Utils.colorBotones, width: 3),
-                  ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(),
-                  labelText: 'Descripción',
-                  hintText: 'Describe las características de esta ubicación...',
-                  alignLabelWithHint: true,
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor ingrese la descripción';
-                  }
-                  return null;
-                },
-              ),
-              
-              SizedBox(height: 24),
-
-              // Botón de guardar destacado
-              Container(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    if (formKey.currentState?.validate() ?? false) {
-                      final newLocation = {
-                        'name': _nameController.text,
-                        'description': _descriptionController.text,
-                      };
-
-                      await DatabaseHelper().insertLocation(newLocation);
-
-                      Get.snackbar(
-                        '✓ Éxito',
-                        'Ubicación guardada correctamente',
-                        snackPosition: SnackPosition.TOP,
-                        backgroundColor: Colors.green,
-                        colorText: Colors.white,
-                        duration: Duration(seconds: 2),
-                      );
-
-                      Get.to(HomePage());
-                    }
-                  },
-                  icon: Icon(Icons.save, size: 24),
-                  label: Text(
-                    'Guardar Ubicación',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Utils.colorBotones,
-                    foregroundColor: Colors.white,
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(height: 16),
-            ],
-          ),
+              );
+            }),
+          ],
         ),
       ),
     );

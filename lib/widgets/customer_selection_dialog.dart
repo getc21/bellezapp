@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:bellezapp/controllers/customer_controller.dart';
-import 'package:bellezapp/models/customer.dart';
 import 'package:bellezapp/pages/add_customer_page.dart';
 
 class CustomerSelectionDialog extends StatefulWidget {
-  final Customer? suggestedCustomer;
+  final Map<String, dynamic>? suggestedCustomer;
   
   const CustomerSelectionDialog({super.key, this.suggestedCustomer});
 
@@ -30,14 +29,14 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
     super.dispose();
   }
 
-  List<Customer> get filteredCustomers {
+  List<Map<String, dynamic>> get filteredCustomers {
     if (searchQuery.isEmpty) {
       return customerController.customers;
     }
     return customerController.customers.where((customer) {
-      return customer.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
-             (customer.email?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false) ||
-             customer.phone.contains(searchQuery);
+      return (customer['name']?.toString() ?? '').toLowerCase().contains(searchQuery.toLowerCase()) ||
+             ((customer['email']?.toString() ?? '').toLowerCase().contains(searchQuery.toLowerCase())) ||
+             (customer['phone']?.toString() ?? '').contains(searchQuery);
     }).toList();
   }
 
@@ -170,8 +169,8 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
                                 leading: CircleAvatar(
                                   backgroundColor: Colors.blue[100],
                                   child: Text(
-                                    widget.suggestedCustomer!.name.isNotEmpty 
-                                        ? widget.suggestedCustomer!.name[0].toUpperCase() 
+                                    (widget.suggestedCustomer!['name']?.toString() ?? '').isNotEmpty 
+                                        ? widget.suggestedCustomer!['name'][0].toUpperCase() 
                                         : 'C',
                                     style: TextStyle(
                                       color: Colors.blue[800],
@@ -180,15 +179,15 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
                                   ),
                                 ),
                                 title: Text(
-                                  widget.suggestedCustomer!.name,
+                                  widget.suggestedCustomer!['name']?.toString() ?? 'Sin nombre',
                                   style: const TextStyle(fontWeight: FontWeight.w500),
                                 ),
                                 subtitle: Text(
-                                  '${widget.suggestedCustomer!.loyaltyPointsText} • ${widget.suggestedCustomer!.lastPurchaseFormatted}',
+                                  '${widget.suggestedCustomer!['loyaltyPoints'] ?? 0} pts • ${widget.suggestedCustomer!['lastPurchase'] ?? 'Sin compras'}',
                                   style: TextStyle(fontSize: 12),
                                 ),
                                 trailing: ElevatedButton(
-                                  onPressed: () => Navigator.of(context).pop(widget.suggestedCustomer!.id),
+                                  onPressed: () => Navigator.of(context).pop(widget.suggestedCustomer!['_id']),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.blue,
                                     foregroundColor: Colors.white,
@@ -215,7 +214,7 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
                     ),
                     const SizedBox(height: 8),
                     Obx(() {
-                      if (customerController.isLoading.value) {
+                      if (customerController.isLoading) {
                         return const Center(
                           child: Padding(
                             padding: EdgeInsets.all(32.0),
@@ -258,7 +257,7 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
                               leading: CircleAvatar(
                                 backgroundColor: Colors.blue[100],
                                 child: Text(
-                                  customer.name.isNotEmpty ? customer.name[0].toUpperCase() : 'C',
+                                  (customer['name']?.toString() ?? '').isNotEmpty ? customer['name'][0].toUpperCase() : 'C',
                                   style: TextStyle(
                                     color: Colors.blue[800],
                                     fontWeight: FontWeight.bold,
@@ -266,23 +265,23 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
                                 ),
                               ),
                               title: Text(
-                                customer.name,
+                                customer['name']?.toString() ?? 'Sin nombre',
                                 style: const TextStyle(fontWeight: FontWeight.w500),
                               ),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(customer.email ?? 'Sin email'),
-                                  Text(customer.phone),
+                                  Text(customer['email']?.toString() ?? 'Sin email'),
+                                  Text(customer['phone']?.toString() ?? 'Sin teléfono'),
                                   Text(
-                                    '💰 ${customer.totalSpentFormatted} • 🛍️ ${customer.ordersText}',
+                                    '💰 \$${customer['totalSpent'] ?? 0} • 🛍️ ${customer['orderCount'] ?? 0} compras',
                                     style: TextStyle(
                                       color: Colors.grey[600],
                                       fontSize: 12,
                                     ),
                                   ),
                                   Text(
-                                    customer.loyaltyPointsText,
+                                    '${customer['loyaltyPoints'] ?? 0} puntos de lealtad',
                                     style: TextStyle(
                                       color: Colors.orange[700],
                                       fontSize: 12,
@@ -292,7 +291,7 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
                                 ],
                               ),
                               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                              onTap: () => Navigator.of(context).pop(customer.id),
+                              onTap: () => Navigator.of(context).pop(customer['_id']),
                             ),
                           );
                         }).toList(),
@@ -324,7 +323,7 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
       if (customerController.customers.isNotEmpty) {
         final lastCustomer = customerController.customers.last;
         // Cerrar el diálogo de selección de cliente y devolver el ID del nuevo cliente
-        Navigator.of(context).pop(lastCustomer.id);
+        Navigator.of(context).pop(lastCustomer['_id']);
       }
     }
   }

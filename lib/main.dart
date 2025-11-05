@@ -7,7 +7,6 @@ import 'package:bellezapp/controllers/auth_controller.dart';
 import 'package:bellezapp/pages/home_page.dart';
 import 'package:bellezapp/pages/login_page.dart';
 import 'package:bellezapp/utils/utils.dart';
-import 'package:bellezapp/utils/admin_user_setup.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -15,16 +14,14 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Inicializar controladores
+  // Inicializar controladores en el orden correcto
+  // AuthController debe ir primero porque otros controladores lo necesitan
+  Get.put(AuthController());
   Get.put(StoreController());
   Get.put(ThemeController());
   Get.put(IndexPageController());
   Get.put(LoadingController());
-  Get.put(CashController()); // Cambiar de lazyPut a put directo
-  Get.put(AuthController()); // Agregar controlador de autenticación
-  
-  // Verificar y crear usuario admin si no existe
-  await AdminUserSetup.checkDatabaseIntegrity();
+  Get.put(CashController());
   
   runApp(BeautyStoreApp());
 }
@@ -96,7 +93,7 @@ class BeautyStoreAppState extends State<BeautyStoreApp> {
 
   Widget _buildLoadingScreen() {
     return Scaffold(
-      backgroundColor: Color(0xFFF8BBD0), // Color de fondo por defecto
+      backgroundColor: Utils.colorFondo, // Color de fondo por defecto
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

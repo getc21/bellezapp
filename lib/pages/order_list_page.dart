@@ -1,11 +1,7 @@
-import 'dart:developer';
-
-import 'package:bellezapp/controllers/theme_controller.dart';
-import 'package:bellezapp/utils/utils.dart';
-import 'package:bellezapp/mixins/store_aware_mixin.dart';
-import 'package:flutter/material.dart';
+import 'package:bellezapp/controllers/order_controller.dart';
 import 'package:bellezapp/pages/add_order_page.dart';
-import 'package:bellezapp/database/database_helper.dart';
+import 'package:bellezapp/utils/utils.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
@@ -16,18 +12,25 @@ class OrderListPage extends StatefulWidget {
   OrderListPageState createState() => OrderListPageState();
 }
 
-class OrderListPageState extends State<OrderListPage> with StoreAwareMixin {
-  final dbHelper = DatabaseHelper();
-  final themeController = Get.find<ThemeController>();
-  final RxList<Map<String, dynamic>> _orders = <Map<String, dynamic>>[].obs;
-  final RxList<Map<String, dynamic>> _filteredOrders = <Map<String, dynamic>>[].obs;
+class OrderListPageState extends State<OrderListPage> {
+  late final OrderController orderController;
   final TextEditingController _searchController = TextEditingController();
-  final RxDouble _totalSum = 0.0.obs;
 
   @override
   void initState() {
     super.initState();
+    // Usar la misma instancia del controlador que ya existe
+    try {
+      orderController = Get.find<OrderController>();
+    } catch (e) {
+      orderController = Get.put(OrderController());
+    }
     _loadOrders();
+  }
+
+  void _loadOrders() {
+    // Cargar órdenes para la tienda actual
+    orderController.loadOrders();
   }
 
   @override
@@ -36,226 +39,49 @@ class OrderListPageState extends State<OrderListPage> with StoreAwareMixin {
     super.dispose();
   }
 
-  @override
-  void reloadData() {
-    print('🔄 Recargando órdenes por cambio de tienda');
-    _loadOrders();
+  List<Map<String, dynamic>> get _filteredOrders {
+    final searchText = _searchController.text.toLowerCase();
+    if (searchText.isEmpty) {
+      return orderController.orders;
+    }
+    
+    return orderController.orders.where((order) {
+      final total = order['totalOrden'].toString().toLowerCase();
+      final paymentMethod = (order['paymentMethod'] ?? '').toString().toLowerCase();
+      
+      // Número de orden (últimos 6 dígitos del ID)
+      final orderId = order['_id'] ?? order['id'] ?? '';
+      final orderNumber = orderId.length >= 6 ? orderId.substring(orderId.length - 6) : orderId;
+      
+      // Nombre del cliente
+      final customer = order['customerId'] as Map<String, dynamic>?;
+      final customerName = (customer?['name']?.toString() ?? '').toLowerCase();
+      
+      return total.contains(searchText) || 
+             paymentMethod.contains(searchText) ||
+             orderNumber.toLowerCase().contains(searchText) ||
+             customerName.contains(searchText);
+    }).toList();
   }
 
-  Future<void> _loadOrders() async {
-    final orders = await dbHelper.getOrdersWithItems();
-    log(orders.toString());
-    // Ordenar las órdenes de la última a la primera
-    final sortedOrders = orders.reversed.toList();
-    _orders.value = sortedOrders;
-    _filteredOrders.value = sortedOrders;
-    _calculateTotalSum();
-  }
-
-  void _calculateTotalSum() {
-    _totalSum.value = _filteredOrders.fold(0.0, (sum, order) => 
+  double get _totalSum {
+    return _filteredOrders.fold(0.0, (sum, order) => 
       sum + (double.tryParse(order['totalOrden'].toString()) ?? 0.0));
   }
 
-  void _filterOrders(String searchText) {
-    if (searchText.isEmpty) {
-      _filteredOrders.value = List.from(_orders);
-    } else {
-      _filteredOrders.value = _orders.where((order) {
-        final orderId = order['id'].toString();
-        final orderDate = DateFormat('yyyy-MM-dd').format(DateTime.parse(order['order_date']));
-        final total = order['totalOrden'].toString();
-        final searchLower = searchText.toLowerCase();
-        
-        // Buscar también en los nombres de productos
-        bool hasProductMatch = false;
-        if (order['items'] != null) {
-          hasProductMatch = order['items'].any((item) =>
-              (item['product_name'] ?? '').toString().toLowerCase().contains(searchLower));
-        }
-        
-        return orderId.contains(searchLower) ||
-               orderDate.contains(searchLower) ||
-               total.contains(searchLower) ||
-               hasProductMatch;
-      }).toList();
+  String _formatCurrency(double amount) {
+    final formatter = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
+    return formatter.format(amount);
+  }
+
+  String _formatDate(dynamic date) {
+    try {
+      if (date == null) return 'Sin fecha';
+      final dateTime = date is DateTime ? date : DateTime.parse(date.toString());
+      return DateFormat('dd/MM/yyyy HH:mm').format(dateTime);
+    } catch (e) {
+      return 'Fecha inválida';
     }
-    _calculateTotalSum();
-  }
-
-  // Método público para refrescar la lista desde fuera
-  Future<void> refreshOrders() async {
-    await _loadOrders();
-  }
-
-  String _formatCurrency(dynamic value) {
-    final amount = double.tryParse(value.toString()) ?? 0.0;
-    return 'Bs. ${amount.toStringAsFixed(2)}';
-  }
-
-  Widget _buildEmptyState() {
-    String mensaje;
-    
-    if (_searchController.text.isNotEmpty) {
-      mensaje = 'No se encontraron órdenes que coincidan con tu búsqueda.';
-    } else {
-      mensaje = 'No hay órdenes registradas en esta tienda. Agrega tu primera orden usando el botón "+".';
-    }
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Utils.colorBotones.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.shopping_cart_outlined,
-              size: 80,
-              color: Utils.colorBotones,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Sin Órdenes',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Utils.colorTexto,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Text(
-              mensaje,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Utils.colorTexto.withOpacity(0.7),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () {
-              _loadOrders();
-            },
-            icon: const Icon(Icons.refresh),
-            label: const Text('Actualizar'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Utils.colorBotones,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProductsTable(List<dynamic> items) {
-    return RepaintBoundary(
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.grey[50],
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey[200]!),
-        ),
-        child: DataTable(
-          headingRowHeight: 36,
-          dataRowHeight: 32,
-          horizontalMargin: 12,
-          columnSpacing: 8,
-          headingTextStyle: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
-            color: Utils.colorGnav,
-          ),
-          dataTextStyle: TextStyle(
-            fontSize: 11,
-            color: Colors.grey[700],
-          ),
-          columns: [
-            DataColumn(
-              label: Expanded(
-                flex: 1,
-                child: Text('Cant.', textAlign: TextAlign.center),
-              ),
-            ),
-            DataColumn(
-              label: Expanded(
-                flex: 3,
-                child: Text('Producto'),
-              ),
-            ),
-            DataColumn(
-              label: Expanded(
-                flex: 2,
-                child: Text('Precio', textAlign: TextAlign.end),
-              ),
-            ),
-          ],
-          rows: items.map<DataRow>((item) {
-            return DataRow(cells: [
-              DataCell(
-                Container(
-                  width: double.infinity,
-                  alignment: Alignment.center,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Utils.colorBotones.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '${item['quantity']}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Utils.colorBotones,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              DataCell(
-                Container(
-                  width: double.infinity,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    item['product_name'] ?? 'Sin nombre',
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 2,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                ),
-              ),
-              DataCell(
-                Container(
-                  width: double.infinity,
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    _formatCurrency(item['price']),
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: Utils.colorTexto,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-              ),
-            ]);
-          }).toList(),
-        ),
-      ),
-    );
   }
 
   @override
@@ -264,9 +90,9 @@ class OrderListPageState extends State<OrderListPage> with StoreAwareMixin {
       backgroundColor: Utils.colorFondo,
       body: Column(
         children: [
-          // Header moderno con búsqueda
+          // Header mejorado con búsqueda prominente
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
@@ -280,6 +106,34 @@ class OrderListPageState extends State<OrderListPage> with StoreAwareMixin {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Título de la sección
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Utils.colorBotones.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.receipt_long_rounded,
+                        color: Utils.colorBotones,
+                        size: 24,
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Text(
+                      'Órdenes',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 16),
+                
                 // Campo de búsqueda prominente
                 Container(
                   height: 40,
@@ -290,10 +144,10 @@ class OrderListPageState extends State<OrderListPage> with StoreAwareMixin {
                   ),
                   child: TextField(
                     controller: _searchController,
-                    onChanged: _filterOrders,
+                    onChanged: (value) => setState(() {}),
                     style: TextStyle(fontSize: 13),
                     decoration: InputDecoration(
-                      hintText: 'Buscar órdenes...',
+                      hintText: 'Buscar por orden, cliente, monto o método...',
                       hintStyle: TextStyle(color: Colors.grey[500], fontSize: 12),
                       prefixIcon: Icon(Icons.search, color: Utils.colorBotones, size: 20),
                       suffixIcon: _searchController.text.isNotEmpty
@@ -301,7 +155,7 @@ class OrderListPageState extends State<OrderListPage> with StoreAwareMixin {
                               icon: Icon(Icons.clear, color: Colors.grey, size: 18),
                               onPressed: () {
                                 _searchController.clear();
-                                _filterOrders('');
+                                setState(() {});
                               },
                             )
                           : null,
@@ -311,249 +165,445 @@ class OrderListPageState extends State<OrderListPage> with StoreAwareMixin {
                   ),
                 ),
                 SizedBox(height: 12),
-                // Header con contador y resumen
-                Obx(() => Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Órdenes de Venta',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Container(
-                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Utils.colorBotones.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            '${_filteredOrders.length} órdenes',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Utils.colorBotones,
-                            ),
-                          ),
-                        ),
-                        if (_filteredOrders.isNotEmpty) ...[
-                          SizedBox(width: 8),
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Utils.colorBotones.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              _formatCurrency(_totalSum.value),
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Utils.colorBotones,
-                              ),
-                            ),
-                          ),
-                        ],
+                
+                // Total de órdenes con diseño mejorado
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Utils.colorBotones.withOpacity(0.1),
+                        Utils.colorBotones.withOpacity(0.05),
                       ],
                     ),
-                  ],
-                )),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Utils.colorBotones.withOpacity(0.2),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.monetization_on_rounded,
+                            color: Utils.colorBotones,
+                            size: 20,
+                          ),
+                          SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Total ventas',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              Obx(() => Text(
+                                '${_filteredOrders.length} órdenes',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Utils.colorBotones,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              )),
+                            ],
+                          ),
+                        ],
+                      ),
+                      Obx(() => Text(
+                        _formatCurrency(_totalSum),
+                        style: TextStyle(
+                          fontSize: 20,
+                          color: Utils.colorBotones,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )),
+                    ],
+                  ),
+                ),
                 SizedBox(height: 6),
               ],
             ),
           ),
+
           // Lista de órdenes
           Expanded(
-            child: Obx(() => _filteredOrders.isEmpty
-                ? _buildEmptyState()
-                : RefreshIndicator(
-                    onRefresh: _loadOrders,
-                    child: ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _filteredOrders.length,
-                      cacheExtent: 500,
-                      itemBuilder: (context, index) {
-                        final order = _filteredOrders[index];
-                        final orderDate = DateFormat('dd/MM/yyyy')
-                            .format(DateTime.parse(order['order_date']));
-                        final orderTime = DateFormat('HH:mm')
-                            .format(DateTime.parse(order['order_date']));
-                        
-                        return RepaintBoundary(
-                          child: Container(
-                            margin: EdgeInsets.only(bottom: 16),
-                            decoration: BoxDecoration(
-                              color: Utils.colorFondoCards,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: Colors.grey.shade200),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.grey.withOpacity(0.08),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Header de la orden
-                                  Row(
-                                    children: [
-                                      Container(
-                                        width: 50,
-                                        height: 50,
-                                        decoration: BoxDecoration(
-                                          color: Utils.colorBotones.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(25),
-                                        ),
-                                        child: Icon(
-                                          Icons.receipt_long,
-                                          color: Utils.colorBotones,
-                                          size: 24,
-                                        ),
-                                      ),
-                                      SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                Text(
-                                                  'Orden #${order['id']}',
-                                                  style: TextStyle(
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Utils.colorGnav,
-                                                  ),
-                                                ),
-                                                SizedBox(width: 8),
-                                                Container(
-                                                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                  decoration: BoxDecoration(
-                                                    color: Utils.colorBotones.withOpacity(0.1),
-                                                    borderRadius: BorderRadius.circular(12),
-                                                  ),
-                                                  child: Text(
-                                                    'COMPLETADA',
-                                                    style: TextStyle(
-                                                      fontSize: 10,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: Utils.colorBotones,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            SizedBox(height: 4),
-                                            Row(
-                                              children: [
-                                                Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
-                                                SizedBox(width: 4),
-                                                Text(
-                                                  orderDate,
-                                                  style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: Colors.grey[600],
-                                                  ),
-                                                ),
-                                                SizedBox(width: 12),
-                                                Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
-                                                SizedBox(width: 4),
-                                                Text(
-                                                  orderTime,
-                                                  style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: Colors.grey[600],
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  SizedBox(height: 16),
-                                  // Productos de la orden
-                                  Text(
-                                    'Productos (${order['items']?.length ?? 0} artículos)',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      color: Utils.colorGnav,
-                                    ),
-                                  ),
-                                  SizedBox(height: 8),
-                                  _buildProductsTable(order['items'] ?? []),
-                                  SizedBox(height: 12),
-                                  // Total en la esquina inferior derecha
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.end,
-                                    children: [
-                                      Container(
-                                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                        decoration: BoxDecoration(
-                                          color: Utils.colorBotones.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(
-                                            color: Utils.colorBotones.withOpacity(0.3),
-                                            width: 1,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              'TOTAL: ',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.bold,
-                                                color: Utils.colorTexto,
-                                              ),
-                                            ),
-                                            Text(
-                                              _formatCurrency(order['totalOrden']),
-                                              style: TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold,
-                                                color: Utils.colorBotones,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-            ),
+            child: Obx(() {
+              if (orderController.isLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final orders = _filteredOrders;
+
+              if (orders.isEmpty) {
+                return _buildEmptyState();
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: orders.length,
+                itemBuilder: (context, index) {
+                  final order = orders[index];
+                  return _buildOrderCard(order);
+                },
+              );
+            }),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: Utils.colorBotones,
         onPressed: () async {
-          final result = await Get.to(AddOrderPage());
-          if (result == true) {
-            _loadOrders();
+          final result = await Get.to(() => const AddOrderPage());
+          if (result == true || result == null) {
+            orderController.loadOrders();
           }
         },
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Utils.colorBotones.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _searchController.text.isEmpty
+                  ? Icons.receipt_long_outlined
+                  : Icons.search_off,
+              size: 80,
+              color: Utils.colorBotones.withOpacity(0.5),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            _searchController.text.isEmpty
+                ? 'No hay órdenes'
+                : 'No se encontraron órdenes',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[700],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _searchController.text.isEmpty
+                ? 'Las órdenes aparecerán aquí'
+                : 'Intenta con otros términos de búsqueda',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[500],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrderCard(Map<String, dynamic> order) {
+    final total = double.tryParse(order['totalOrden'].toString()) ?? 0.0;
+    final paymentMethod = order['paymentMethod'] ?? 'efectivo';
+    final orderDate = order['orderDate'] ?? order['createdAt'];
+    final items = order['items'] as List<dynamic>? ?? [];
+    
+    // Obtener número de orden (últimos 6 dígitos del ID)
+    final orderId = order['_id'] ?? order['id'] ?? '';
+    final orderNumber = orderId.length >= 6 ? orderId.substring(orderId.length - 6) : orderId;
+    
+    // Obtener información del cliente
+    final customer = order['customerId'] as Map<String, dynamic>?;
+    final customerName = customer?['name']?.toString() ?? 'Cliente General';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Utils.colorFondoCards,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          childrenPadding: EdgeInsets.zero,
+          leading: Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Utils.colorBotones.withOpacity(0.15),
+                  Utils.colorBotones.withOpacity(0.05),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Utils.colorBotones.withOpacity(0.3),
+                width: 2,
+              ),
+            ),
+            child: Icon(
+              Icons.receipt_long_rounded,
+              color: Utils.colorBotones,
+              size: 28,
+            ),
+          ),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.receipt_long_rounded,
+                    size: 16,
+                    color: Utils.colorBotones,
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    'Orden #$orderNumber',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Utils.colorBotones,
+                    ),
+                  ),
+                  Spacer(),
+                  Icon(
+                    Icons.attach_money_rounded,
+                    size: 18,
+                    color: Colors.green[700],
+                  ),
+                  SizedBox(width: 2),
+                  Text(
+                    _formatCurrency(total),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(
+                    Icons.person_outline,
+                    size: 14,
+                    color: Colors.grey[600],
+                  ),
+                  SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      customerName,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          subtitle: Padding(
+            padding: EdgeInsets.only(top: 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.access_time_rounded,
+                      size: 13,
+                      color: Colors.grey[500],
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _formatDate(orderDate),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _getPaymentColor(paymentMethod).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _getPaymentColor(paymentMethod).withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _getPaymentIcon(paymentMethod),
+                            size: 12,
+                            color: _getPaymentColor(paymentMethod),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _getPaymentMethodLabel(paymentMethod),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: _getPaymentColor(paymentMethod),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.shopping_bag_rounded, size: 12, color: Colors.blue[700]),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${items.length}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.blue[700],
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(12),
+                bottomRight: Radius.circular(12),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Productos:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...items.map((item) {
+                  final quantity = item['quantity'] ?? 0;
+                  final price = double.tryParse(item['price'].toString()) ?? 0.0;
+                  final productId = item['productId'];
+                  final productName = productId is Map 
+                      ? (productId['name'] ?? 'Producto sin nombre')
+                      : 'Producto #$productId';
+                  
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '$quantity x $productName',
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                        ),
+                        Text(
+                          _formatCurrency(price * quantity),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ],
+            ),
+          ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getPaymentColor(String method) {
+    switch (method.toLowerCase()) {
+      case 'tarjeta':
+        return Colors.purple;
+      case 'transferencia':
+        return Colors.blue;
+      case 'efectivo':
+      default:
+        return Colors.green;
+    }
+  }
+
+  IconData _getPaymentIcon(String method) {
+    switch (method.toLowerCase()) {
+      case 'tarjeta':
+        return Icons.credit_card;
+      case 'transferencia':
+        return Icons.account_balance;
+      case 'efectivo':
+      default:
+        return Icons.payments;
+    }
+  }
+
+  String _getPaymentMethodLabel(String method) {
+    switch (method.toLowerCase()) {
+      case 'tarjeta':
+        return 'Tarjeta';
+      case 'transferencia':
+        return 'Transferencia';
+      case 'efectivo':
+      default:
+        return 'Efectivo';
+    }
   }
 }

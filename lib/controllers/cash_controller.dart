@@ -1,173 +1,142 @@
-import 'package:bellezapp/database/database_helper.dart';
-import 'package:bellezapp/models/cash_movement.dart';
-import 'package:bellezapp/models/cash_register.dart';
-import 'package:bellezapp/controllers/store_controller.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../providers/cash_register_provider.dart';
+import 'auth_controller.dart';
+import 'store_controller.dart';
 
 class CashController extends GetxController {
-  final DatabaseHelper _db = DatabaseHelper();
+  final AuthController _authController = Get.find<AuthController>();
   
-  // Observables
-  final _currentCashRegister = Rxn<CashRegister>();
-  final _todayMovements = <CashMovement>[].obs;
-  final _isLoading = false.obs;
-  final _totalCashInHand = 0.0.obs;
-  final _totalSalesToday = 0.0.obs;
-  final _totalIncomesToday = 0.0.obs;
-  final _totalOutcomesToday = 0.0.obs;
-  final _expectedAmount = 0.0.obs;
+  CashRegisterProvider get _cashProvider => CashRegisterProvider(_authController.token);
+
+  // Estados observables
+  final RxList<Map<String, dynamic>> _movements = <Map<String, dynamic>>[].obs;
+  final Rx<Map<String, dynamic>?> _currentRegister = Rx<Map<String, dynamic>?>(null);
+  final RxBool _isLoading = false.obs;
+  final RxString _errorMessage = ''.obs;
 
   // Getters
-  CashRegister? get currentCashRegister => _currentCashRegister.value;
-  List<CashMovement> get todayMovements => _todayMovements;
+  List<Map<String, dynamic>> get movements => _movements;
+  Map<String, dynamic>? get currentRegister => _currentRegister.value;
   bool get isLoading => _isLoading.value;
-  double get totalCashInHand => _totalCashInHand.value;
-  double get totalSalesToday => _totalSalesToday.value;
-  double get totalIncomesToday => _totalIncomesToday.value;
-  double get totalOutcomesToday => _totalOutcomesToday.value;
-  double get expectedAmount => _expectedAmount.value;
+  String get errorMessage => _errorMessage.value;
   
-  bool get isCashRegisterOpen => currentCashRegister?.isOpen ?? false;
-  bool get isCashRegisterClosed => currentCashRegister?.isClosed ?? false;
-  bool get canOpenCashRegister => currentCashRegister == null;
+  // Getters computados para la UI
+  Map<String, dynamic>? get currentCashRegister => _currentRegister.value;
+  List<Map<String, dynamic>> get todayMovements => _movements;
+  
+  bool get isCashRegisterOpen => _currentRegister.value != null && 
+      _currentRegister.value!['status'] == 'open';
+  
+  bool get isCashRegisterClosed => _currentRegister.value == null || 
+      _currentRegister.value!['status'] == 'closed';
+  
+  bool get canOpenCashRegister => !isCashRegisterOpen;
   bool get canCloseCashRegister => isCashRegisterOpen;
-
-  @override
-  void onInit() {
-    super.onInit();
-    // No cargar datos automáticamente para evitar errores de contexto
-    print('CashController inicializado correctamente');
+  
+  double get totalCashInHand {
+    if (_currentRegister.value == null) return 0.0;
     
-    // Escuchar cambios en la tienda actual
-    try {
-      final storeController = Get.find<StoreController>();
-      ever(storeController.currentStore, (_) {
-        print('🔄 Recargando caja por cambio de tienda');
-        if (_hasLoaded) {
-          loadTodayData(showErrorSnackbar: false);
-        }
-      });
-    } catch (e) {
-      // StoreController no disponible
-    }
-  }
-
-  // Inicialización segura para cargar datos cuando sea necesario
-  Future<void> initialize() async {
-    if (!_hasLoaded) {
-      await loadTodayData(showErrorSnackbar: false);
-      _hasLoaded = true;
-    }
-  }
-
-  bool _hasLoaded = false;
-
-  // Cargar datos del día actual
-  Future<void> loadTodayData({bool showErrorSnackbar = false}) async {
-    try {
-      _isLoading.value = true;
+    final opening = _currentRegister.value!['openingAmount'] ?? 0.0;
+    final movements = _movements.fold<double>(0.0, (sum, mov) {
+      final amount = (mov['amount'] ?? 0.0).toDouble();
+      final type = mov['type'] ?? '';
       
-      // Cargar registro de caja actual
-      final registerData = await _db.getCurrentCashRegister();
-      if (registerData != null) {
-        _currentCashRegister.value = CashRegister.fromMap(registerData);
-      } else {
-        _currentCashRegister.value = null;
-      }
-
-      // Cargar movimientos del día
-      await loadTodayMovements();
-      
-      // Calcular totales
-      await calculateTotals();
-      
-    } catch (e) {
-      print('Error al cargar datos de caja: $e'); // Solo imprimir en consola
-      if (showErrorSnackbar) {
-        Get.snackbar('Error', 'Error al cargar datos de caja: $e');
-      }
-    } finally {
-      _isLoading.value = false;
-    }
-  }
-
-  // Cargar movimientos del día
-  Future<void> loadTodayMovements() async {
-    final today = DateTime.now().toIso8601String().split('T')[0];
-    final movementsData = await _db.getCashMovementsByDate(today);
+      // Solo contar movimientos que no sean de apertura (ya está incluida en opening)
+      if (type == 'income' || type == 'sale') return sum + amount;
+      if (type == 'expense') return sum - amount;
+      return sum;
+    });
     
-    _todayMovements.clear();
-    _todayMovements.addAll(
-      movementsData.map((data) => CashMovement.fromMap(data)).toList()
-    );
+    return opening + movements;
+  }
+  
+  double get totalSalesToday {
+    return _movements
+        .where((mov) => mov['type'] == 'sale')
+        .fold(0.0, (sum, mov) => sum + ((mov['amount'] ?? 0.0).toDouble()));
+  }
+  
+  double get totalIncomesToday {
+    // Incluir solo income (entradas manuales) + monto de apertura
+    // NO incluir sales (ventas) para evitar duplicación con totalSalesToday
+    final incomeMovements = _movements
+        .where((mov) => mov['type'] == 'income')
+        .fold(0.0, (sum, mov) => sum + ((mov['amount'] ?? 0.0).toDouble()));
+    
+    // Agregar el monto de apertura
+    final opening = _currentRegister.value?['openingAmount'] ?? 0.0;
+    
+    return opening + incomeMovements;
+  }
+  
+  double get totalOutcomesToday {
+    return _movements
+        .where((mov) => mov['type'] == 'expense')
+        .fold(0.0, (sum, mov) => sum + ((mov['amount'] ?? 0.0).toDouble()));
+  }
+  
+  double get expectedAmount => totalCashInHand;
+  
+  // Método auxiliar para formatear moneda
+  String formatCurrency(double amount) {
+    return '\$${amount.toStringAsFixed(2)}';
   }
 
-  // Cargar movimientos por fecha específica
-  Future<void> loadMovementsByDate(DateTime date) async {
+  // Crear caja registradora
+  Future<bool> createCashRegister({
+    required String storeId,
+    required String name,
+    required double initialBalance,
+  }) async {
     _isLoading.value = true;
+
     try {
-      final dateStr = date.toIso8601String().split('T')[0];
-      final movementsData = await _db.getCashMovementsByDate(dateStr);
-      
-      _todayMovements.clear();
-      _todayMovements.addAll(
-        movementsData.map((data) => CashMovement.fromMap(data)).toList()
+      final result = await _cashProvider.createCashRegister(
+        storeId: storeId,
+        name: name,
+        initialBalance: initialBalance,
       );
+
+      if (result['success']) {
+        Get.snackbar('Éxito', 'Caja creada correctamente', snackPosition: SnackPosition.TOP);
+        // Ya no necesitamos recargar una lista de cajas
+        return true;
+      } else {
+        Get.snackbar('Error', result['message'] ?? 'Error creando caja', snackPosition: SnackPosition.TOP);
+        return false;
+      }
     } catch (e) {
-      print('Error al cargar movimientos por fecha: $e');
+      Get.snackbar('Error', 'Error de conexión: $e', snackPosition: SnackPosition.TOP);
+      return false;
     } finally {
       _isLoading.value = false;
-    }
-  }
-
-  // Calcular totales
-  Future<void> calculateTotals() async {
-    _totalSalesToday.value = await _db.getTotalCashSalesToday();
-    _totalIncomesToday.value = await _db.getTotalCashIncomesToday();
-    _totalOutcomesToday.value = await _db.getTotalCashOutcomesToday();
-    _expectedAmount.value = await _db.calculateExpectedCashAmount();
-    
-    // Calcular dinero en mano
-    if (currentCashRegister != null) {
-      _totalCashInHand.value = currentCashRegister!.openingAmount + 
-          _totalIncomesToday.value - _totalOutcomesToday.value;
-    } else {
-      _totalCashInHand.value = 0.0;
     }
   }
 
   // Abrir caja
-  Future<bool> openCashRegister(double openingAmount) async {
+  Future<bool> openCashRegister({
+    required String cashRegisterId,
+    required double openingBalance,
+  }) async {
+    _isLoading.value = true;
+
     try {
-      if (!canOpenCashRegister) {
-        Get.snackbar('Error', 'Ya existe una caja abierta para hoy');
+      final result = await _cashProvider.openCashRegister(
+        cashRegisterId: cashRegisterId,
+        openingBalance: openingBalance,
+      );
+
+      if (result['success']) {
+        Get.snackbar('Éxito', 'Caja abierta correctamente', snackPosition: SnackPosition.TOP);
+        _currentRegister.value = result['data'];
+        return true;
+      } else {
+        Get.snackbar('Error', result['message'] ?? 'Error abriendo caja', snackPosition: SnackPosition.TOP);
         return false;
       }
-
-      _isLoading.value = true;
-      
-      final today = DateTime.now().toIso8601String().split('T')[0];
-      final register = CashRegister.open(openingAmount, today);
-      
-      // Insertar registro de caja
-      await _db.insertCashRegister(register.toMap());
-      
-      // Registrar movimiento de apertura
-      final openingMovement = CashMovement.apertura(openingAmount, DateTime.now().toIso8601String());
-      await _db.insertCashMovement(openingMovement.toMap());
-      
-      // Recargar datos
-      await loadTodayData();
-      
-      Get.snackbar(
-        'Éxito',
-        'Caja abierta con \$${openingAmount.toStringAsFixed(2)}',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      
-      return true;
     } catch (e) {
-      Get.snackbar('Error', 'Error al abrir caja: $e');
+      Get.snackbar('Error', 'Error de conexión: $e', snackPosition: SnackPosition.TOP);
       return false;
     } finally {
       _isLoading.value = false;
@@ -175,152 +144,357 @@ class CashController extends GetxController {
   }
 
   // Cerrar caja
-  Future<bool> closeCashRegister(double actualAmount) async {
-    try {
-      if (!canCloseCashRegister) {
-        Get.snackbar('Error', 'No hay caja abierta para cerrar');
-        return false;
-      }
+  Future<bool> closeCashRegister({
+    required String cashRegisterId,
+    required double closingBalance,
+  }) async {
+    _isLoading.value = true;
 
-      _isLoading.value = true;
-      
-      final closedRegister = currentCashRegister!.close(actualAmount, expectedAmount);
-      await _db.updateCashRegister(closedRegister.toMap());
-      
-      // Registrar movimiento de cierre
-      final closingMovement = CashMovement.cierre(actualAmount, DateTime.now().toIso8601String());
-      await _db.insertCashMovement(closingMovement.toMap());
-      
-      // Recargar datos
-      await loadTodayData();
-      
-      // Mostrar resultado del arqueo
-      final difference = closedRegister.difference!;
-      String message;
-      if (difference.abs() <= 0.01) {
-        message = 'Caja cerrada correctamente. Arqueo exacto.';
-      } else if (difference < 0) {
-        message = 'Caja cerrada. Faltante: \$${difference.abs().toStringAsFixed(2)}';
+    try {
+      final result = await _cashProvider.closeCashRegister(
+        cashRegisterId: cashRegisterId,
+        closingBalance: closingBalance,
+      );
+
+      if (result['success']) {
+        Get.snackbar('Éxito', 'Caja cerrada correctamente', snackPosition: SnackPosition.TOP);
+        _currentRegister.value = null;
+        return true;
       } else {
-        message = 'Caja cerrada. Sobrante: \$${difference.toStringAsFixed(2)}';
+        Get.snackbar('Error', result['message'] ?? 'Error cerrando caja', snackPosition: SnackPosition.TOP);
+        return false;
       }
-      
-      Get.snackbar(
-        'Caja Cerrada',
-        message,
-        snackPosition: SnackPosition.BOTTOM,
-        duration: Duration(seconds: 5),
-      );
-      
-      return true;
     } catch (e) {
-      Get.snackbar('Error', 'Error al cerrar caja: $e');
+      Get.snackbar('Error', 'Error de conexión: $e', snackPosition: SnackPosition.TOP);
       return false;
     } finally {
       _isLoading.value = false;
     }
   }
 
-  // Agregar entrada de dinero
-  Future<bool> addCashIncome(double amount, String description) async {
+  // Cargar movimientos de caja de la tienda actual
+  Future<void> loadCashMovements({
+    String? startDate,
+    String? endDate,
+  }) async {
+    _isLoading.value = true;
+
     try {
-      if (!isCashRegisterOpen) {
-        Get.snackbar('Error', 'Debe abrir la caja primero');
+      final result = await _cashProvider.getCashMovements(
+        cashRegisterId: 'store-cash-register', // Dummy - se usa storeId internamente
+        startDate: startDate,
+        endDate: endDate,
+      );
+
+      if (result['success']) {
+        _movements.value = List<Map<String, dynamic>>.from(result['data']);
+      } else {
+        Get.snackbar('Error', result['message'] ?? 'Error cargando movimientos', snackPosition: SnackPosition.TOP);
+      }
+    } catch (e) {
+      Get.snackbar('Error', 'Error de conexión: $e', snackPosition: SnackPosition.TOP);
+    } finally {
+      _isLoading.value = false;
+    }
+  }
+
+  // Agregar movimiento de caja
+  Future<bool> addCashMovement({
+    required String cashRegisterId,
+    required String type,
+    required double amount,
+    required String description,
+  }) async {
+    _isLoading.value = true;
+
+    try {
+      final result = await _cashProvider.addCashMovement(
+        cashRegisterId: cashRegisterId,
+        type: type,
+        amount: amount,
+        description: description,
+      );
+
+      if (result['success']) {
+        Get.snackbar('Éxito', 'Movimiento registrado correctamente', snackPosition: SnackPosition.TOP);
+        await loadCashMovements();
+        return true;
+      } else {
+        Get.snackbar('Error', result['message'] ?? 'Error registrando movimiento', snackPosition: SnackPosition.TOP);
         return false;
       }
-
-      _isLoading.value = true;
-      
-      final movement = CashMovement.entrada(amount, DateTime.now().toIso8601String(), description);
-      await _db.insertCashMovement(movement.toMap());
-      
-      await loadTodayData();
-      
-      Get.snackbar(
-        'Entrada Registrada',
-        '+\$${amount.toStringAsFixed(2)}: $description',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      
-      return true;
     } catch (e) {
-      Get.snackbar('Error', 'Error al registrar entrada: $e');
+      Get.snackbar('Error', 'Error de conexión: $e', snackPosition: SnackPosition.TOP);
       return false;
     } finally {
       _isLoading.value = false;
     }
   }
 
-  // Agregar salida de dinero
-  Future<bool> addCashOutcome(double amount, String description) async {
-    try {
-      if (!isCashRegisterOpen) {
-        Get.snackbar('Error', 'Debe abrir la caja primero');
-        return false;
-      }
-
-      if (amount > totalCashInHand) {
-        Get.snackbar('Error', 'No hay suficiente dinero en caja');
-        return false;
-      }
-
-      _isLoading.value = true;
-      
-      final movement = CashMovement.salida(amount, DateTime.now().toIso8601String(), description);
-      await _db.insertCashMovement(movement.toMap());
-      
-      await loadTodayData();
-      
-      Get.snackbar(
-        'Salida Registrada',
-        '-\$${amount.toStringAsFixed(2)}: $description',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      
-      return true;
-    } catch (e) {
-      Get.snackbar('Error', 'Error al registrar salida: $e');
-      return false;
-    } finally {
-      _isLoading.value = false;
-    }
+  void clearError() {
+    _errorMessage.value = '';
   }
-
-  // Registrar venta en efectivo (llamado automáticamente desde el sistema de ventas)
-  Future<void> registerCashSale(int orderId, double amount) async {
-    try {
-      if (isCashRegisterOpen) {
-        await _db.registerCashSale(orderId, amount);
-        await loadTodayData();
-      }
-    } catch (e) {
-      print('Error al registrar venta en efectivo: $e');
-    }
+  
+  // Inicializar (verificar estado de caja actual)
+  Future<void> initialize() async {
+    await checkCurrentCashRegisterStatus();
   }
-
-  // Obtener resumen del día
-  Map<String, dynamic> getDailySummary() {
-    return {
-      'isOpen': isCashRegisterOpen,
-      'openingAmount': currentCashRegister?.openingAmount ?? 0.0,
-      'totalSales': totalSalesToday,
-      'totalIncomes': totalIncomesToday,
-      'totalOutcomes': totalOutcomesToday,
-      'cashInHand': totalCashInHand,
-      'expectedAmount': expectedAmount,
-      'movementsCount': todayMovements.length,
-      'openingTime': currentCashRegister?.formattedOpeningTime ?? 'N/A',
-    };
-  }
-
-  // Formatear moneda
-  String formatCurrency(double amount) {
-    return '\$${amount.toStringAsFixed(2)}';
-  }
-
+  
   // Refrescar datos
-  @override
   Future<void> refresh() async {
-    await loadTodayData(showErrorSnackbar: true); // Mostrar errores en refresh manual
+    await checkCurrentCashRegisterStatus();
+  }
+
+  // Refrescar datos para la tienda específica
+  Future<void> refreshForStore() async {
+    print('🔄 CashController: Refrescando datos para nueva tienda');
+    await checkCurrentCashRegisterStatus();
+  }
+
+  // Verificar estado de la caja actual de la tienda
+  Future<void> checkCurrentCashRegisterStatus() async {
+    try {
+      print('🔍 Verificando estado de caja...');
+      final result = await _cashProvider.getCurrentCashRegisterStatus();
+      print('📊 Resultado del estado: $result');
+      
+      if (result['success'] && result['data'] != null) {
+        _currentRegister.value = result['data'];
+        print('✅ Caja cargada: ${_currentRegister.value}');
+        print('📊 ¿Caja abierta después de cargar?: $isCashRegisterOpen');
+        await loadCashMovements(); // Cargar movimientos si hay caja activa
+      } else {
+        print('❌ No hay caja abierta o error: ${result['message']}');
+        _currentRegister.value = null;
+      }
+    } catch (e) {
+      print('💥 Error verificando estado de caja: $e');
+      _currentRegister.value = null;
+    }
+  }
+  
+  // Cargar movimientos por fecha
+  Future<void> loadMovementsByDate(DateTime date) async {
+    final startDate = DateTime(date.year, date.month, date.day);
+    final endDate = startDate.add(const Duration(days: 1));
+    
+    // Cargar movimientos independientemente del estado de la caja para reportes
+    await loadCashMovements(
+      startDate: startDate.toIso8601String(),
+      endDate: endDate.toIso8601String(),
+    );
+  }
+  
+  // Agregar ingreso de efectivo
+  Future<bool> addCashIncome(double amount, String description) async {
+    if (_currentRegister.value == null) {
+      Get.snackbar('Error', 'No hay caja abierta', snackPosition: SnackPosition.TOP);
+      return false;
+    }
+    
+    return await addCashMovement(
+      cashRegisterId: _currentRegister.value!['_id'] ?? _currentRegister.value!['id'],
+      type: 'income',
+      amount: amount,
+      description: description,
+    );
+  }
+  
+  // Agregar egreso de efectivo
+  Future<bool> addCashOutcome(double amount, String description) async {
+    if (_currentRegister.value == null) {
+      Get.snackbar('Error', 'No hay caja abierta', snackPosition: SnackPosition.TOP);
+      return false;
+    }
+    
+    return await addCashMovement(
+      cashRegisterId: _currentRegister.value!['_id'] ?? _currentRegister.value!['id'],
+      type: 'expense',
+      amount: amount,
+      description: description,
+    );
+  }
+  
+  // Abrir caja de la tienda actual
+  Future<bool> openCashRegisterSimple(double openingBalance) async {
+    _isLoading.value = true;
+    
+    try {
+      print('🔓 Intentando abrir caja con monto: \$${openingBalance.toStringAsFixed(2)}');
+      
+      // Para una tienda, no necesitamos cashRegisterId - el backend lo maneja automáticamente por storeId
+      final result = await _cashProvider.openCashRegister(
+        cashRegisterId: 'store-cash-register', // Un valor dummy ya que se usa storeId internamente
+        openingBalance: openingBalance,
+      );
+
+      if (result['success']) {
+        print('✅ Caja abierta exitosamente');
+        
+        // El backend devuelve { data: { cashRegister: {...} } }
+        final cashRegisterData = result['data']['cashRegister'] ?? result['data'];
+        _currentRegister.value = cashRegisterData;
+        
+        print('📊 Estado de caja actualizado: ${_currentRegister.value}');
+        print('📊 ¿Caja abierta?: $isCashRegisterOpen');
+        
+        Get.snackbar('Éxito', 'Caja abierta correctamente', snackPosition: SnackPosition.TOP);
+        
+        // Recargar movimientos después de abrir
+        await loadCashMovements();
+        return true;
+      } else if (result['isAlreadyOpen'] == true) {
+        print('⚠️ Ya hay una caja abierta - mostrando información');
+        _showCashAlreadyOpenDialog();
+        return false;
+      } else {
+        print('❌ Error abriendo caja: ${result['message']}');
+        Get.snackbar('Error', result['message'] ?? 'Error abriendo caja', snackPosition: SnackPosition.TOP);
+        return false;
+      }
+    } catch (e) {
+      print('💥 Excepción al abrir caja: $e');
+      Get.snackbar('Error', 'Error de conexión: $e', snackPosition: SnackPosition.TOP);
+      return false;
+    } finally {
+      _isLoading.value = false;
+    }
+  }
+  
+  Future<bool> closeCashRegisterSimple(double closingBalance) async {
+    if (_currentRegister.value == null) {
+      Get.snackbar('Error', 'No hay caja abierta', snackPosition: SnackPosition.TOP);
+      return false;
+    }
+    
+    final cashRegisterId = _currentRegister.value!['_id'] ?? _currentRegister.value!['id'];
+    
+    return await closeCashRegister(
+      cashRegisterId: cashRegisterId,
+      closingBalance: closingBalance,
+    );
+  }
+
+  // Mostrar diálogo cuando ya hay una caja abierta
+  void _showCashAlreadyOpenDialog() {
+    Get.dialog(
+      AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.info_outline, color: Colors.orange),
+            const SizedBox(width: 8),
+            const Text('Caja Ya Abierta'),
+          ],
+        ),
+        content: const Text(
+          'Ya tienes una caja abierta en esta tienda.\n\n'
+          '¿Qué deseas hacer?'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Get.back(); // Cerrar diálogo
+              // Cargar información de la caja actual
+              _loadCurrentCashRegisterInfo();
+            },
+            child: const Text('Ver Caja Actual'),
+          ),
+          TextButton(
+            onPressed: () {
+              Get.back(); // Cerrar diálogo
+              _showCloseCashDialog();
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Cerrar Caja'),
+          ),
+          TextButton(
+            onPressed: () {
+              Get.back(); // Solo cerrar diálogo
+            },
+            child: const Text('Cancelar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Cargar información de la caja actual
+  Future<void> _loadCurrentCashRegisterInfo() async {
+    try {
+      final result = await _cashProvider.getCurrentCashRegisterStatus();
+      if (result['success']) {
+        _currentRegister.value = result['data'];
+        print('📊 Información de caja cargada: ${_currentRegister.value}');
+        print('📊 ¿Caja abierta?: $isCashRegisterOpen');
+        Get.snackbar(
+          'Información',
+          'Caja cargada correctamente',
+          snackPosition: SnackPosition.TOP,
+        );
+      } else {
+        Get.snackbar(
+          'Error',
+          'No se pudo cargar la información de la caja',
+          snackPosition: SnackPosition.TOP,
+        );
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Error cargando información de caja: $e',
+        snackPosition: SnackPosition.TOP,
+      );
+    }
+  }
+
+  // Mostrar diálogo para cerrar caja
+  void _showCloseCashDialog() {
+    final TextEditingController balanceController = TextEditingController();
+    
+    Get.dialog(
+      AlertDialog(
+        title: const Text('Cerrar Caja'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Ingresa el monto de cierre:'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: balanceController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Monto de cierre',
+                prefixText: '\$ ',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final balance = double.tryParse(balanceController.text);
+              if (balance != null) {
+                Get.back();
+                await closeCashRegisterSimple(balance);
+              } else {
+                Get.snackbar(
+                  'Error',
+                  'Ingresa un monto válido',
+                  snackPosition: SnackPosition.TOP,
+                );
+              }
+            },
+            child: const Text('Cerrar Caja'),
+          ),
+        ],
+      ),
+    );
   }
 }

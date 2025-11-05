@@ -1,12 +1,9 @@
+import 'package:bellezapp/controllers/order_controller.dart';
 import 'package:bellezapp/utils/utils.dart';
-import 'package:bellezapp/mixins/store_aware_mixin.dart';
+import 'package:bellezapp/widgets/store_aware_app_bar.dart';
 import 'package:flutter/material.dart';
-import 'package:bellezapp/database/database_helper.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:open_filex/open_filex.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
+import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 
 class SalesHistoryPage extends StatefulWidget {
   const SalesHistoryPage({super.key});
@@ -15,1095 +12,375 @@ class SalesHistoryPage extends StatefulWidget {
   SalesHistoryPageState createState() => SalesHistoryPageState();
 }
 
-class SalesHistoryPageState extends State<SalesHistoryPage> with StoreAwareMixin {
-  final dbHelper = DatabaseHelper();
-  List<Map<String, dynamic>> _salesData = [];
+class SalesHistoryPageState extends State<SalesHistoryPage> {
+  late final OrderController orderController;
+  DateTime? _startDate;
+  DateTime? _endDate;
+  String? _selectedPaymentMethod;
+
+  final List<String> _paymentMethods = [
+    'Todos',
+    'efectivo',
+    'tarjeta',
+    'transferencia',
+    'otro',
+  ];
 
   @override
   void initState() {
     super.initState();
-    _loadSalesData();
+    // Usar la misma instancia del controlador que ya existe
+    try {
+      orderController = Get.find<OrderController>();
+    } catch (e) {
+      orderController = Get.put(OrderController());
+    }
+    // Cargar últimos 30 días por defecto
+    _endDate = DateTime.now();
+    _startDate = _endDate!.subtract(const Duration(days: 30));
+    _loadOrders();
   }
 
-  @override
-  void reloadData() {
-    print('🔄 Recargando historial de ventas por cambio de tienda');
-    _loadSalesData();
+  Future<void> _loadOrders() async {
+    await orderController.loadOrders();
   }
 
-  Future<void> _loadSalesData() async {
-    final salesData = await dbHelper.getSalesDataForLastYear();
-    setState(() {
-      _salesData = salesData;
-    });
+  Future<void> _selectDateRange() async {
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      initialDateRange: DateTimeRange(
+        start: _startDate ?? DateTime.now().subtract(const Duration(days: 30)),
+        end: _endDate ?? DateTime.now(),
+      ),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: Utils.colorBotones,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _startDate = picked.start;
+        _endDate = picked.end;
+      });
+    }
   }
 
-  Future<void> _generateAndShowPdf() async {
-    final pdf = pw.Document();
+  List<Map<String, dynamic>> _getFilteredOrders() {
+    List<Map<String, dynamic>> filtered = orderController.orders;
 
-    for (var monthData in _salesData) {
-      final month = monthData['month'];
-      final year = monthData['year'];
-      final totalProfit = monthData['totalProfit'];
-      final totalCost = monthData['totalCost'];
-      final products = monthData['products'];
-
-      pdf.addPage(
-        pw.Page(
-          pageFormat: PdfPageFormat.a4,
-          build: (pw.Context context) {
-            return pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(
-                  'Mes: $month/$year',
-                  style: pw.TextStyle(
-                    fontWeight: pw.FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                pw.Text(
-                    'Total de Utilidad: \$${totalProfit.toStringAsFixed(2)}'),
-                pw.Text('Costo Total: \$${totalCost.toStringAsFixed(2)}'),
-                pw.SizedBox(height: 10),
-                pw.Text(
-                  'Productos Vendidos:',
-                  style: pw.TextStyle(
-                    fontWeight: pw.FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                pw.Table.fromTextArray(
-                  context: context,
-                  data: <List<String>>[
-                    <String>[
-                      'Producto',
-                      'Precio de Compra',
-                      'Precio de Venta',
-                      'Cantidad Vendida',
-                      'Utilidad'
-                    ],
-                    ...products
-                        .map((product) => [
-                              product['name'].toString(),
-                              '\$${product['purchase_price'].toString()}',
-                              '\$${product['sale_price'].toString()}',
-                              product['quantity'].toString(),
-                              '\$${product['profit'].toString()}',
-                            ])
-                        .toList()
-                  ],
-                ),
-              ],
-            );
-          },
-        ),
-      );
+    // Filtrar por fecha
+    if (_startDate != null && _endDate != null) {
+      filtered = filtered.where((order) {
+        final orderDate = DateTime.parse(order['orderDate']);
+        return orderDate.isAfter(_startDate!.subtract(const Duration(days: 1))) &&
+            orderDate.isBefore(_endDate!.add(const Duration(days: 1)));
+      }).toList();
     }
 
-    final directory = await getTemporaryDirectory();
-    final filePath = '${directory.path}/sales_history.pdf';
-    final file = File(filePath);
-    await file.writeAsBytes(await pdf.save());
+    // Filtrar por método de pago
+    if (_selectedPaymentMethod != null && _selectedPaymentMethod != 'Todos') {
+      filtered = filtered.where((order) {
+        return order['paymentMethod'] == _selectedPaymentMethod;
+      }).toList();
+    }
 
-    await OpenFilex.open(filePath);
-  }
-
-  // Empty State profesional
-  Widget _buildEmptyState() {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Utils.colorFondo,
-            Utils.colorFondo.withOpacity(0.8),
-          ],
-        ),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Utils.colorGnav.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(
-              Icons.trending_up_outlined,
-              size: 64,
-              color: Utils.colorGnav,
-            ),
-          ),
-          SizedBox(height: 24),
-          Text(
-            'Sin Historial de Ventas',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Utils.colorTexto,
-            ),
-          ),
-          SizedBox(height: 12),
-          Text(
-            'Aún no hay datos de ventas registrados.\nComienza a registrar ventas para ver tu historial financiero.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: Utils.colorTexto.withOpacity(0.7),
-              height: 1.5,
-            ),
-          ),
-          SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: _loadSalesData,
-            icon: Icon(Icons.refresh_outlined),
-            label: Text('Actualizar Datos'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Utils.colorBotones,
-              foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Dashboard financiero superior
-  Widget _buildFinancialDashboard() {
-    if (_salesData.isEmpty) return SizedBox.shrink();
-
-    double totalRevenue = _salesData.fold(0.0, (sum, month) {
-      final profit = month['totalProfit'] is double ? month['totalProfit'] : double.tryParse(month['totalProfit'].toString()) ?? 0.0;
-      return sum + profit;
+    // Ordenar por fecha descendente (más recientes primero)
+    filtered.sort((a, b) {
+      final dateA = DateTime.parse(a['orderDate']);
+      final dateB = DateTime.parse(b['orderDate']);
+      return dateB.compareTo(dateA);
     });
-    
-    double totalCosts = _salesData.fold(0.0, (sum, month) {
-      final cost = month['totalCost'] is double ? month['totalCost'] : double.tryParse(month['totalCost'].toString()) ?? 0.0;
-      return sum + cost;
+
+    return filtered;
+  }
+
+  double _getTotalSales(List<Map<String, dynamic>> orders) {
+    return orders.fold(0.0, (sum, order) {
+      final total = double.tryParse(order['totalOrden'].toString()) ?? 0.0;
+      return sum + total;
     });
-    
-    double profitMargin = totalCosts > 0 ? (totalRevenue / totalCosts) * 100 : 0;
-    int totalMonths = _salesData.length;
-
-    return Container(
-      margin: EdgeInsets.all(16),
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white,
-            Colors.white.withOpacity(0.95),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Utils.colorGnav.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.dashboard_outlined,
-                  color: Utils.colorGnav,
-                  size: 24,
-                ),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Dashboard Financiero',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Utils.colorTexto,
-                      ),
-                    ),
-                    Text(
-                      'Resumen del último año',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Utils.colorTexto.withOpacity(0.7),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: _buildKPICard(
-                  'Ingresos Totales',
-                  'Bs. ${totalRevenue.toStringAsFixed(2)}',
-                  Icons.trending_up_outlined,
-                  Colors.green,
-                ),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: _buildKPICard(
-                  'Costos Totales',
-                  'Bs. ${totalCosts.toStringAsFixed(2)}',
-                  Icons.trending_down_outlined,
-                  Colors.red,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _buildKPICard(
-                  'Margen de Ganancia',
-                  '${profitMargin.toStringAsFixed(1)}%',
-                  Icons.percent_outlined,
-                  Colors.blue,
-                ),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: _buildKPICard(
-                  'Períodos',
-                  '$totalMonths meses',
-                  Icons.calendar_month_outlined,
-                  Colors.orange,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 
-  // Card de KPI individual
-  Widget _buildKPICard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          // Icono a la izquierda
-          Container(
-            padding: EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 20,
-            ),
-          ),
-          SizedBox(width: 12),
-          // Texto a la derecha
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Utils.colorTexto,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Utils.colorTexto.withOpacity(0.7),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+  String _formatCurrency(double amount) {
+    final formatter = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
+    return formatter.format(amount);
   }
 
-  // Card moderno de ventas mensuales
-  Widget _buildModernSalesCard(Map<String, dynamic> monthData, int index) {
-    final month = monthData['month'] is int ? monthData['month'] : int.tryParse(monthData['month'].toString()) ?? 1;
-    final year = monthData['year'] is int ? monthData['year'] : int.tryParse(monthData['year'].toString()) ?? DateTime.now().year;
-    final totalProfit = (monthData['totalProfit'] is double) ? monthData['totalProfit'] : double.tryParse(monthData['totalProfit'].toString()) ?? 0.0;
-    final totalCost = (monthData['totalCost'] is double) ? monthData['totalCost'] : double.tryParse(monthData['totalCost'].toString()) ?? 0.0;
-    final products = monthData['products'] ?? [];
-    final margin = totalCost > 0 ? ((totalProfit / totalCost) * 100) : 0;
-
-    return Container(
-      margin: EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header del mes
-          Container(
-            padding: EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Utils.colorGnav.withOpacity(0.1),
-                  Utils.colorBotones.withOpacity(0.05),
-                ],
-              ),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Utils.colorGnav.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.calendar_month_outlined,
-                    color: Utils.colorGnav,
-                    size: 24,
-                  ),
-                ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _getMonthName(month) + ' $year',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Utils.colorTexto,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        '${products.length} productos vendidos',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Utils.colorTexto.withOpacity(0.7),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: margin > 50 ? Colors.green.withOpacity(0.2) : Colors.orange.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${margin.toStringAsFixed(1)}%',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: margin > 50 ? Colors.green : Colors.orange,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Métricas financieras
-          Padding(
-            padding: EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildFinancialMetric(
-                    'Costo Total',
-                    'Bs. ${totalCost.toStringAsFixed(2)}',
-                    Icons.trending_down_outlined,
-                    Colors.red,
-                  ),
-                ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: _buildFinancialMetric(
-                    'Utilidad Total',
-                    'Bs. ${totalProfit.toStringAsFixed(2)}',
-                    Icons.trending_up_outlined,
-                    Colors.green,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Lista de productos
-          if (products.isNotEmpty) ...[
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.inventory_2_outlined,
-                    color: Utils.colorGnav,
-                    size: 20,
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    'Productos Vendidos',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Utils.colorTexto,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 12),
-            ...products.take(3).map((product) => _buildProductTile(product)).toList(),
-            if (products.length > 3)
-              Container(
-                margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(8),
-                    onTap: () {
-                      _showAllProducts(context, products, _getMonthName(month), year);
-                    },
-                    child: Container(
-                      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: Utils.colorGnav.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: Utils.colorGnav.withOpacity(0.3),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.expand_more_outlined,
-                            color: Utils.colorGnav,
-                            size: 18,
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            '+ ${products.length - 3} productos más',
-                            style: TextStyle(
-                              color: Utils.colorGnav,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-          SizedBox(height: 8),
-        ],
-      ),
-    );
+  String _formatDate(String dateStr) {
+    final date = DateTime.parse(dateStr);
+    return DateFormat('dd/MM/yyyy HH:mm').format(date);
   }
 
-  // Métrica financiera individual
-  Widget _buildFinancialMetric(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            icon,
-            color: color,
-            size: 20,
-          ),
-          SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Utils.colorTexto,
-            ),
-          ),
-          SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              color: Utils.colorTexto.withOpacity(0.7),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Tile de producto individual
-  Widget _buildProductTile(Map<String, dynamic> product) {
-    final profit = product['profit'] is double ? product['profit'] : double.tryParse(product['profit'].toString()) ?? 0.0;
-    final quantity = product['quantity'] is int ? product['quantity'] : int.tryParse(product['quantity'].toString()) ?? 0;
-    
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Utils.colorFondo.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Utils.colorGnav.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              Icons.inventory_outlined,
-              color: Utils.colorGnav,
-              size: 16,
-            ),
-          ),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  product['name'].toString(),
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: Utils.colorTexto,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                SizedBox(height: 2),
-                Text(
-                  'Cantidad: $quantity',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Utils.colorTexto.withOpacity(0.7),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: profit > 0 ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              'Bs. ${profit.toStringAsFixed(2)}',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-                color: profit > 0 ? Colors.green : Colors.red,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Mostrar todos los productos en un modal
-  void _showAllProducts(BuildContext context, List<dynamic> products, String monthName, int year) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.8,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        child: Column(
-          children: [
-            // Header del modal
-            Container(
-              padding: EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Utils.colorGnav.withOpacity(0.1),
-                    Utils.colorBotones.withOpacity(0.05),
-                  ],
-                ),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
-                ),
-              ),
-              child: Column(
-                children: [
-                  // Barra de arrastre
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Utils.colorGnav.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Icons.inventory_2_outlined,
-                          color: Utils.colorGnav,
-                          size: 24,
-                        ),
-                      ),
-                      SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Productos Vendidos',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Utils.colorTexto,
-                              ),
-                            ),
-                            Text(
-                              '$monthName $year • ${products.length} productos',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Utils.colorTexto.withOpacity(0.7),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: Icon(
-                          Icons.close_rounded,
-                          color: Utils.colorTexto,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            
-            // Lista de productos
-            Expanded(
-              child: ListView.builder(
-                padding: EdgeInsets.all(16),
-                itemCount: products.length,
-                itemBuilder: (context, index) {
-                  final product = products[index];
-                  return _buildExpandedProductTile(product, index);
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Tile expandido de producto para el modal
-  Widget _buildExpandedProductTile(Map<String, dynamic> product, int index) {
-    final profit = product['profit'] is double ? product['profit'] : double.tryParse(product['profit'].toString()) ?? 0.0;
-    final quantity = product['quantity'] is int ? product['quantity'] : int.tryParse(product['quantity'].toString()) ?? 0;
-    final purchasePrice = product['purchase_price'] is double ? product['purchase_price'] : double.tryParse(product['purchase_price'].toString()) ?? 0.0;
-    final salePrice = product['sale_price'] is double ? product['sale_price'] : double.tryParse(product['sale_price'].toString()) ?? 0.0;
-    
-    return Container(
-      margin: EdgeInsets.only(bottom: 12),
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Utils.colorGnav.withOpacity(0.1),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              // Número de producto
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: Utils.colorGnav.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Center(
-                  child: Text(
-                    '${index + 1}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Utils.colorGnav,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(width: 12),
-              
-              // Información del producto
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      product['name'].toString(),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Utils.colorTexto,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Cantidad vendida: $quantity',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Utils.colorTexto.withOpacity(0.7),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              // Badge de utilidad
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: profit > 0 ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  'Bs. ${profit.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: profit > 0 ? Colors.green : Colors.red,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          
-          SizedBox(height: 12),
-          
-          // Detalles financieros
-          Row(
-            children: [
-              Expanded(
-                child: _buildPriceDetail(
-                  'Compra',
-                  'Bs. ${purchasePrice.toStringAsFixed(2)}',
-                  Icons.shopping_cart_outlined,
-                  Colors.orange,
-                ),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: _buildPriceDetail(
-                  'Venta',
-                  'Bs. ${salePrice.toStringAsFixed(2)}',
-                  Icons.sell_outlined,
-                  Colors.blue,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Widget para mostrar detalles de precio
-  Widget _buildPriceDetail(String label, String value, IconData icon, Color color) {
-    return Container(
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: color.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            color: color,
-            size: 16,
-          ),
-          SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Utils.colorTexto.withOpacity(0.7),
-                ),
-              ),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Utils.colorTexto,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Helper para nombres de meses
-  String _getMonthName(int month) {
-    const months = [
-      '', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-    ];
-    return month > 0 && month < months.length ? months[month] : 'Mes $month';
+  IconData _getPaymentIcon(String method) {
+    switch (method) {
+      case 'efectivo':
+        return Icons.money;
+      case 'tarjeta':
+        return Icons.credit_card;
+      case 'transferencia':
+        return Icons.account_balance;
+      default:
+        return Icons.payments;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Utils.colorFondo,
-      appBar: AppBar(
-        elevation: 0,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Utils.colorGnav,
-                Utils.colorBotones,
+      appBar: StoreAwareAppBar(
+        title: 'Historial de Ventas',
+        icon: Icons.trending_up_outlined,
+        backgroundColor: Utils.colorBotones,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadOrders,
+            tooltip: 'Actualizar',
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Filtros
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.white,
+            child: Column(
+              children: [
+                // Selector de rango de fechas
+                InkWell(
+                  onTap: _selectDateRange,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.date_range, color: Colors.grey),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _startDate != null && _endDate != null
+                                ? '${DateFormat('dd/MM/yyyy').format(_startDate!)} - ${DateFormat('dd/MM/yyyy').format(_endDate!)}'
+                                : 'Seleccionar rango de fechas',
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Selector de método de pago
+                DropdownButtonFormField<String>(
+                  value: _selectedPaymentMethod ?? 'Todos',
+                  decoration: InputDecoration(
+                    labelText: 'Método de pago',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                  ),
+                  items: _paymentMethods.map((method) {
+                    return DropdownMenuItem(
+                      value: method,
+                      child: Text(method),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedPaymentMethod = value == 'Todos' ? null : value;
+                    });
+                  },
+                ),
               ],
             ),
           ),
-        ),
-        foregroundColor: Colors.white,
-        title: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                Icons.monetization_on_outlined,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
-            SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Historial de Ventas',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    'Análisis Financiero',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          Container(
-            margin: EdgeInsets.only(right: 16),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: _generateAndShowPdf,
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+
+          // Lista de órdenes
+          Expanded(
+            child: Obx(() {
+              if (orderController.isLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final filteredOrders = _getFilteredOrders();
+              final totalSales = _getTotalSales(filteredOrders);
+
+              if (filteredOrders.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.picture_as_pdf_outlined,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                      SizedBox(width: 6),
+                      Icon(Icons.receipt_long_outlined,
+                          size: 80, color: Colors.grey[400]),
+                      const SizedBox(height: 16),
                       Text(
-                        'PDF',
+                        'No hay ventas en este período',
                         style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 18,
+                          color: Colors.grey[600],
                         ),
                       ),
                     ],
                   ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: _salesData.isEmpty
-          ? _buildEmptyState()
-          : Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Utils.colorFondo,
-                    Utils.colorFondo.withOpacity(0.8),
-                  ],
-                ),
-              ),
-              child: Column(
+                );
+              }
+
+              return Column(
                 children: [
-                  // Dashboard financiero superior
-                  _buildFinancialDashboard(),
-                  
-                  // Lista de ventas mensuales
+                  // Resumen de ventas
+                  Container(
+                    margin: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Utils.colorBotones,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.2),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Total Ventas',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _formatCurrency(totalSales),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            children: [
+                              const Text(
+                                'Órdenes',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                '${filteredOrders.length}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Lista de órdenes
                   Expanded(
                     child: ListView.builder(
-                      padding: EdgeInsets.all(16),
-                      itemCount: _salesData.length,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: filteredOrders.length,
                       itemBuilder: (context, index) {
-                        final monthData = _salesData[index];
-                        return _buildModernSalesCard(monthData, index);
+                        final order = filteredOrders[index];
+                        return _buildOrderCard(order);
                       },
                     ),
                   ),
                 ],
-              ),
-            ),
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrderCard(Map<String, dynamic> order) {
+    final total = double.tryParse(order['totalOrden'].toString()) ?? 0.0;
+    final date = _formatDate(order['orderDate']);
+    final paymentMethod = order['paymentMethod'] ?? 'otro';
+    final items = List<Map<String, dynamic>>.from(order['items'] ?? []);
+    final itemCount = items.length;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
+        leading: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Utils.colorBotones.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            _getPaymentIcon(paymentMethod),
+            color: Utils.colorBotones,
+            size: 28,
+          ),
+        ),
+        title: Text(
+          _formatCurrency(total),
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Text(date),
+            Text('$paymentMethod • $itemCount item${itemCount != 1 ? 's' : ''}'),
+          ],
+        ),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+      ),
     );
   }
 }

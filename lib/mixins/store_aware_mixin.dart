@@ -20,7 +20,7 @@ mixin StoreAwareMixin<T extends StatefulWidget> on State<T> {
       final storeController = Get.find<StoreController>();
       
       // Escuchar cambios en la tienda actual
-      _storeWorker = ever(storeController.currentStore, (_) {
+      _storeWorker = ever(storeController.currentStoreRx, (_) {
         if (mounted) {
           print('🔄 ${T.toString()} detectó cambio de tienda, recargando datos...');
           reloadData();

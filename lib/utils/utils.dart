@@ -357,5 +357,126 @@ class Utils {
     );
   }
 
+  // Diálogo profesional para seleccionar fuente de imagen (Cámara o Galería)
+  static Future<void> showImageSourceDialog(
+    BuildContext context, {
+    required Function(dynamic) onImageSelected,
+  }) async {
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Container(
+              margin: EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            SizedBox(height: 20),
+            
+            // Título
+            Text(
+              'Seleccionar imagen',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+            SizedBox(height: 24),
+            
+            // Opciones
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildImageSourceOption(
+                      context: context,
+                      icon: Icons.camera_alt_rounded,
+                      label: 'Cámara',
+                      color: Colors.blue,
+                      onTap: () async {
+                        Navigator.pop(context);
+                        await onImageSelected('camera');
+                      },
+                    ),
+                  ),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: _buildImageSourceOption(
+                      context: context,
+                      icon: Icons.photo_library_rounded,
+                      label: 'Galería',
+                      color: Colors.purple,
+                      onTap: () async {
+                        Navigator.pop(context);
+                        await onImageSelected('gallery');
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static Widget _buildImageSourceOption({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.3), width: 2),
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: Colors.white, size: 32),
+            ),
+            SizedBox(height: 12),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   
 }

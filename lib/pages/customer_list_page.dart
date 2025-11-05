@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/customer_controller.dart';
 import '../controllers/theme_controller.dart';
-import '../models/customer.dart';
+import '../widgets/store_aware_app_bar.dart';
 import 'add_customer_page.dart';
 
 class CustomerListPage extends StatelessWidget {
@@ -15,8 +15,9 @@ class CustomerListPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Clientes'),
+      appBar: StoreAwareAppBar(
+        title: 'Clientes',
+        icon: Icons.people_outline,
         actions: [
           // Botón de ordenar
           PopupMenuButton<String>(
@@ -65,7 +66,7 @@ class CustomerListPage extends StatelessWidget {
               ),
             ],
           ),
-          Obx(() => controller.isLoading.value
+          Obx(() => controller.isLoading
               ? Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: SizedBox(
@@ -90,7 +91,7 @@ class CustomerListPage extends StatelessWidget {
           
           // Lista de customers
           Expanded(
-            child: Obx(() => controller.isLoading.value
+            child: Obx(() => controller.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : controller.filteredCustomers.isEmpty
                     ? _buildEmptyState()
@@ -126,7 +127,7 @@ class CustomerListPage extends StatelessWidget {
                 hintText: 'Buscar por nombre, teléfono o email...',
                 hintStyle: TextStyle(fontSize: 12),
                 prefixIcon: Icon(Icons.search, size: 20),
-                suffixIcon: Obx(() => controller.searchQuery.value.isNotEmpty
+                suffixIcon: Obx(() => controller.searchQuery.isNotEmpty
                     ? IconButton(
                         icon: Icon(Icons.clear, size: 18),
                         onPressed: () => controller.clearSearch(),
@@ -153,14 +154,14 @@ class CustomerListPage extends StatelessWidget {
                 children: [
                   _buildStatCard(
                     'Total',
-                    controller.totalCustomers.value.toString(),
+                    controller.totalCustomers.toString(),
                     Icons.people,
                     Colors.blue,
                   ),
                   const SizedBox(width: 12),
                   _buildStatCard(
                     'Activos',
-                    controller.activeCustomers.value.toString(),
+                    controller.activeCustomers.toString(),
                     Icons.person_outline,
                     Colors.green,
                   ),
@@ -171,7 +172,7 @@ class CustomerListPage extends StatelessWidget {
                 children: [
                   _buildStatCard(
                     'Ingresos',
-                    '\$${controller.totalRevenue.value.toStringAsFixed(0)}',
+                    '\$${controller.totalRevenue.toStringAsFixed(0)}',
                     Icons.attach_money,
                     Colors.purple,
                   ),
@@ -226,7 +227,7 @@ class CustomerListPage extends StatelessWidget {
   }
 
   int _getTotalLoyaltyPoints() {
-    return controller.customers.fold(0, (sum, customer) => sum + customer.loyaltyPoints);
+    return controller.customers.fold(0.0, (sum, customer) => sum + ((customer['loyaltyPoints'] ?? 0.0).toDouble())).toInt();
   }
 
   void _handleSortOption(String sortBy) {
@@ -239,7 +240,7 @@ class CustomerListPage extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            controller.searchQuery.value.isNotEmpty 
+            controller.searchQuery.isNotEmpty 
                 ? Icons.search_off 
                 : Icons.people_outline,
             size: 80,
@@ -247,7 +248,7 @@ class CustomerListPage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            controller.searchQuery.value.isNotEmpty
+            controller.searchQuery.isNotEmpty
                 ? 'No se encontraron clientes'
                 : 'No hay clientes registrados',
             style: TextStyle(
@@ -257,7 +258,7 @@ class CustomerListPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            controller.searchQuery.value.isNotEmpty
+            controller.searchQuery.isNotEmpty
                 ? 'Intenta con otro término de búsqueda'
                 : 'Usa el botón + para agregar tu primer cliente',
             style: TextStyle(
@@ -281,7 +282,15 @@ class CustomerListPage extends StatelessWidget {
     ));
   }
 
-  Widget _buildCustomerCard(Customer customer) {
+  Widget _buildCustomerCard(Map<String, dynamic> customer) {
+    final name = customer['name']?.toString() ?? 'Sin nombre';
+    final phone = customer['phone']?.toString() ?? 'Sin teléfono';
+    final email = customer['email']?.toString();
+    final totalSpent = (customer['totalSpent'] ?? 0.0).toDouble();
+    final totalOrders = (customer['totalOrders'] ?? 0);
+    final loyaltyPoints = (customer['loyaltyPoints'] ?? 0.0).toDouble();
+    final lastPurchase = customer['lastPurchase']?.toString();
+    
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
@@ -301,8 +310,8 @@ class CustomerListPage extends StatelessWidget {
                     radius: 24,
                     backgroundColor: Theme.of(Get.context!).colorScheme.primaryContainer,
                     child: Text(
-                      customer.name.isNotEmpty 
-                          ? customer.name[0].toUpperCase()
+                      name.isNotEmpty 
+                          ? name[0].toUpperCase()
                           : '?',
                       style: TextStyle(
                         color: Theme.of(Get.context!).colorScheme.onPrimaryContainer,
@@ -320,7 +329,7 @@ class CustomerListPage extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          customer.displayName,
+                          name,
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
@@ -332,7 +341,7 @@ class CustomerListPage extends StatelessWidget {
                             Icon(Icons.phone, size: 14, color: Theme.of(Get.context!).colorScheme.onSurfaceVariant),
                             const SizedBox(width: 4),
                             Text(
-                              customer.formattedPhone,
+                              phone,
                               style: TextStyle(
                                 color: Theme.of(Get.context!).colorScheme.onSurfaceVariant,
                                 fontSize: 14,
@@ -340,7 +349,7 @@ class CustomerListPage extends StatelessWidget {
                             ),
                           ],
                         ),
-                        if (customer.email != null) ...[
+                        if (email != null) ...[
                           const SizedBox(height: 2),
                           Row(
                             children: [
@@ -348,7 +357,7 @@ class CustomerListPage extends StatelessWidget {
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
-                                  customer.email!,
+                                  email,
                                   style: TextStyle(
                                     color: Theme.of(Get.context!).colorScheme.onSurfaceVariant,
                                     fontSize: 14,
@@ -407,7 +416,7 @@ class CustomerListPage extends StatelessWidget {
                       child: Column(
                         children: [
                           Text(
-                            customer.totalSpentFormatted,
+                            '\$${totalSpent.toStringAsFixed(0)}',
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
@@ -428,7 +437,7 @@ class CustomerListPage extends StatelessWidget {
                       child: Column(
                         children: [
                           Text(
-                            customer.totalOrders.toString(),
+                            totalOrders.toString(),
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
@@ -449,7 +458,7 @@ class CustomerListPage extends StatelessWidget {
                       child: Column(
                         children: [
                           Text(
-                            customer.loyaltyPoints.toString(),
+                            loyaltyPoints.toStringAsFixed(0),
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
@@ -470,7 +479,7 @@ class CustomerListPage extends StatelessWidget {
                       child: Column(
                         children: [
                           Text(
-                            customer.lastPurchaseFormatted,
+                            _formatLastPurchase(lastPurchase),
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 10,
@@ -502,7 +511,7 @@ class CustomerListPage extends StatelessWidget {
     Get.to(() => AddCustomerPage());
   }
 
-  void _showCustomerDetails(Customer customer) {
+  void _showCustomerDetails(Map<String, dynamic> customer) {
     Get.bottomSheet(
       Container(
         padding: const EdgeInsets.all(24),
@@ -520,8 +529,8 @@ class CustomerListPage extends StatelessWidget {
                   radius: 30,
                   backgroundColor: Theme.of(Get.context!).colorScheme.primaryContainer,
                   child: Text(
-                    customer.name.isNotEmpty 
-                        ? customer.name[0].toUpperCase()
+                    (customer['name']?.toString() ?? '').isNotEmpty 
+                        ? customer['name'][0].toUpperCase()
                         : '?',
                     style: TextStyle(
                       color: Theme.of(Get.context!).colorScheme.onPrimaryContainer,
@@ -536,14 +545,16 @@ class CustomerListPage extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        customer.displayName,
+                        customer['name']?.toString() ?? 'Sin nombre',
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
-                        customer.customerSince,
+                        customer['createdAt'] != null 
+                            ? 'Cliente desde ${DateTime.parse(customer['createdAt']).year}'
+                            : 'Sin fecha',
                         style: TextStyle(
                           color: Theme.of(Get.context!).colorScheme.onSurfaceVariant,
                           fontSize: 14,
@@ -557,13 +568,13 @@ class CustomerListPage extends StatelessWidget {
             
             const SizedBox(height: 24),
             
-            _buildDetailRow('Teléfono', customer.formattedPhone, Icons.phone),
-            if (customer.email != null)
-              _buildDetailRow('Email', customer.email!, Icons.email),
-            if (customer.address != null)
-              _buildDetailRow('Dirección', customer.address!, Icons.location_on),
-            if (customer.notes != null)
-              _buildDetailRow('Notas', customer.notes!, Icons.note),
+            _buildDetailRow('Teléfono', customer['phone']?.toString() ?? 'Sin teléfono', Icons.phone),
+            if (customer['email'] != null)
+              _buildDetailRow('Email', customer['email']!.toString(), Icons.email),
+            if (customer['address'] != null)
+              _buildDetailRow('Dirección', customer['address']!.toString(), Icons.location_on),
+            if (customer['notes'] != null)
+              _buildDetailRow('Notas', customer['notes']!.toString(), Icons.note),
             
             const SizedBox(height: 24),
             
@@ -640,7 +651,7 @@ class CustomerListPage extends StatelessWidget {
     );
   }
 
-  void _handleMenuAction(String action, Customer customer) {
+  void _handleMenuAction(String action, Map<String, dynamic> customer) {
     switch (action) {
       case 'edit':
         _showEditCustomerDialog(customer);
@@ -651,15 +662,15 @@ class CustomerListPage extends StatelessWidget {
     }
   }
 
-  void _showEditCustomerDialog(Customer customer) {
+  void _showEditCustomerDialog(Map<String, dynamic> customer) {
     Get.to(() => AddCustomerPage(customer: customer));
   }
 
-  void _confirmDelete(Customer customer) {
+  void _confirmDelete(Map<String, dynamic> customer) {
     Get.dialog(
       AlertDialog(
         title: const Text('Confirmar eliminación'),
-        content: Text('¿Estás seguro de que quieres eliminar a ${customer.displayName}?'),
+        content: Text('¿Estás seguro de que quieres eliminar a ${customer['name'] ?? 'este cliente'}?'),
         actions: [
           TextButton(
             onPressed: () => Get.back(),
@@ -668,7 +679,7 @@ class CustomerListPage extends StatelessWidget {
           TextButton(
             onPressed: () {
               Get.back();
-              controller.deleteCustomer(customer.id!);
+              controller.deleteCustomer(customer['_id']!);
             },
             style: TextButton.styleFrom(foregroundColor: themeController.deleteColor),
             child: const Text('Eliminar'),
@@ -676,5 +687,31 @@ class CustomerListPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _formatLastPurchase(String? lastPurchase) {
+    if (lastPurchase == null) return 'N/A';
+    
+    try {
+      final date = DateTime.parse(lastPurchase);
+      final now = DateTime.now();
+      final difference = now.difference(date).inDays;
+      
+      if (difference == 0) {
+        return 'Hoy';
+      } else if (difference == 1) {
+        return 'Ayer';
+      } else if (difference < 7) {
+        return 'Hace $difference días';
+      } else if (difference < 30) {
+        final weeks = (difference / 7).floor();
+        return weeks == 1 ? 'Hace 1 semana' : 'Hace $weeks semanas';
+      } else {
+        final months = (difference / 30).floor();
+        return months == 1 ? 'Hace 1 mes' : 'Hace $months meses';
+      }
+    } catch (e) {
+      return 'N/A';
+    }
   }
 }

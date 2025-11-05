@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/store_controller.dart';
-import '../database/database_helper.dart';
+import '../controllers/auth_controller.dart';
 import '../models/store.dart';
 import '../models/user.dart';
 import '../utils/utils.dart';
@@ -14,11 +14,11 @@ class UserStoreAssignmentPage extends StatefulWidget {
 }
 
 class _UserStoreAssignmentPageState extends State<UserStoreAssignmentPage> {
-  final DatabaseHelper _dbHelper = DatabaseHelper();
+  final authController = Get.find<AuthController>();
   final storeController = Get.find<StoreController>();
   
   List<User> users = [];
-  Map<int, List<Store>> userStores = {};
+  Map<String, List<Store>> userStores = {};
   bool isLoading = true;
 
   @override
@@ -31,14 +31,14 @@ class _UserStoreAssignmentPageState extends State<UserStoreAssignmentPage> {
     setState(() => isLoading = true);
     
     try {
-      // Cargar todos los usuarios (excepto el admin actual puede incluirlo también)
-      final usersData = await _dbHelper.getAllUsers();
+      // Cargar todos los usuarios
+      final usersData = await authController.getAllUsers();
       users = usersData.map((u) => User.fromMap(u)).toList();
       
       // Cargar tiendas asignadas para cada usuario
       for (var user in users) {
         if (user.id != null) {
-          final stores = await _dbHelper.getUserAssignedStores(user.id!);
+          final stores = await authController.getUserAssignedStores(user.id!);
           userStores[user.id!] = stores.map((s) => Store.fromMap(s)).toList();
         }
       }
@@ -382,7 +382,7 @@ class _UserStoreAssignmentPageState extends State<UserStoreAssignmentPage> {
   }
 
   void _showAssignDialog(User user, List<Store> currentStores) {
-    final availableStores = storeController.availableStores;
+    final availableStores = storeController.stores.map((s) => Store.fromMap(s)).toList();
     final selectedStores = currentStores.map((s) => s.id!).toSet().obs;
 
     showDialog(
@@ -562,7 +562,7 @@ class _UserStoreAssignmentPageState extends State<UserStoreAssignmentPage> {
     );
   }
 
-  Future<void> _saveAssignments(User user, List<int> selectedStoreIds) async {
+  Future<void> _saveAssignments(User user, List<String> selectedStoreIds) async {
     try {
       final currentStores = userStores[user.id] ?? [];
       final currentStoreIds = currentStores.map((s) => s.id!).toSet();

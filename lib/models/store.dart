@@ -1,5 +1,5 @@
 class Store {
-  final int? id;
+  final String? id;
   final String name;
   final String? address;
   final String? phone;
@@ -20,32 +20,32 @@ class Store {
   // Crear Store desde Map
   factory Store.fromMap(Map<String, dynamic> map) {
     return Store(
-      id: map['id'] as int?,
+      id: map['_id']?.toString() ?? map['id']?.toString(),
       name: map['name'] as String,
       address: map['address'] as String?,
       phone: map['phone'] as String?,
       email: map['email'] as String?,
       status: map['status'] as String? ?? 'active',
-      createdAt: DateTime.parse(map['created_at'] as String),
+      createdAt: DateTime.tryParse(map['createdAt'] ?? map['created_at'] ?? '') ?? DateTime.now(),
     );
   }
 
   // Convertir Store a Map
   Map<String, dynamic> toMap() {
     return {
-      if (id != null) 'id': id,
+      if (id != null) '_id': id,
       'name': name,
       'address': address,
       'phone': phone,
       'email': email,
       'status': status,
-      'created_at': createdAt.toIso8601String(),
+      'createdAt': createdAt.toIso8601String(),
     };
   }
 
   // Método copyWith para crear copias con modificaciones
   Store copyWith({
-    int? id,
+    String? id,
     String? name,
     String? address,
     String? phone,

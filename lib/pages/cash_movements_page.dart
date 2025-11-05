@@ -1,5 +1,4 @@
 import 'package:bellezapp/controllers/cash_controller.dart';
-import 'package:bellezapp/models/cash_movement.dart';
 import 'package:bellezapp/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -18,7 +17,7 @@ class _CashMovementsPageState extends State<CashMovementsPage> {
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
-  String _filterType = 'todos'; // 'todos', 'entrada', 'salida', 'venta'
+  String _filterType = 'todos'; // 'todos', 'income', 'expense', 'sale'
 
   @override
   void initState() {
@@ -117,11 +116,11 @@ class _CashMovementsPageState extends State<CashMovementsPage> {
           Obx(() {
             final movements = _getFilteredMovements();
             final totalIncome = movements
-                .where((m) => m.type == 'entrada' || m.type == 'venta')
-                .fold(0.0, (sum, m) => sum + m.amount);
+                .where((m) => m['type'] == 'income' || m['type'] == 'sale')
+                .fold(0.0, (sum, m) => sum + ((m['amount'] ?? 0.0).toDouble()));
             final totalOutcome = movements
-                .where((m) => m.type == 'salida')
-                .fold(0.0, (sum, m) => sum + m.amount);
+                .where((m) => m['type'] == 'expense')  // Cambiado de 'outcome' a 'expense'
+                .fold(0.0, (sum, m) => sum + ((m['amount'] ?? 0.0).toDouble()));
             final netTotal = totalIncome - totalOutcome;
 
             return Row(
@@ -174,11 +173,11 @@ class _CashMovementsPageState extends State<CashMovementsPage> {
         children: [
           _buildFilterChip('Todos', 'todos'),
           SizedBox(width: 8),
-          _buildFilterChip('Entradas', 'entrada'),
+          _buildFilterChip('Entradas', 'income'),
           SizedBox(width: 8),
-          _buildFilterChip('Salidas', 'salida'),
+          _buildFilterChip('Salidas', 'expense'),
           SizedBox(width: 8),
-          _buildFilterChip('Ventas', 'venta'),
+          _buildFilterChip('Ventas', 'sale'),
         ],
       ),
     );
@@ -257,26 +256,37 @@ class _CashMovementsPageState extends State<CashMovementsPage> {
     });
   }
 
-  Widget _buildMovementCard(CashMovement movement) {
+  Widget _buildMovementCard(Map<String, dynamic> movement) {
     Color typeColor;
     IconData typeIcon;
     String typeText;
 
-    switch (movement.type) {
-      case 'entrada':
+    final movementType = movement['type'] ?? '';
+    switch (movementType) {
+      case 'income':
         typeColor = Colors.green;
         typeIcon = Icons.add_circle;
         typeText = 'Entrada';
         break;
-      case 'salida':
+      case 'expense':  // Cambiado de 'outcome' a 'expense'
         typeColor = Colors.red;
         typeIcon = Icons.remove_circle;
         typeText = 'Salida';
         break;
-      case 'venta':
+      case 'sale':
         typeColor = Colors.blue;
         typeIcon = Icons.shopping_cart;
         typeText = 'Venta';
+        break;
+      case 'opening':
+        typeColor = Colors.orange;
+        typeIcon = Icons.lock_open;
+        typeText = 'Apertura';
+        break;
+      case 'closing':
+        typeColor = Colors.purple;
+        typeIcon = Icons.lock;
+        typeText = 'Cierre';
         break;
       default:
         typeColor = Colors.grey;
@@ -314,7 +324,7 @@ class _CashMovementsPageState extends State<CashMovementsPage> {
           ),
         ),
         title: Text(
-          movement.description,
+          movement['description'] ?? 'Sin descripción',
           style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 16,
@@ -334,7 +344,7 @@ class _CashMovementsPageState extends State<CashMovementsPage> {
             ),
             SizedBox(height: 2),
             Text(
-              DateFormat('HH:mm').format(movement.createdAt),
+              DateFormat('HH:mm').format(DateTime.parse(movement['createdAt'] ?? DateTime.now().toIso8601String())),
               style: TextStyle(
                 color: Colors.grey[600],
                 fontSize: 12,
@@ -343,7 +353,7 @@ class _CashMovementsPageState extends State<CashMovementsPage> {
           ],
         ),
         trailing: Text(
-          '\$${movement.amount.toStringAsFixed(2)}',
+          '\$${((movement['amount'] ?? 0.0).toDouble()).toStringAsFixed(2)}',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -354,12 +364,12 @@ class _CashMovementsPageState extends State<CashMovementsPage> {
     );
   }
 
-  List<CashMovement> _getFilteredMovements() {
+  List<Map<String, dynamic>> _getFilteredMovements() {
     if (_filterType == 'todos') {
       return cashController.todayMovements.toList();
     }
     return cashController.todayMovements
-        .where((movement) => movement.type == _filterType)
+        .where((movement) => movement['type'] == _filterType)
         .toList();
   }
 
@@ -498,9 +508,10 @@ class _CashMovementsPageState extends State<CashMovementsPage> {
     }
 
     try {
+      // Convertir el tipo de la UI (español) al tipo del backend (inglés)
       if (type == 'entrada') {
         await cashController.addCashIncome(amount, _descriptionController.text);
-      } else {
+      } else if (type == 'salida') {
         await cashController.addCashOutcome(amount, _descriptionController.text);
       }
 

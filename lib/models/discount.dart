@@ -19,7 +19,7 @@ enum DiscountType {
 }
 
 class Discount {
-  final int? id;
+  final String? id;  // Changed from int? to String? for MongoDB _id
   final String name;
   final String description;
   final DiscountType type;
@@ -47,37 +47,37 @@ class Discount {
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      if (id != null) '_id': id,
       'name': name,
       'description': description,
       'type': type.value,
       'value': value,
-      'minimum_amount': minimumAmount,
-      'maximum_discount': maximumDiscount,
-      'start_date': startDate?.toIso8601String(),
-      'end_date': endDate?.toIso8601String(),
-      'is_active': isActive ? 1 : 0,
-      'created_at': createdAt.toIso8601String(),
+      if (minimumAmount != null) 'minimumAmount': minimumAmount,
+      if (maximumDiscount != null) 'maximumDiscount': maximumDiscount,
+      if (startDate != null) 'startDate': startDate!.toIso8601String(),
+      if (endDate != null) 'endDate': endDate!.toIso8601String(),
+      'active': isActive,
+      'createdAt': createdAt.toIso8601String(),
     };
   }
 
   factory Discount.fromMap(Map<String, dynamic> map) {
     return Discount(
-      id: map['id'],
+      id: map['_id']?.toString() ?? map['id']?.toString(),
       name: map['name'] ?? '',
       description: map['description'] ?? '',
       type: DiscountType.fromString(map['type'] ?? 'percentage'),
       value: (map['value'] ?? 0.0).toDouble(),
-      minimumAmount: map['minimum_amount']?.toDouble(),
-      maximumDiscount: map['maximum_discount']?.toDouble(),
-      startDate: map['start_date'] != null 
-          ? DateTime.tryParse(map['start_date']) 
+      minimumAmount: map['minimumAmount']?.toDouble() ?? map['minimum_amount']?.toDouble(),
+      maximumDiscount: map['maximumDiscount']?.toDouble() ?? map['maximum_discount']?.toDouble(),
+      startDate: map['startDate'] != null || map['start_date'] != null
+          ? DateTime.tryParse(map['startDate'] ?? map['start_date'] ?? '') 
           : null,
-      endDate: map['end_date'] != null 
-          ? DateTime.tryParse(map['end_date']) 
+      endDate: map['endDate'] != null || map['end_date'] != null
+          ? DateTime.tryParse(map['endDate'] ?? map['end_date'] ?? '') 
           : null,
-      isActive: (map['is_active'] ?? 1) == 1,
-      createdAt: DateTime.tryParse(map['created_at'] ?? '') ?? DateTime.now(),
+      isActive: map['active'] ?? map['is_active'] == 1 || map['is_active'] == true,
+      createdAt: DateTime.tryParse(map['createdAt'] ?? map['created_at'] ?? '') ?? DateTime.now(),
     );
   }
 
@@ -179,7 +179,7 @@ class Discount {
 
   // Crear copia con modificaciones
   Discount copyWith({
-    int? id,
+    String? id,
     String? name,
     String? description,
     DiscountType? type,

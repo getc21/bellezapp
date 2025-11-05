@@ -1,5 +1,5 @@
 class User {
-  final int? id;
+  final String? id;
   final String username;
   final String email;
   final String firstName;
@@ -39,45 +39,45 @@ class User {
   // Conversión a Map para la base de datos
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      if (id != null) '_id': id,
       'username': username,
       'email': email,
-      'first_name': firstName,
-      'last_name': lastName,
-      'password_hash': passwordHash,
+      'firstName': firstName,
+      'lastName': lastName,
+      'passwordHash': passwordHash,
       'role': role.name,
-      'is_active': isActive ? 1 : 0,
-      'created_at': createdAt.toIso8601String(),
-      'last_login_at': lastLoginAt?.toIso8601String(),
-      'profile_image_url': profileImageUrl,
+      'isActive': isActive,
+      'createdAt': createdAt.toIso8601String(),
+      'lastLoginAt': lastLoginAt?.toIso8601String(),
+      'profileImageUrl': profileImageUrl,
       'phone': phone,
-      'permissions': permissions != null ? _mapToJson(permissions!) : null,
+      'permissions': permissions,
     };
   }
 
   // Crear desde Map de la base de datos
   factory User.fromMap(Map<String, dynamic> map) {
     return User(
-      id: map['id'],
+      id: map['_id']?.toString() ?? map['id']?.toString(),
       username: map['username'] ?? '',
       email: map['email'] ?? '',
-      firstName: map['first_name'] ?? '',
-      lastName: map['last_name'] ?? '',
-      passwordHash: map['password_hash'] ?? '',
+      firstName: map['firstName'] ?? map['first_name'] ?? '',
+      lastName: map['lastName'] ?? map['last_name'] ?? '',
+      passwordHash: map['passwordHash'] ?? map['password_hash'] ?? '',
       role: UserRole.values.firstWhere(
         (role) => role.name == map['role'],
         orElse: () => UserRole.employee,
       ),
-      isActive: map['is_active'] == 1,
-      createdAt: DateTime.parse(map['created_at']),
-      lastLoginAt: map['last_login_at'] != null 
-          ? DateTime.parse(map['last_login_at'])
+      isActive: map['isActive'] ?? map['is_active'] == 1 || map['is_active'] == true,
+      createdAt: DateTime.tryParse(map['createdAt'] ?? map['created_at'] ?? '') ?? DateTime.now(),
+      lastLoginAt: (map['lastLoginAt'] ?? map['last_login_at']) != null 
+          ? DateTime.tryParse(map['lastLoginAt'] ?? map['last_login_at'])
           : null,
-      profileImageUrl: map['profile_image_url'],
+      profileImageUrl: map['profileImageUrl'] ?? map['profile_image_url'],
       phone: map['phone'],
-      permissions: map['permissions'] != null 
+      permissions: map['permissions'] is String 
           ? _jsonToMap(map['permissions'])
-          : null,
+          : map['permissions'],
     );
   }
 
@@ -99,7 +99,7 @@ class User {
 
   // Copiar con cambios
   User copyWith({
-    int? id,
+    String? id,
     String? username,
     String? email,
     String? firstName,
@@ -128,13 +128,6 @@ class User {
       phone: phone ?? this.phone,
       permissions: permissions ?? this.permissions,
     );
-  }
-
-  // Métodos auxiliares para JSON (implementación simple)
-  static String _mapToJson(Map<String, dynamic> map) {
-    // Simple implementación, en producción usar dart:convert
-    final entries = map.entries.map((e) => '"${e.key}":${e.value is String ? '"${e.value}"' : e.value}');
-    return '{${entries.join(',')}}';
   }
 
   static Map<String, dynamic> _jsonToMap(String json) {

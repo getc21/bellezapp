@@ -89,9 +89,9 @@ class CashMovement {
   }
 
   // Getters para UI
-  bool get isIncome => type == 'apertura' || type == 'venta' || type == 'entrada';
-  bool get isOutcome => type == 'salida';
-  bool get isSpecial => type == 'apertura' || type == 'cierre';
+  bool get isIncome => type == 'opening' || type == 'apertura' || type == 'sale' || type == 'venta' || type == 'income' || type == 'entrada';
+  bool get isOutcome => type == 'expense' || type == 'salida';
+  bool get isSpecial => type == 'opening' || type == 'apertura' || type == 'closing' || type == 'cierre';
   
   // Parsear la fecha string a DateTime
   DateTime get createdAt {
@@ -115,16 +115,23 @@ class CashMovement {
 
   String get typeDisplayName {
     switch (type) {
+      case 'opening':
       case 'apertura':
         return 'Apertura';
+      case 'closing':
       case 'cierre':
         return 'Cierre';
+      case 'sale':
       case 'venta':
         return 'Venta';
+      case 'income':
       case 'entrada':
         return 'Entrada';
+      case 'expense':
       case 'salida':
         return 'Salida';
+      case 'adjustment':
+        return 'Ajuste';
       default:
         return 'Desconocido';
     }

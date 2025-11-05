@@ -1,6 +1,7 @@
 import 'package:bellezapp/controllers/cash_controller.dart';
 import 'package:bellezapp/models/cash_movement.dart';
 import 'package:bellezapp/utils/utils.dart';
+import 'package:bellezapp/widgets/store_aware_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -46,28 +47,53 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
   }
 
   Future<void> _loadDailyReport() async {
+    print('🔄 Cargando reporte diario para: $_selectedDate');
+    
     await cashController.loadMovementsByDate(_selectedDate);
-    _dailyMovements = List.from(cashController.todayMovements);
+    
+    // Convertir Map<String, dynamic> a CashMovement
+    final rawMovements = cashController.movements;
+    _dailyMovements = rawMovements.map((movement) => CashMovement.fromMap(movement)).toList();
+    
+    print('📊 Movimientos cargados: ${_dailyMovements.length}');
+    print('📊 Movimientos raw: ${rawMovements.length}');
+    
     _calculateStatistics();
     _generateHourlyData();
+    
+    print('💰 Total income: $_totalIncome');
+    print('💰 Total sales: $_totalSales');
+    print('💰 Total outcome: $_totalOutcome');
+    
     setState(() {});
   }
 
   void _calculateStatistics() {
+    print('🧮 Calculando estadísticas para ${_dailyMovements.length} movimientos');
+    
+    // Mostrar todos los movimientos para depuración
+    for (var movement in _dailyMovements) {
+      print('📝 Movimiento: ${movement.type} - \$${movement.amount} - ${movement.description}');
+    }
+    
+    // Los tipos del backend son en inglés: income, expense, sale, opening, closing
     _totalIncome = _dailyMovements
-        .where((m) => m.type == 'entrada')
+        .where((m) => m.type == 'income')
         .fold(0.0, (sum, m) => sum + m.amount);
         
     _totalSales = _dailyMovements
-        .where((m) => m.type == 'venta')
+        .where((m) => m.type == 'sale')
         .fold(0.0, (sum, m) => sum + m.amount);
         
     _totalOutcome = _dailyMovements
-        .where((m) => m.type == 'salida')
+        .where((m) => m.type == 'expense')
         .fold(0.0, (sum, m) => sum + m.amount);
         
     _netTotal = (_totalIncome + _totalSales) - _totalOutcome;
     _movementsCount = _dailyMovements.length;
+    
+    print('📊 Income: $_totalIncome, Sales: $_totalSales, Outcome: $_totalOutcome');
+    print('📊 Net Total: $_netTotal, Count: $_movementsCount');
   }
 
   void _generateHourlyData() {
@@ -81,7 +107,7 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
     // Sumar movimientos por hora
     for (var movement in _dailyMovements) {
       final hour = movement.createdAt.hour;
-      final amount = movement.type == 'salida' ? -movement.amount : movement.amount;
+      final amount = movement.type == 'expense' ? -movement.amount : movement.amount;
       _hourlyData[hour] = (_hourlyData[hour] ?? 0.0) + amount;
     }
   }
@@ -90,11 +116,10 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
+      appBar: StoreAwareAppBar(
+        title: 'Dashboard - Reporte Diario',
+        icon: Icons.analytics_outlined,
         backgroundColor: Utils.colorGnav,
-        foregroundColor: Colors.white,
-        title: Text('Dashboard - Reporte Diario'),
-        centerTitle: true,
         actions: [
           IconButton(
             icon: Icon(Icons.calendar_today),
@@ -419,9 +444,11 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
                     if (value.toInt() < types.length) {
                       final type = types[value.toInt()];
                       switch (type) {
-                        case 'entrada': return Text('Entradas', style: TextStyle(fontSize: 10));
-                        case 'salida': return Text('Salidas', style: TextStyle(fontSize: 10));
-                        case 'venta': return Text('Ventas', style: TextStyle(fontSize: 10));
+                        case 'income': return Text('Ingresos', style: TextStyle(fontSize: 10));
+                        case 'expense': return Text('Egresos', style: TextStyle(fontSize: 10));
+                        case 'sale': return Text('Ventas', style: TextStyle(fontSize: 10));
+                        case 'opening': return Text('Apertura', style: TextStyle(fontSize: 10));
+                        case 'closing': return Text('Cierre', style: TextStyle(fontSize: 10));
                         default: return Text(type, style: TextStyle(fontSize: 10));
                       }
                     }
@@ -437,9 +464,11 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
               final index = typeCount.keys.toList().indexOf(entry.key);
               Color barColor;
               switch (entry.key) {
-                case 'entrada': barColor = Colors.green; break;
-                case 'salida': barColor = Colors.red; break;
-                case 'venta': barColor = Colors.blue; break;
+                case 'income': barColor = Colors.green; break;
+                case 'expense': barColor = Colors.red; break;
+                case 'sale': barColor = Colors.blue; break;
+                case 'opening': barColor = Colors.orange; break;
+                case 'closing': barColor = Colors.purple; break;
                 default: barColor = Colors.grey;
               }
               
@@ -599,10 +628,10 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
               color: Utils.colorGnav,
             ),
           ),
-          SizedBox(height: 16),
+          SizedBox(height: 30),
           chart,
           if (legend != null) ...[
-            SizedBox(height: 16),
+            SizedBox(height: 30),
             Wrap(
               spacing: 16,
               runSpacing: 8,

@@ -1,7 +1,9 @@
 import 'package:bellezapp/controllers/cash_controller.dart';
+import 'package:bellezapp/models/cash_movement.dart';
 import 'package:bellezapp/pages/cash_movements_page.dart';
 import 'package:bellezapp/pages/daily_cash_report_page.dart';
 import 'package:bellezapp/utils/utils.dart';
+import 'package:bellezapp/widgets/store_aware_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -15,7 +17,14 @@ class CashRegisterPage extends StatefulWidget {
 
 class CashRegisterPageState extends State<CashRegisterPage> {
   late CashController cashController;
-  final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _openAmountController = TextEditingController();
+  final TextEditingController _closeAmountController = TextEditingController();
+  final TextEditingController _incomeAmountController = TextEditingController();
+  final TextEditingController _outcomeAmountController = TextEditingController();
+  
+  // Variable para controlar diálogos abiertos
+  bool _isDialogOpen = false;
+  DateTime? _lastDialogOpen;
 
   @override
   void initState() {
@@ -37,19 +46,71 @@ class CashRegisterPageState extends State<CashRegisterPage> {
 
   @override
   void dispose() {
-    _amountController.dispose();
+    _openAmountController.dispose();
+    _closeAmountController.dispose();
+    _incomeAmountController.dispose();
+    _outcomeAmountController.dispose();
     super.dispose();
+  }
+
+  // Método helper para verificar si se puede abrir un diálogo
+  bool _canOpenDialog() {
+    final now = DateTime.now();
+    return !_isDialogOpen && 
+           (_lastDialogOpen == null || now.difference(_lastDialogOpen!).inMilliseconds >= 500);
+  }
+
+  // Método helper para marcar diálogo como abierto
+  void _markDialogOpen() {
+    _isDialogOpen = true;
+    _lastDialogOpen = DateTime.now();
+  }
+
+  // Método helper para marcar diálogo como cerrado
+  void _markDialogClosed() {
+    _isDialogOpen = false;
+  }
+
+  // Método helper para obtener dinero disponible de forma segura
+  double _getSafeAvailableCash() {
+    try {
+      if (!mounted || !cashController.isCashRegisterOpen) return 0.0;
+      return cashController.totalCashInHand;
+    } catch (e) {
+      print('Error al obtener dinero disponible: $e');
+      return 0.0;
+    }
+  }
+
+  // Método helper para formatear moneda de forma segura
+  String _safeFormatCurrency(double amount) {
+    try {
+      if (!mounted) return '\$${amount.toStringAsFixed(2)}';
+      return cashController.formatCurrency(amount);
+    } catch (e) {
+      print('Error al formatear moneda: $e');
+      return '\$${amount.toStringAsFixed(2)}';
+    }
+  }
+
+  // Método helper para obtener monto esperado de forma segura
+  double _getSafeExpectedAmount() {
+    try {
+      if (!mounted || !cashController.isCashRegisterOpen) return 0.0;
+      return cashController.expectedAmount;
+    } catch (e) {
+      print('Error al obtener monto esperado: $e');
+      return 0.0;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Utils.colorGnav,
-        foregroundColor: Colors.white,
-        title: Text('Sistema de Caja'),
-        centerTitle: true,
+      appBar: StoreAwareAppBar(
+        title: 'Sistema de Caja',
+        icon: Icons.account_balance_wallet_outlined,
         actions: [
           IconButton(
             icon: Icon(Icons.refresh),
@@ -185,7 +246,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
                         ),
                       ),
                       Text(
-                        cashController.currentCashRegister?.formattedOpeningTime ?? 'N/A',
+                        _formatOpeningTime(cashController.currentCashRegister) ?? 'N/A',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -205,7 +266,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
                         ),
                       ),
                       Text(
-                        cashController.currentCashRegister?.formattedOpeningAmount ?? '\$0.00',
+                        _formatOpeningAmount(cashController.currentCashRegister) ?? '\$0.00',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -393,85 +454,92 @@ class CashRegisterPageState extends State<CashRegisterPage> {
             ),
             SizedBox(height: 16),
             
-            // Botones de acción
-            if (cashController.canOpenCashRegister) 
-              _buildActionButton(
-                'Abrir Caja',
-                'Iniciar jornada con monto inicial',
-                Icons.lock_open,
-                Colors.green,
-                () => _showOpenCashDialog(),
-              )
-            else if (cashController.canCloseCashRegister) ...[
-              _buildActionButton(
-                'Cerrar Caja',
-                'Realizar arqueo y cerrar jornada',
-                Icons.lock,
-                Colors.orange,
-                () => _showCloseCashDialog(),
-              ),
-              SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildSecondaryActionButton(
-                      'Entrada',
-                      Icons.add_circle,
-                      Colors.teal,
-                      () => _showAddIncomeDialog(),
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: _buildSecondaryActionButton(
-                      'Salida',
-                      Icons.remove_circle,
-                      Colors.red,
-                      () => _showAddOutcomeDialog(),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 12),
-              _buildActionButton(
-                'Ver Movimientos',
-                'Gestionar entradas y salidas',
-                Icons.receipt_long,
-                Utils.colorBotones,
-                () {
-                  Get.to(() => CashMovementsPage());
-                },
-              ),
-            ] else
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
+            // Botones de acción - Reactivos a cambios del controlador
+            Obx(() {
+              if (cashController.canOpenCashRegister) {
+                return _buildActionButton(
+                  'Abrir Caja',
+                  'Iniciar jornada con monto inicial',
+                  Icons.lock_open,
+                  Colors.green,
+                  () => _showOpenCashDialog(),
+                );
+              } else if (cashController.canCloseCashRegister) {
+                return Column(
                   children: [
-                    Icon(Icons.info_outline, color: Colors.grey, size: 32),
-                    SizedBox(height: 8),
-                    Text(
-                      'Caja cerrada para hoy',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey,
-                      ),
+                    _buildActionButton(
+                      'Cerrar Caja',
+                      'Realizar arqueo y cerrar jornada',
+                      Icons.lock,
+                      Colors.orange,
+                      () => _showCloseCashDialog(),
                     ),
-                    Text(
-                      'La jornada ya fue completada',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                      ),
+                    SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildSecondaryActionButton(
+                            'Entrada',
+                            Icons.add_circle,
+                            Colors.teal,
+                            () => _showAddIncomeDialog(),
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: _buildSecondaryActionButton(
+                            'Salida',
+                            Icons.remove_circle,
+                            Colors.red,
+                            () => _showAddOutcomeDialog(),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 12),
+                    _buildActionButton(
+                      'Ver Movimientos',
+                      'Gestionar entradas y salidas',
+                      Icons.receipt_long,
+                      Utils.colorBotones,
+                      () {
+                        Get.to(() => CashMovementsPage());
+                      },
                     ),
                   ],
-                ),
-              ),
+                );
+              } else {
+                return Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.grey, size: 32),
+                      SizedBox(height: 8),
+                      Text(
+                        'Caja cerrada para hoy',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      Text(
+                        'La jornada ya fue completada',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+            }),
           ],
         ),
       ),
@@ -638,37 +706,57 @@ class CashRegisterPageState extends State<CashRegisterPage> {
   }
 
   // Item de movimiento
-  Widget _buildMovementItem(movement) {
+  Widget _buildMovementItem(dynamic movement) {
     Color color;
     IconData icon;
     
-    switch (movement.type) {
+    // Si movement es un Map, convertirlo a CashMovement para usar sus métodos
+    CashMovement movementObj;
+    if (movement is Map<String, dynamic>) {
+      movementObj = CashMovement.fromMap(movement);
+    } else if (movement is CashMovement) {
+      movementObj = movement;
+    } else {
+      // Fallback para casos inesperados
+      return const SizedBox.shrink();
+    }
+    
+    switch (movementObj.type) {
+      case 'opening':
       case 'apertura':
         color = Colors.blue;
         icon = Icons.lock_open;
         break;
+      case 'closing':
       case 'cierre':
         color = Colors.orange;
         icon = Icons.lock;
         break;
+      case 'sale':
       case 'venta':
         color = Colors.green;
         icon = Icons.point_of_sale;
         break;
+      case 'income':
       case 'entrada':
         color = Colors.teal;
         icon = Icons.trending_up;
         break;
+      case 'expense':
       case 'salida':
         color = Colors.red;
         icon = Icons.trending_down;
+        break;
+      case 'adjustment':
+        color = Colors.purple;
+        icon = Icons.tune;
         break;
       default:
         color = Colors.grey;
         icon = Icons.receipt;
     }
 
-    final time = DateTime.parse(movement.date);
+    final time = movementObj.createdAt;
     
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 8),
@@ -688,7 +776,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  movement.typeDisplayName,
+                  movementObj.typeDisplayName,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -696,7 +784,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
                   ),
                 ),
                 Text(
-                  movement.description,
+                  movementObj.description,
                   style: TextStyle(
                     fontSize: 12,
                     color: Utils.colorTexto.withOpacity(0.7),
@@ -709,11 +797,11 @@ class CashRegisterPageState extends State<CashRegisterPage> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                movement.formattedAmount,
+                movementObj.formattedAmount,
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: movement.isOutcome ? Colors.red : Colors.green,
+                  color: movementObj.isOutcome ? Colors.red : Colors.green,
                 ),
               ),
               Text(
@@ -732,7 +820,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
 
   // Diálogo para abrir caja
   void _showOpenCashDialog() {
-    _amountController.clear();
+    _openAmountController.clear();
     
     Get.dialog(
       AlertDialog(
@@ -744,7 +832,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
             Text('Ingrese el monto inicial en efectivo:'),
             SizedBox(height: 16),
             TextFormField(
-              controller: _amountController,
+              controller: _openAmountController,
               keyboardType: TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
@@ -767,10 +855,10 @@ class CashRegisterPageState extends State<CashRegisterPage> {
           ),
           ElevatedButton(
             onPressed: () {
-              final amount = double.tryParse(_amountController.text);
+              final amount = double.tryParse(_openAmountController.text);
               if (amount != null && amount >= 0) {
                 Get.back();
-                cashController.openCashRegister(amount);
+                cashController.openCashRegisterSimple(amount);
               } else {
                 Get.snackbar('Error', 'Ingrese un monto válido');
               }
@@ -788,7 +876,16 @@ class CashRegisterPageState extends State<CashRegisterPage> {
 
   // Diálogo para cerrar caja
   void _showCloseCashDialog() {
-    _amountController.clear();
+    // Verificar que haya una caja abierta
+    if (!cashController.isCashRegisterOpen) {
+      Get.snackbar('Error', 'No hay caja abierta para cerrar.');
+      return;
+    }
+    
+    _closeAmountController.clear();
+    
+    // Capturar el valor antes de mostrar el diálogo para evitar problemas de contexto
+    final expectedAmount = _getSafeExpectedAmount();
     
     Get.dialog(
       AlertDialog(
@@ -797,12 +894,12 @@ class CashRegisterPageState extends State<CashRegisterPage> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Monto esperado: ${cashController.formatCurrency(cashController.expectedAmount)}'),
+            Text('Monto esperado: ${_safeFormatCurrency(expectedAmount)}'),
             SizedBox(height: 16),
             Text('Ingrese el monto real contado:'),
             SizedBox(height: 16),
             TextFormField(
-              controller: _amountController,
+              controller: _closeAmountController,
               keyboardType: TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
@@ -825,10 +922,10 @@ class CashRegisterPageState extends State<CashRegisterPage> {
           ),
           ElevatedButton(
             onPressed: () {
-              final amount = double.tryParse(_amountController.text);
+              final amount = double.tryParse(_closeAmountController.text);
               if (amount != null && amount >= 0) {
                 Get.back();
-                cashController.closeCashRegister(amount);
+                cashController.closeCashRegisterSimple(amount);
               } else {
                 Get.snackbar('Error', 'Ingrese un monto válido');
               }
@@ -846,7 +943,17 @@ class CashRegisterPageState extends State<CashRegisterPage> {
 
   // Diálogo para entrada de dinero
   void _showAddIncomeDialog() {
-    _amountController.clear();
+    // Prevenir múltiples diálogos
+    if (_isDialogOpen) return;
+    
+    // Verificar que haya una caja abierta
+    if (!cashController.isCashRegisterOpen) {
+      Get.snackbar('Error', 'No hay caja abierta. Abra una caja primero.');
+      return;
+    }
+    
+    _isDialogOpen = true;
+    _incomeAmountController.clear();
     final descriptionController = TextEditingController();
     
     Get.dialog(
@@ -857,7 +964,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             TextFormField(
-              controller: _amountController,
+              controller: _incomeAmountController,
               keyboardType: TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
@@ -887,17 +994,19 @@ class CashRegisterPageState extends State<CashRegisterPage> {
           TextButton(
             onPressed: () {
               Get.back();
+              _isDialogOpen = false;
               descriptionController.dispose();
             },
             child: Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () {
-              final amount = double.tryParse(_amountController.text);
+              final amount = double.tryParse(_incomeAmountController.text);
               final description = descriptionController.text.trim();
               
               if (amount != null && amount > 0 && description.isNotEmpty) {
                 Get.back();
+                _isDialogOpen = false;
                 cashController.addCashIncome(amount, description);
                 descriptionController.dispose();
               } else {
@@ -917,77 +1026,164 @@ class CashRegisterPageState extends State<CashRegisterPage> {
 
   // Diálogo para salida de dinero
   void _showAddOutcomeDialog() {
-    _amountController.clear();
-    final descriptionController = TextEditingController();
+    // Prevenir múltiples diálogos y clicks rápidos
+    if (!_canOpenDialog()) return;
     
-    Get.dialog(
-      AlertDialog(
-        backgroundColor: Utils.colorFondoCards,
-        title: Text('Salida de Dinero'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Dinero disponible: ${cashController.formatCurrency(cashController.totalCashInHand)}',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            SizedBox(height: 16),
-            TextFormField(
-              controller: _amountController,
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-              ],
-              decoration: InputDecoration(
-                labelText: 'Monto',
-                prefixText: '\$ ',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              autofocus: true,
-            ),
-            SizedBox(height: 16),
-            TextFormField(
-              controller: descriptionController,
-              decoration: InputDecoration(
-                labelText: 'Descripción',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          ],
+    try {
+      // Verificar que haya una caja abierta
+      if (!cashController.isCashRegisterOpen) {
+        Get.snackbar('Error', 'No hay caja abierta. Abra una caja primero.');
+        return;
+      }
+      
+      // Verificar que el contexto esté montado
+      if (!mounted) return;
+      
+      _markDialogOpen();
+      
+      // Capturar valores antes de mostrar el diálogo
+      final availableCash = _getSafeAvailableCash();
+      
+      showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) => _OutcomeDialog(
+          availableCash: '\$${availableCash.toStringAsFixed(2)}',
+          onConfirm: (String type, double amount, String description) {
+            _markDialogClosed();
+            cashController.addCashOutcome(amount, description);
+          },
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Get.back();
-              descriptionController.dispose();
-            },
-            child: Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final amount = double.tryParse(_amountController.text);
-              final description = descriptionController.text.trim();
-              
-              if (amount != null && amount > 0 && description.isNotEmpty) {
-                Get.back();
-                cashController.addCashOutcome(amount, description);
-                descriptionController.dispose();
-              } else {
-                Get.snackbar('Error', 'Complete todos los campos correctamente');
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+      );
+    } catch (e) {
+      _markDialogClosed();
+      print('Error al mostrar diálogo de salida: $e');
+      Get.snackbar('Error', 'Error al abrir el diálogo. Intente nuevamente.');
+    }
+  }
+
+  // Métodos de formateo para datos de caja
+  String? _formatOpeningTime(Map<String, dynamic>? cashRegister) {
+    if (cashRegister == null) return null;
+    
+    try {
+      // Intentar obtener la hora de apertura
+      final openingTime = cashRegister['openingTime'] ?? cashRegister['createdAt'];
+      if (openingTime != null) {
+        final DateTime dateTime = DateTime.parse(openingTime.toString());
+        return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+      }
+    } catch (e) {
+      print('Error formateando hora de apertura: $e');
+    }
+    
+    return null;
+  }
+
+  String? _formatOpeningAmount(Map<String, dynamic>? cashRegister) {
+    if (cashRegister == null) return null;
+    
+    try {
+      final openingAmount = cashRegister['openingAmount'];
+      if (openingAmount != null) {
+        final double amount = openingAmount is double 
+            ? openingAmount 
+            : double.parse(openingAmount.toString());
+        return '\$${amount.toStringAsFixed(2)}';
+      }
+    } catch (e) {
+      print('Error formateando monto de apertura: $e');
+    }
+    
+    return null;
+  }
+}
+
+class _OutcomeDialog extends StatefulWidget {
+  final Function(String type, double amount, String description) onConfirm;
+  final String availableCash;
+  
+  const _OutcomeDialog({
+    required this.onConfirm,
+    required this.availableCash,
+  });
+  
+  @override
+  State<_OutcomeDialog> createState() => _OutcomeDialogState();
+}
+
+class _OutcomeDialogState extends State<_OutcomeDialog> {
+  late TextEditingController amountController;
+  late TextEditingController descriptionController;
+  bool _disposed = false;
+  
+  @override
+  void initState() {
+    super.initState();
+    amountController = TextEditingController();
+    descriptionController = TextEditingController();
+  }
+  
+  @override
+  void dispose() {
+    _disposed = true;
+    amountController.dispose();
+    descriptionController.dispose();
+    super.dispose();
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Agregar Salida de Dinero'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Dinero disponible: ${widget.availableCash}'),
+          const SizedBox(height: 20),
+          TextField(
+            controller: amountController,
+            decoration: const InputDecoration(
+              labelText: 'Monto',
+              prefixText: '\$',
+              border: OutlineInputBorder(),
             ),
-            child: Text('Registrar'),
+            keyboardType: TextInputType.number,
+          ),
+          const SizedBox(height: 15),
+          TextField(
+            controller: descriptionController,
+            decoration: const InputDecoration(
+              labelText: 'Descripción',
+              border: OutlineInputBorder(),
+            ),
           ),
         ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            if (mounted) {
+              Navigator.of(context).pop();
+            }
+          },
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (_disposed || !mounted) return;
+            
+            final amount = double.tryParse(amountController.text);
+            if (amount != null && amount > 0 && descriptionController.text.isNotEmpty) {
+              widget.onConfirm('expense', amount, descriptionController.text);
+              if (mounted) {
+                Navigator.of(context).pop();
+              }
+            }
+          },
+          child: const Text('Confirmar'),
+        ),
+      ],
     );
   }
 }

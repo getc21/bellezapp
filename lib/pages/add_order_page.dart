@@ -1,10 +1,11 @@
-import 'dart:developer';
-
 import 'package:bellezapp/controllers/indexpage_controller.dart';
 import 'package:bellezapp/controllers/cash_controller.dart';
 import 'package:bellezapp/controllers/payment_controller.dart';
 import 'package:bellezapp/controllers/discount_controller.dart';
 import 'package:bellezapp/controllers/customer_controller.dart';
+import 'package:bellezapp/controllers/product_controller.dart';
+import 'package:bellezapp/controllers/order_controller.dart';
+import 'package:bellezapp/controllers/store_controller.dart';
 import 'package:bellezapp/models/customer.dart';
 import 'package:bellezapp/utils/utils.dart';
 import 'package:bellezapp/widgets/payment_method_dialog.dart';
@@ -12,7 +13,6 @@ import 'package:bellezapp/widgets/discount_selection_dialog.dart';
 import 'package:bellezapp/widgets/customer_selection_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:bellezapp/database/database_helper.dart';
 import 'package:get/get.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 
@@ -25,16 +25,24 @@ class AddOrderPage extends StatefulWidget {
 
 class AddOrderPageState extends State<AddOrderPage> {
   final MobileScannerController scannerController = MobileScannerController(
-    detectionSpeed: DetectionSpeed.noDuplicates,
+    detectionSpeed: DetectionSpeed.normal,
     facing: CameraFacing.back,
     torchEnabled: false,
   );
   final List<Map<String, dynamic>> _products = [];
-  final dbHelper = DatabaseHelper();
   final ipc = Get.find<IndexPageController>();
+  
+  // Variables para cooldown del escáner
+  String? _lastScannedCode;
+  DateTime? _lastScanTime;
+  static const Duration _scanCooldown = Duration(seconds: 3);
+  
   late CashController cashController;
   late DiscountController discountController;
   late CustomerController customerController;
+  late ProductController productController;
+  late OrderController orderController;
+  late StoreController storeController;
   Customer? selectedCustomer;
   
   @override
@@ -61,11 +69,38 @@ class AddOrderPageState extends State<AddOrderPage> {
       print('Error al encontrar CustomerController en AddOrderPage: $e');
       customerController = Get.put(CustomerController(), permanent: true);
     }
+
+    try {
+      productController = Get.find<ProductController>();
+    } catch (e) {
+      print('Error al encontrar ProductController en AddOrderPage: $e');
+      productController = Get.put(ProductController(), permanent: true);
+    }
+
+    try {
+      orderController = Get.find<OrderController>();
+    } catch (e) {
+      print('Error al encontrar OrderController en AddOrderPage: $e');
+      orderController = Get.put(OrderController(), permanent: true);
+    }
+
+    try {
+      storeController = Get.find<StoreController>();
+    } catch (e) {
+      print('Error al encontrar StoreController en AddOrderPage: $e');
+      storeController = Get.put(StoreController(), permanent: true);
+    }
   }
   @override
   void dispose() {
     scannerController.dispose();
     super.dispose();
+  }
+
+  // Limpiar el cooldown del escáner
+  void _clearScanCooldown() {
+    _lastScannedCode = null;
+    _lastScanTime = null;
   }
 
   void _handleBarcodeDetection(BarcodeCapture barcodeCapture) async {
@@ -75,23 +110,91 @@ class AddOrderPageState extends State<AddOrderPage> {
       final String? code = barcode.rawValue;
       
       if (code != null && code.isNotEmpty) {
-        final product = await dbHelper.getProductByName(code);
+        print('🔍 Código escaneado: $code');
         
-        if (product != null) {
-          setState(() {
-            if (!_products.any((p) => p['id'] == product['id'])) {
-              _products.add({
-                'id': product['id'],
-                'name': product['name'],
-                'quantity': 1,
-                'price': product['sale_price'],
+        // Verificar cooldown para evitar escaneos repetidos del mismo código
+        final now = DateTime.now();
+        if (_lastScannedCode == code && 
+            _lastScanTime != null && 
+            now.difference(_lastScanTime!) < _scanCooldown) {
+          // Dentro del período de cooldown, ignorar completamente este escaneo
+          print('⏰ Cooldown activo para código: $code');
+          return;
+        }
+        
+        try {
+          final product = await productController.searchProduct(code);
+          
+          if (product != null) {
+            final productId = product['_id'] ?? product['id'];
+            
+            if (!_products.any((p) => p['id'] == productId)) {
+              // Producto nuevo - agregarlo
+              setState(() {
+                _products.add({
+                  'id': productId,
+                  'name': product['name'],
+                  'quantity': 1,
+                  'price': product['salePrice'] ?? product['sale_price'] ?? 0.0,
+                });
               });
-              log('Product added: ${product['name']}');
+              
+              print('✅ Producto agregado: ${product['name']}');
+              
+              // Actualizar cooldown solo después de agregar exitosamente
+              _lastScannedCode = code;
+              _lastScanTime = now;
+              
+              // Feedback visual y sonoro
               FlutterRingtonePlayer().play(
                 fromAsset: 'assets/img/beep.mp3',
               );
+              
+              // Mostrar snackbar de éxito
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('✅ ${product['name']} agregado al carrito'),
+                  backgroundColor: Colors.green,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            } else {
+              // Producto ya está en el carrito - solo log, sin snackbar
+              print('⚠️ Producto ya está en el carrito: ${product['name']}');
+              
+              // Actualizar cooldown para evitar spam de logs
+              _lastScannedCode = code;
+              _lastScanTime = now;
             }
-          });
+          } else {
+            print('❌ Producto no encontrado para código: $code');
+            
+            // Actualizar cooldown para evitar spam del mensaje de error
+            _lastScannedCode = code;
+            _lastScanTime = now;
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('❌ Producto no encontrado: $code'),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+        } catch (e) {
+          print('💥 Error buscando producto: $e');
+          
+          // Actualizar cooldown para evitar spam del mensaje de error
+          _lastScannedCode = code;
+          _lastScanTime = now;
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('💥 Error de conexión: ${e.toString()}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
         }
       }
     }
@@ -211,39 +314,23 @@ class AddOrderPageState extends State<AddOrderPage> {
       await customerController.loadCustomers();
     }
 
-    // Verificar si hay un cliente sugerido (el último usado o con más puntos)
-    Customer? suggestedCustomer;
-    if (customerController.customers.isNotEmpty) {
-      // Buscar el cliente con compra más reciente
-      suggestedCustomer = customerController.customers
-          .where((c) => c.lastPurchase != null)
-          .fold<Customer?>(null, (prev, curr) {
-        if (prev == null) return curr;
-        return curr.lastPurchase!.isAfter(prev.lastPurchase!) ? curr : prev;
-      });
-      
-      // Si no hay cliente reciente, usar el que tiene más puntos
-      suggestedCustomer ??= customerController.customers
-            .reduce((prev, curr) => curr.loyaltyPoints > prev.loyaltyPoints ? curr : prev);
-    }
-
-    // Mostrar diálogo con sugerencia
-    final selectedCustomerId = await showDialog<int?>(
+    // Mostrar diálogo
+    final selectedCustomerId = await showDialog<String?>(
       context: context,
       builder: (BuildContext context) {
-        return CustomerSelectionDialog(suggestedCustomer: suggestedCustomer);
+        return CustomerSelectionDialog(suggestedCustomer: null);
       },
     );
 
     if (selectedCustomerId != null) {
       // Buscar el cliente seleccionado
       final customer = customerController.customers.firstWhereOrNull(
-        (c) => c.id == selectedCustomerId,
+        (c) => (c['_id'] ?? c['id']) == selectedCustomerId,
       );
       
       if (customer != null) {
         setState(() {
-          selectedCustomer = customer;
+          selectedCustomer = Customer.fromMap(customer);
         });
         
         // Continuar automáticamente con descuentos después de seleccionar cliente
@@ -259,19 +346,29 @@ class AddOrderPageState extends State<AddOrderPage> {
       totalAmount: subtotal,
     );
 
-    // Aplicar descuento seleccionado
-    if (selectedDiscount != null) {
-      discountController.applyDiscount(selectedDiscount, subtotal);
-    } else {
-      discountController.removeDiscount();
-    }
-
     // Calcular total final (con o sin descuento)
-    final discountAmount = selectedDiscount?.calculateDiscountAmount(subtotal) ?? 0.0;
+    final discountAmount = selectedDiscount != null ? _calculateDiscountAmount(selectedDiscount, subtotal) : 0.0;
     final totalOrder = subtotal - discountAmount;
 
     // Mostrar diálogo de método de pago con el total final
     await _showPaymentMethodDialog(totalOrder, subtotal, discountAmount, selectedDiscount);
+  }
+
+  double _calculateDiscountAmount(Map<String, dynamic> discount, double totalAmount) {
+    final type = discount['type']?.toString() ?? 'percentage';
+    final value = (discount['value'] as num?)?.toDouble() ?? 0.0;
+    final maxDiscount = (discount['maximumDiscount'] as num?)?.toDouble();
+    
+    if (type == 'percentage') {
+      double discountAmount = totalAmount * (value / 100);
+      if (maxDiscount != null && discountAmount > maxDiscount) {
+        return maxDiscount;
+      }
+      return discountAmount;
+    } else if (type == 'fixed') {
+      return value;
+    }
+    return 0.0;
   }
 
   Future<void> _showPaymentMethodDialog(
@@ -308,50 +405,51 @@ class AddOrderPageState extends State<AddOrderPage> {
     final paymentInfo = paymentController.getPaymentSummary();
     
     try {
-      final order = {
-        'order_date': DateTime.now().toIso8601String(),
-        'totalOrden': totalOrder,
-        'payment_method': paymentInfo['payment_method'],
-        'customer_id': selectedCustomer?.id, // Incluir customer_id si hay cliente seleccionado
-      };
+      // Obtener tienda actual
+      final currentStore = storeController.currentStore;
+      if (currentStore == null) {
+        throw Exception('No hay tienda seleccionada');
+      }
 
-      final orderId = await DatabaseHelper().insertOrderWithPayment(order);
+      final storeId = currentStore['_id'] ?? currentStore['id'];
+      
+      // ✅ LOG: Confirmación de tienda para nueva orden
+      print('🛒 AddOrderPage: Creando nueva orden para tienda: $storeId');
+      print('   Tienda nombre: ${currentStore['name']}');
+      print('   Productos en orden: ${_products.length}');
 
-      for (var item in _products) {
-        await DatabaseHelper().insertOrderItem({
-          'order_id': orderId,
-          'product_id': item['id'],
+      // Preparar items para la orden
+      final List<Map<String, dynamic>> orderItems = _products.map((item) {
+        return {
+          'productId': item['id'],
           'quantity': item['quantity'],
           'price': item['price'],
-        });
+        };
+      }).toList();
 
-        // Actualizar stock del producto
-        final currentProduct = await dbHelper.getProductByName(item['name']);
-        if (currentProduct != null) {
-          final newStock = currentProduct['stock'] - item['quantity'];
-          await dbHelper.updateProductStock(item['id'], newStock);
-        }
-      }
+      // Crear orden
+      final success = await orderController.createOrder(
+        storeId: storeId,
+        customerId: selectedCustomer?.id,
+        items: orderItems,
+        paymentMethod: paymentInfo['payment_method'],
+        cashRegisterId: null, // TODO: Implementar cash register
+        discountId: selectedDiscount?['_id'] ?? selectedDiscount?['id'],
+      );
 
-      // Actualizar estadísticas del cliente y otorgar puntos de lealtad
-      if (selectedCustomer != null) {
-        await DatabaseHelper().updateCustomerPurchaseStats(
-          selectedCustomer!.id!,
-          totalOrder,
-        );
-        // Recargar datos del cliente para mostrar puntos actualizados
-        await customerController.loadCustomers();
-      }
-
-      // Registrar en efectivo si es necesario
-      if (paymentInfo['payment_method'] == 'efectivo' && cashController.isCashRegisterOpen) {
-        await DatabaseHelper().registerCashSale(orderId, totalOrder);
+      if (!success) {
+        throw Exception('Error al crear la orden');
       }
 
       setState(() {
         _products.clear();
         selectedCustomer = null; // Limpiar cliente seleccionado
       });
+
+      // Recargar clientes para actualizar estadísticas
+      if (selectedCustomer != null) {
+        await customerController.loadCustomers();
+      }
 
       // Mensaje de éxito con información de descuento
       String message = '✅ Venta procesada exitosamente!';
@@ -366,7 +464,7 @@ class AddOrderPageState extends State<AddOrderPage> {
         message += '\n💰 Subtotal: \$${subtotal.toStringAsFixed(2)}';
         message += '\n🎫 Descuento: -\$${discountAmount.toStringAsFixed(2)}';
         if (selectedDiscount != null) {
-          message += ' (${selectedDiscount.name})';
+          message += ' (${selectedDiscount['name']})';
         }
       }
       message += '\n💰 Total Final: \$${totalOrder.toStringAsFixed(2)}';
@@ -390,9 +488,8 @@ class AddOrderPageState extends State<AddOrderPage> {
         volume: 0.8,
       );
 
-      // Limpiar información de pago y descuento
+      // Limpiar información de pago
       paymentController.resetPaymentInfo();
-      discountController.removeDiscount();
 
       // Navegar de regreso a la lista de órdenes con resultado exitoso
       Navigator.of(context).pop(true);
@@ -419,148 +516,90 @@ class AddOrderPageState extends State<AddOrderPage> {
       subtotal += product['quantity'] * product['price'];
     }
 
-    return Obx(() {
-      final appliedDiscount = discountController.appliedDiscount.value;
-      final hasDiscount = appliedDiscount != null;
-      
-      return Container(
-        margin: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        padding: EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 4,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.receipt_long, color: Colors.blue, size: 18),
-                SizedBox(width: 8),
-                Text(
-                  'Resumen',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[700],
-                  ),
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.receipt_long, color: Colors.blue, size: 18),
+              SizedBox(width: 8),
+              Text(
+                'Resumen',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[700],
                 ),
-                Spacer(),
-                if (!hasDiscount)
-                  TextButton.icon(
-                    onPressed: () => _showDiscountSelectionDialog(subtotal),
-                    icon: Icon(Icons.local_offer, size: 14),
-                    label: Text('Desc.', style: TextStyle(fontSize: 12)),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.blue,
-                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      minimumSize: Size(0, 0),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
-              ],
-            ),
-            SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Subtotal:',
-                  style: TextStyle(fontSize: 13),
+              ),
+              Spacer(),
+              TextButton.icon(
+                onPressed: () => _showDiscountSelectionDialog(subtotal),
+                icon: Icon(Icons.local_offer, size: 14),
+                label: Text('Desc.', style: TextStyle(fontSize: 12)),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.blue,
+                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  minimumSize: Size(0, 0),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                Text(
-                  '\$${subtotal.toStringAsFixed(2)}',
-                  style: TextStyle(fontSize: 13),
-                ),
-              ],
-            ),
-            if (hasDiscount) ...[
-              SizedBox(height: 3),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        'Descuento:',
-                        style: TextStyle(fontSize: 12, color: Colors.red),
-                      ),
-                      SizedBox(width: 4),
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.green.withOpacity(0.3)),
-                        ),
-                        child: Text(
-                          appliedDiscount.discount.displayValue,
-                          style: TextStyle(
-                            fontSize: 9,
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Text(
-                        '-\$${appliedDiscount.discountAmount.toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 12, color: Colors.red),
-                      ),
-                      SizedBox(width: 6),
-                      GestureDetector(
-                        onTap: () {
-                          discountController.removeDiscount();
-                        },
-                        child: Icon(
-                          Icons.close,
-                          size: 14,
-                          color: Colors.red,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
               ),
             ],
-            SizedBox(height: 6),
-            Divider(thickness: 1, height: 1),
-            SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Total:',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue[700],
-                  ),
+          ),
+          SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Subtotal:',
+                style: TextStyle(fontSize: 13),
+              ),
+              Text(
+                '\$${subtotal.toStringAsFixed(2)}',
+                style: TextStyle(fontSize: 13),
+              ),
+            ],
+          ),
+          SizedBox(height: 6),
+          Divider(thickness: 1, height: 1),
+          SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Total:',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue[700],
                 ),
-                Text(
-                  '\$${(hasDiscount ? appliedDiscount.finalAmount : subtotal).toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue[700],
-                  ),
+              ),
+              Text(
+                '\$${subtotal.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue[700],
                 ),
-              ],
-            ),
-          ],
-        ),
-      );
-    });
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -611,6 +650,86 @@ class AddOrderPageState extends State<AddOrderPage> {
                 MobileScanner(
                   controller: scannerController,
                   onDetect: _handleBarcodeDetection,
+                  errorBuilder: (context, error, child) {
+                    print('📷 Error de MobileScanner: $error');
+                    return Container(
+                      color: Colors.black,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.camera_alt_outlined,
+                              size: 64,
+                              color: Colors.white,
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'Error de cámara',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Verifica los permisos de cámara',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Error: ${error.toString()}',
+                              style: TextStyle(
+                                color: Colors.red.shade300,
+                                fontSize: 12,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: () {
+                                // Intentar reiniciar el escáner
+                                try {
+                                  scannerController.start();
+                                } catch (e) {
+                                  print('Error reiniciando escáner: $e');
+                                }
+                              },
+                              child: Text('Reintentar'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                  placeholderBuilder: (context, child) {
+                    return Container(
+                      color: Colors.black,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'Iniciando cámara...',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 // Overlay con guía visual
                 Center(
@@ -642,13 +761,27 @@ class AddOrderPageState extends State<AddOrderPage> {
                         Icon(Icons.qr_code_scanner, color: Colors.white, size: 24),
                         SizedBox(width: 12),
                         Expanded(
-                          child: Text(
-                            'Escanea el código QR del producto',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Escanea el código QR del producto',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              if (_lastScannedCode != null && _lastScanTime != null)
+                                Text(
+                                  'Último: $_lastScannedCode',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.7),
+                                    fontSize: 11,
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ],
@@ -755,6 +888,8 @@ class AddOrderPageState extends State<AddOrderPage> {
                                 onDismissed: (direction) {
                                   setState(() {
                                     _products.removeAt(index);
+                                    // Limpiar cooldown para permitir reescanear
+                                    _clearScanCooldown();
                                   });
                                   Get.snackbar(
                                     'Producto eliminado',
@@ -772,6 +907,8 @@ class AddOrderPageState extends State<AddOrderPage> {
                                     onPressed: () {
                                       setState(() {
                                         _products.removeAt(index);
+                                        // Limpiar cooldown para permitir reescanear
+                                        _clearScanCooldown();
                                       });
                                       Get.snackbar(
                                         'Producto eliminado',

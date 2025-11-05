@@ -1,3 +1,8 @@
+// ARCHIVO DESHABILITADO - YA NO SE USA CON REST API
+// Este archivo era parte del sistema SQLite anterior
+// Ahora la autenticación y gestión de usuarios se maneja vía REST API
+
+/*
 import 'dart:developer';
 import 'package:sqflite/sqflite.dart';
 import '../database/database_helper.dart';
@@ -272,3 +277,4 @@ class AdminUserSetup {
     }
   }
 }
+*/

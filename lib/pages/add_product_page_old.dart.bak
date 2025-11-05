@@ -1,0 +1,366 @@
+import 'dart:io';
+import 'package:bellezapp/controllers/product_controller.dart';
+import 'package:bellezapp/controllers/category_controller.dart';
+import 'package:bellezapp/controllers/supplier_controller.dart';
+import 'package:bellezapp/controllers/auth_controller.dart';
+import 'package:bellezapp/utils/utils.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
+
+class AddProductPage extends StatefulWidget {
+  const AddProductPage({super.key});
+
+  @override
+  AddProductPageState createState() => AddProductPageState();
+}
+
+class AddProductPageState extends State<AddProductPage> {
+  final ProductController productController = Get.find<ProductController>();
+  final CategoryController categoryController = Get.put(CategoryController());
+  final SupplierController supplierController = Get.put(SupplierController());
+  final AuthController authController = Get.find<AuthController>();
+  
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _purchasePriceController = TextEditingController();
+  final _salePriceController = TextEditingController();
+  final _stockController = TextEditingController();
+  
+  String? _selectedCategoryId;
+  String? _selectedSupplierId;
+  String? _selectedLocationId;
+  File? _imageFile;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    _purchasePriceController.dispose();
+    _salePriceController.dispose();
+    _stockController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 85,
+    );
+
+    if (image != null) {
+      setState(() {
+        _imageFile = File(image.path);
+      });
+    }
+  }
+
+  Future<void> _saveProduct() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (_selectedCategoryId == null) {
+      Get.snackbar('Error', 'Selecciona una categoría');
+      return;
+    }
+
+    if (_selectedSupplierId == null) {
+      Get.snackbar('Error', 'Selecciona un proveedor');
+      return;
+    }
+
+    // Por ahora, usa un locationId y storeId por defecto
+    // TODO: Agregar selección de ubicación y tienda
+    final locationId = _selectedLocationId ?? '000000000000000000000001';
+    final storeId = '000000000000000000000001'; // Obtener de authController si está disponible
+
+    final success = await productController.createProduct(
+      storeId: storeId,
+      name: _nameController.text,
+      categoryId: _selectedCategoryId!,
+      supplierId: _selectedSupplierId!,
+      locationId: locationId,
+      purchasePrice: double.parse(_purchasePriceController.text),
+      salePrice: double.parse(_salePriceController.text),
+      stock: int.parse(_stockController.text),
+      description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
+      imageFile: _imageFile,
+    );
+
+    if (success) {
+      Get.back(); // Volver a la lista de productos
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Utils.colorFondo,
+      appBar: AppBar(
+        title: const Text('Agregar Producto'),
+        backgroundColor: Utils.colorBotones,
+        foregroundColor: Colors.white,
+      ),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Imagen
+            GestureDetector(
+              onTap: _pickImage,
+              child: Container(
+                height: 200,
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[400]!),
+                ),
+                child: _imageFile != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.file(
+                          _imageFile!,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add_photo_alternate,
+                              size: 64, color: Colors.grey[400]),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Toca para agregar imagen',
+                            style: TextStyle(color: Colors.grey[600]),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Nombre
+            TextFormField(
+              controller: _nameController,
+              decoration: InputDecoration(
+                labelText: 'Nombre del producto*',
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Campo requerido';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Descripción
+            TextFormField(
+              controller: _descriptionController,
+              decoration: InputDecoration(
+                labelText: 'Descripción',
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              maxLines: 3,
+            ),
+            const SizedBox(height: 16),
+
+            // Categoría
+            Obx(() {
+              final categories = categoryController.categories;
+              return DropdownButtonFormField<String>(
+                value: _selectedCategoryId,
+                decoration: InputDecoration(
+                  labelText: 'Categoría*',
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                items: categories.map((category) {
+                  return DropdownMenuItem(
+                    value: category['_id'].toString(),
+                    child: Text(category['name'] ?? 'Sin nombre'),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedCategoryId = value;
+                  });
+                },
+                validator: (value) {
+                  if (value == null) {
+                    return 'Selecciona una categoría';
+                  }
+                  return null;
+                },
+              );
+            }),
+            const SizedBox(height: 16),
+
+            // Proveedor
+            Obx(() {
+              final suppliers = supplierController.suppliers;
+              return DropdownButtonFormField<String>(
+                value: _selectedSupplierId,
+                decoration: InputDecoration(
+                  labelText: 'Proveedor*',
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                items: suppliers.map((supplier) {
+                  return DropdownMenuItem(
+                    value: supplier['_id'].toString(),
+                    child: Text(supplier['name'] ?? 'Sin nombre'),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedSupplierId = value;
+                  });
+                },
+                validator: (value) {
+                  if (value == null) {
+                    return 'Selecciona un proveedor';
+                  }
+                  return null;
+                },
+              );
+            }),
+            const SizedBox(height: 16),
+
+            // Precio de compra y venta en fila
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _purchasePriceController,
+                    decoration: InputDecoration(
+                      labelText: 'Precio compra*',
+                      prefixText: '\$',
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Requerido';
+                      }
+                      if (double.tryParse(value) == null) {
+                        return 'Número inválido';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextFormField(
+                    controller: _salePriceController,
+                    decoration: InputDecoration(
+                      labelText: 'Precio venta*',
+                      prefixText: '\$',
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Requerido';
+                      }
+                      if (double.tryParse(value) == null) {
+                        return 'Número inválido';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Stock
+            TextFormField(
+              controller: _stockController,
+              decoration: InputDecoration(
+                labelText: 'Stock inicial*',
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Campo requerido';
+                }
+                if (int.tryParse(value) == null) {
+                  return 'Número inválido';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 32),
+
+            // Botón guardar
+            Obx(() {
+              return ElevatedButton(
+                onPressed: productController.isLoading ? null : _saveProduct,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Utils.colorBotones,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: productController.isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text(
+                        'Guardar Producto',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+}

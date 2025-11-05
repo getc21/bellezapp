@@ -1,3 +1,8 @@
+// ARCHIVO DESHABILITADO - YA NO SE USA CON REST API
+// Este archivo era parte del sistema SQLite anterior
+// Ahora la autenticación se maneja vía REST API (backend)
+
+/*
 import 'dart:developer';
 import 'package:bellezapp/database/database_helper.dart';
 import 'package:bellezapp/utils/admin_user_setup.dart';
@@ -41,3 +46,4 @@ void main() async {
   
   log('=== Verificación completada ===');
 }
+*/
