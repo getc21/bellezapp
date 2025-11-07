@@ -157,46 +157,29 @@ class AuthProvider {
 
   // Get All Users
   Future<Map<String, dynamic>> getAllUsers() async {
-    try {
-      print('AuthProvider.getAllUsers - Making request to: $baseUrl/users');
-      print('AuthProvider.getAllUsers - Headers: $_headers');
-      
+    try {     
       final response = await http.get(
         Uri.parse('$baseUrl/users'),
         headers: _headers,
       );
-
-      print('AuthProvider.getAllUsers - Response status: ${response.statusCode}');
-      print('AuthProvider.getAllUsers - Response body: ${response.body}');
-
       final data = jsonDecode(response.body);
-      print('AuthProvider.getAllUsers - Decoded data type: ${data.runtimeType}');
-      print('AuthProvider.getAllUsers - Decoded data: $data');
-
       if (response.statusCode == 200) {
         // El backend devuelve { status: 'success', data: { users: [...] } }
         // Necesitamos extraer el array de usuarios
         var resultData = data['data'];
-        print('AuthProvider.getAllUsers - Result data type: ${resultData.runtimeType}');
-        print('AuthProvider.getAllUsers - Result data: $resultData');
-        
         // Si data contiene un objeto con un array de usuarios, extraerlo
         if (resultData is Map && resultData.containsKey('users')) {
           resultData = resultData['users'];
-          print('AuthProvider.getAllUsers - Extracted users array: $resultData');
         }
         
         return {'success': true, 'data': resultData};
       } else {
-        print('AuthProvider.getAllUsers - Error response: ${data['message']}');
         return {
           'success': false,
           'message': data['message'] ?? 'Error obteniendo usuarios'
         };
       }
     } catch (e) {
-      print('AuthProvider.getAllUsers - Exception: $e');
-      print('AuthProvider.getAllUsers - Exception type: ${e.runtimeType}');
       return {'success': false, 'message': 'Error de conexión: $e'};
     }
   }
@@ -256,33 +239,19 @@ class AuthProvider {
   // Delete User
   Future<Map<String, dynamic>> deleteUser(String userId) async {
     try {
-      print('AuthProvider.deleteUser - Deleting user: $userId');
-      print('AuthProvider.deleteUser - Making request to: $baseUrl/users/$userId');
-      print('AuthProvider.deleteUser - Headers: $_headers');
-      
       final response = await http.delete(
         Uri.parse('$baseUrl/users/$userId'),
         headers: _headers,
       );
-
-      print('AuthProvider.deleteUser - Response status: ${response.statusCode}');
-      print('AuthProvider.deleteUser - Response body: "${response.body}"');
-      print('AuthProvider.deleteUser - Response body length: ${response.body.length}');
-
       // Manejar respuesta vacía o con solo status code
       if (response.body.isEmpty || response.body.trim().isEmpty) {
         if (response.statusCode == 200 || response.statusCode == 204) {
-          print('AuthProvider.deleteUser - Empty response but successful status');
           return {'success': true, 'message': 'Usuario eliminado exitosamente'};
         } else {
-          print('AuthProvider.deleteUser - Empty response with error status');
           return {'success': false, 'message': 'Error eliminando usuario: código ${response.statusCode}'};
         }
       }
-
       final data = jsonDecode(response.body);
-      print('AuthProvider.deleteUser - Decoded data: $data');
-
       if (response.statusCode == 200 || response.statusCode == 204) {
         return {'success': true, 'data': data, 'message': 'Usuario eliminado exitosamente'};
       } else {
@@ -292,8 +261,6 @@ class AuthProvider {
         };
       }
     } catch (e) {
-      print('AuthProvider.deleteUser - Exception: $e');
-      print('AuthProvider.deleteUser - Exception type: ${e.runtimeType}');
       return {'success': false, 'message': 'Error de conexión: $e'};
     }
   }

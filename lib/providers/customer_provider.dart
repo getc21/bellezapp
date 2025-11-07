@@ -21,20 +21,12 @@ class CustomerProvider {
       
       if (storeId != null) {
         queryParams['storeId'] = storeId;
-      }
-      
-      print('🔍 CustomerProvider: Solicitando clientes para tienda: $storeId');
-      
+      }      
       final response = await http.get(
         uri.replace(queryParameters: queryParams),
         headers: _headers,
       );
-      
-      print('📋 CustomerProvider: Status Code: ${response.statusCode}');
-      print('📋 CustomerProvider: Response: ${response.body}');
-      
       final data = jsonDecode(response.body);
-
       if (response.statusCode == 200) {
         // El backend devuelve: { status: 'success', data: { customers: [...] } }
         try {
@@ -45,43 +37,31 @@ class CustomerProvider {
               final customers = dataSection['customers'];
               
               if (customers is List) {
-                print('✅ CustomerProvider: Recibidos ${customers.length} clientes');
                 return {'success': true, 'data': customers};
               } else {
-                print('❌ CustomerProvider: customers no es una lista, es: ${customers.runtimeType}');
-                print('Customers recibido: $customers');
                 return {'success': false, 'message': 'customers no es una lista'};
               }
-            } else {
-              print('❌ CustomerProvider: data no contiene customers');
-              print('DataSection: $dataSection');
-              
+            } else {              
               // Verificar si data contiene directamente una lista
               if (dataSection is List) {
-                print('⚠️ CustomerProvider: data es una lista directa');
                 return {'success': true, 'data': dataSection};
               }
               
               return {'success': false, 'message': 'Estructura de data inválida'};
             }
           } else {
-            print('❌ CustomerProvider: Respuesta no contiene data');
-            print('Respuesta completa: $data');
             return {'success': false, 'message': 'Respuesta sin data'};
           }
         } catch (e) {
-          print('❌ CustomerProvider: Error procesando respuesta: $e');
           return {'success': false, 'message': 'Error procesando respuesta: $e'};
         }
       } else {
-        print('❌ CustomerProvider: Error del servidor: ${response.statusCode}');
         return {
           'success': false,
           'message': data['message'] ?? 'Error obteniendo clientes'
         };
       }
     } catch (e) {
-      print('❌ CustomerProvider: Excepción: $e');
       return {'success': false, 'message': 'Error de conexión: $e'};
     }
   }

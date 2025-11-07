@@ -29,7 +29,7 @@ class UserSession {
   bool get isValid => isActive && !isExpired;
 
   Map<String, dynamic> toMap() {
-    return {
+    return <String, dynamic>{
       'id': id,
       'user_id': userId,
       'session_token': sessionToken,

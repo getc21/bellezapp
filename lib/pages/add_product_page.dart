@@ -6,6 +6,7 @@ import 'package:bellezapp/controllers/location_controller.dart';
 import 'package:bellezapp/controllers/auth_controller.dart';
 import 'package:bellezapp/controllers/store_controller.dart';
 import 'package:bellezapp/utils/utils.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:get/get.dart';
@@ -133,7 +134,9 @@ class AddProductPageState extends State<AddProductPage> {
               );
 
               if (success) {
-                Navigator.pop(context, true);
+                if (context.mounted) {
+                  Navigator.pop(context, true);
+                }
                 Get.snackbar(
                   'Éxito',
                   'Categoría creada correctamente',
@@ -243,7 +246,9 @@ class AddProductPageState extends State<AddProductPage> {
               );
 
               if (success) {
-                Navigator.pop(context, true);
+                if (context.mounted) {
+                  Navigator.pop(context, true);
+                }
                 Get.snackbar(
                   'Éxito',
                   'Proveedor creado correctamente',
@@ -343,7 +348,9 @@ class AddProductPageState extends State<AddProductPage> {
               );
 
               if (success) {
-                Navigator.pop(context, true);
+                if (context.mounted) {
+                  Navigator.pop(context, true);
+                }
                 Get.snackbar(
                   'Éxito',
                   'Ubicación creada correctamente',
@@ -478,15 +485,6 @@ class AddProductPageState extends State<AddProductPage> {
 
     final weightValue = _weightController.text.isEmpty ? null : double.tryParse(_weightController.text);
     
-    print('DEBUG _saveProduct - Datos a enviar:');
-    print('  storeId: $storeId');
-    print('  name: ${_nameController.text}');
-    print('  categoryId: $_selectedCategoryId');
-    print('  supplierId: $_selectedSupplierId');
-    print('  locationId: $_selectedLocationId');
-    print('  weight: $weightValue');
-    print('  expiryDate: $_selectedDate');
-    
     final success = await productController.createProduct(
       storeId: storeId,
       name: _nameController.text,
@@ -501,22 +499,17 @@ class AddProductPageState extends State<AddProductPage> {
       weight: weightValue,
       imageFile: _imageFile,
     );
-
-    print('DEBUG _saveProduct - Resultado: $success');
-
-    if (success) {
-      print('DEBUG _saveProduct - Producto creado exitosamente, volviendo atrás...');
-      
+    if (success) {      
       // Usar SchedulerBinding para ejecutar después del frame actual
       SchedulerBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          print('DEBUG _saveProduct - Ejecutando Navigator.pop');
           Navigator.of(context).pop(true);
-          print('DEBUG _saveProduct - Navegación completada');
         }
       });
     } else {
-      print('DEBUG _saveProduct - Error al crear producto');
+      if (kDebugMode) {
+        print('DEBUG _saveProduct - Error al crear producto');
+      }
     }
   }
 
@@ -616,7 +609,7 @@ class AddProductPageState extends State<AddProductPage> {
                   color: Colors.grey[100],
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: Utils.colorBotones.withOpacity(0.3),
+                    color: Utils.colorBotones.withValues(alpha: 0.3),
                     width: 2,
                     style: BorderStyle.solid,
                   ),
@@ -646,13 +639,13 @@ class AddProductPageState extends State<AddProductPage> {
                                 gradient: LinearGradient(
                                   colors: [
                                     Utils.colorBotones,
-                                    Utils.colorBotones.withOpacity(0.8),
+                                    Utils.colorBotones.withValues(alpha: 0.8),
                                   ],
                                 ),
                                 borderRadius: BorderRadius.circular(20),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.3),
+                                    color: Colors.black.withValues(alpha: 0.3),
                                     blurRadius: 8,
                                     offset: Offset(0, 2),
                                   ),
@@ -687,7 +680,7 @@ class AddProductPageState extends State<AddProductPage> {
                           Container(
                             padding: EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: Utils.colorBotones.withOpacity(0.1),
+                              color: Utils.colorBotones.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
@@ -888,7 +881,7 @@ class AddProductPageState extends State<AddProductPage> {
                   child: Obx(() {
                     final categories = categoryController.categories;
                     return DropdownButtonFormField<String>(
-                      value: _selectedCategoryId,
+                      initialValue: _selectedCategoryId,
                       decoration: InputDecoration(
                         prefixIcon: Icon(Icons.category_outlined, color: Utils.colorBotones),
                         labelText: 'Categoría*',
@@ -951,7 +944,7 @@ class AddProductPageState extends State<AddProductPage> {
                   child: Obx(() {
                     final suppliers = supplierController.suppliers;
                     return DropdownButtonFormField<String>(
-                      value: _selectedSupplierId,
+                      initialValue: _selectedSupplierId,
                       decoration: InputDecoration(
                         prefixIcon: Icon(Icons.local_shipping, color: Utils.colorBotones),
                         labelText: 'Proveedor*',
@@ -1014,7 +1007,7 @@ class AddProductPageState extends State<AddProductPage> {
                   child: Obx(() {
                     final locations = locationController.locations;
                     return DropdownButtonFormField<String>(
-                      value: _selectedLocationId,
+                      initialValue: _selectedLocationId,
                       decoration: InputDecoration(
                         prefixIcon: Icon(Icons.place, color: Utils.colorBotones),
                         labelText: 'Ubicación en Tienda*',
@@ -1130,7 +1123,7 @@ class AddProductPageState extends State<AddProductPage> {
             SizedBox(height: 24),
 
             // Botón guardar
-            Container(
+            SizedBox(
               width: double.infinity,
               height: 56,
               child: Obx(() {

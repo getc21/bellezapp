@@ -8,7 +8,7 @@ class OrderProvider {
 
   OrderProvider(this.token);
 
-  Map<String, String> get _headers => {
+  Map<String, String> get _headers => <String, String>{
     'Content-Type': 'application/json',
     'Authorization': 'Bearer $token',
   };
@@ -23,10 +23,10 @@ class OrderProvider {
     String? discountId,
   }) async {
     try {
-      final response = await http.post(
+      final http.Response response = await http.post(
         Uri.parse('$baseUrl/orders'),
         headers: _headers,
-        body: jsonEncode({
+        body: jsonEncode(<String, Object>{
           'storeId': storeId,
           if (customerId != null) 'customerId': customerId,
           'items': items,
@@ -38,15 +38,15 @@ class OrderProvider {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 201) {
-        return {'success': true, 'data': data['data']};
+        return <String, dynamic>{'success': true, 'data': data['data']};
       } else {
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error creando orden'
         };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 
@@ -59,54 +59,54 @@ class OrderProvider {
     String? endDate,
   }) async {
     try {
-      final queryParams = <String, String>{};
+      final Map<String, String> queryParams = <String, String>{};
       if (storeId != null) queryParams['storeId'] = storeId;
       if (customerId != null) queryParams['customerId'] = customerId;
       if (status != null) queryParams['status'] = status;
       if (startDate != null) queryParams['startDate'] = startDate;
       if (endDate != null) queryParams['endDate'] = endDate;
 
-      final uri = Uri.parse('$baseUrl/orders').replace(queryParameters: queryParams);
-      final response = await http.get(uri, headers: _headers);
+      final Uri uri = Uri.parse('$baseUrl/orders').replace(queryParameters: queryParams);
+      final http.Response response = await http.get(uri, headers: _headers);
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
         final orders = data['data']['orders'];
         if (orders is List) {
-          return {'success': true, 'data': orders};
+          return <String, dynamic>{'success': true, 'data': orders};
         } else {
-          return {'success': false, 'message': 'Formato de respuesta inválido'};
+          return <String, dynamic>{'success': false, 'message': 'Formato de respuesta inválido'};
         }
       } else {
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error obteniendo órdenes'
         };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 
   // Obtener orden por ID
   Future<Map<String, dynamic>> getOrderById(String id) async {
     try {
-      final response = await http.get(
+      final http.Response response = await http.get(
         Uri.parse('$baseUrl/orders/$id'),
         headers: _headers,
       );
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        return {'success': true, 'data': data['data']['order']};
+        return <String, dynamic>{'success': true, 'data': data['data']['order']};
       } else {
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error obteniendo orden'
         };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 
@@ -116,23 +116,23 @@ class OrderProvider {
     required String status, // pending, completed, cancelled
   }) async {
     try {
-      final response = await http.patch(
+      final http.Response response = await http.patch(
         Uri.parse('$baseUrl/orders/$id'),
         headers: _headers,
-        body: jsonEncode({'status': status}),
+        body: jsonEncode(<String, String>{'status': status}),
       );
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        return {'success': true, 'data': data['data']};
+        return <String, dynamic>{'success': true, 'data': data['data']};
       } else {
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error actualizando orden'
         };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 
@@ -144,49 +144,49 @@ class OrderProvider {
     String? groupBy, // day, week, month
   }) async {
     try {
-      final queryParams = <String, String>{};
+      final Map<String, String> queryParams = <String, String>{};
       if (storeId != null) queryParams['storeId'] = storeId;
       if (startDate != null) queryParams['startDate'] = startDate;
       if (endDate != null) queryParams['endDate'] = endDate;
       if (groupBy != null) queryParams['groupBy'] = groupBy;
 
-      final uri = Uri.parse('$baseUrl/orders/reports/sales')
+      final Uri uri = Uri.parse('$baseUrl/orders/reports/sales')
           .replace(queryParameters: queryParams);
-      final response = await http.get(uri, headers: _headers);
+      final http.Response response = await http.get(uri, headers: _headers);
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        return {'success': true, 'data': data['data']};
+        return <String, dynamic>{'success': true, 'data': data['data']};
       } else {
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error obteniendo reporte'
         };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 
   // Eliminar orden
   Future<Map<String, dynamic>> deleteOrder(String id) async {
     try {
-      final response = await http.delete(
+      final http.Response response = await http.delete(
         Uri.parse('$baseUrl/orders/$id'),
         headers: _headers,
       );
 
       if (response.statusCode == 204) {
-        return {'success': true};
+        return <String, dynamic>{'success': true};
       } else {
         final data = jsonDecode(response.body);
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error eliminando orden'
         };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 }

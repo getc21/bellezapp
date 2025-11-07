@@ -12,9 +12,9 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final AuthController authController = Get.put(AuthController());
-  final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
 
   @override
@@ -29,18 +29,18 @@ class _LoginPageState extends State<LoginPage> {
       // Cerrar el teclado antes de iniciar el login
       FocusScope.of(context).unfocus();
       
-      final success = await authController.login(
+      final bool success = await authController.login(
         _usernameController.text.trim(),
         _passwordController.text,
       );
 
       if (success) {
         // Esperar un poco antes de navegar para asegurar que el teclado esté cerrado
-        await Future.delayed(Duration(milliseconds: 300));
+        await Future.delayed(const Duration(milliseconds: 300));
         // Navegar a la pantalla principal
-        Get.offAll(() => HomePage());
+        Get.offAll(() => const HomePage());
         // Asegurar que el foco se libere después de la navegación
-        await Future.delayed(Duration(milliseconds: 100));
+        await Future.delayed(const Duration(milliseconds: 100));
         FocusManager.instance.primaryFocus?.unfocus();
       }
     }
@@ -48,16 +48,16 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
     
     return Scaffold(
-      body: Container(
+      body: DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              colorScheme.primary.withOpacity(0.1),
+            colors: <Color>[
+              colorScheme.primary.withValues(alpha: 0.1),
               colorScheme.surface,
             ],
           ),
@@ -74,7 +74,7 @@ class _LoginPageState extends State<LoginPage> {
                     key: _formKey,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      children: [
+                      children: <Widget>[
                         // Logo o icono de la app
                         Container(
                           width: 80,
@@ -119,7 +119,7 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
                           textInputAction: TextInputAction.next,
-                          validator: (value) {
+                          validator: (String? value) {
                             if (value == null || value.trim().isEmpty) {
                               return 'Por favor ingresa tu usuario o email';
                             }
@@ -153,7 +153,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           textInputAction: TextInputAction.done,
                           onFieldSubmitted: (_) => _login(),
-                          validator: (value) {
+                          validator: (String? value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor ingresa tu contraseña';
                             }
@@ -209,7 +209,7 @@ class _LoginPageState extends State<LoginPage> {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Row(
-                                  children: [
+                                  children: <Widget>[
                                     Icon(
                                       Icons.error_outline,
                                       color: colorScheme.error,
@@ -235,12 +235,12 @@ class _LoginPageState extends State<LoginPage> {
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+                            children: <Widget>[
                               Text(
                                 'Usuario por defecto:',
                                 style: TextStyle(

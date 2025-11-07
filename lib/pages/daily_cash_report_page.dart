@@ -2,6 +2,7 @@ import 'package:bellezapp/controllers/cash_controller.dart';
 import 'package:bellezapp/models/cash_movement.dart';
 import 'package:bellezapp/utils/utils.dart';
 import 'package:bellezapp/widgets/store_aware_app_bar.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -11,21 +12,21 @@ class DailyCashReportPage extends StatefulWidget {
   const DailyCashReportPage({super.key});
 
   @override
-  _DailyCashReportPageState createState() => _DailyCashReportPageState();
+  DailyCashReportPageState createState() => DailyCashReportPageState();
 }
 
-class _DailyCashReportPageState extends State<DailyCashReportPage> {
+class DailyCashReportPageState extends State<DailyCashReportPage> {
   late CashController cashController;
   DateTime _selectedDate = DateTime.now();
   List<CashMovement> _dailyMovements = [];
-  
+
   // Datos para los gráficos
   double _totalIncome = 0.0;
   double _totalOutcome = 0.0;
   double _totalSales = 0.0;
   double _netTotal = 0.0;
   int _movementsCount = 0;
-  
+
   // Datos por hora para el gráfico de líneas
   final Map<int, double> _hourlyData = {};
 
@@ -36,10 +37,9 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
     try {
       cashController = Get.find<CashController>();
     } catch (e) {
-      print('Error al encontrar CashController: $e');
       cashController = Get.put(CashController(), permanent: true);
     }
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await cashController.initialize();
       await _loadDailyReport();
@@ -47,67 +47,61 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
   }
 
   Future<void> _loadDailyReport() async {
-    print('🔄 Cargando reporte diario para: $_selectedDate');
-    
     await cashController.loadMovementsByDate(_selectedDate);
-    
+
     // Convertir Map<String, dynamic> a CashMovement
     final rawMovements = cashController.movements;
-    _dailyMovements = rawMovements.map((movement) => CashMovement.fromMap(movement)).toList();
-    
-    print('📊 Movimientos cargados: ${_dailyMovements.length}');
-    print('📊 Movimientos raw: ${rawMovements.length}');
-    
+    _dailyMovements = rawMovements
+        .map((movement) => CashMovement.fromMap(movement))
+        .toList();
+
     _calculateStatistics();
     _generateHourlyData();
-    
-    print('💰 Total income: $_totalIncome');
-    print('💰 Total sales: $_totalSales');
-    print('💰 Total outcome: $_totalOutcome');
-    
+
     setState(() {});
   }
 
   void _calculateStatistics() {
-    print('🧮 Calculando estadísticas para ${_dailyMovements.length} movimientos');
-    
     // Mostrar todos los movimientos para depuración
     for (var movement in _dailyMovements) {
-      print('📝 Movimiento: ${movement.type} - \$${movement.amount} - ${movement.description}');
+      if (kDebugMode) {
+        print(
+          '📝 Movimiento: ${movement.type} - \$${movement.amount} - ${movement.description}',
+        );
+      }
     }
-    
+
     // Los tipos del backend son en inglés: income, expense, sale, opening, closing
     _totalIncome = _dailyMovements
         .where((m) => m.type == 'income')
         .fold(0.0, (sum, m) => sum + m.amount);
-        
+
     _totalSales = _dailyMovements
         .where((m) => m.type == 'sale')
         .fold(0.0, (sum, m) => sum + m.amount);
-        
+
     _totalOutcome = _dailyMovements
         .where((m) => m.type == 'expense')
         .fold(0.0, (sum, m) => sum + m.amount);
-        
+
     _netTotal = (_totalIncome + _totalSales) - _totalOutcome;
     _movementsCount = _dailyMovements.length;
-    
-    print('📊 Income: $_totalIncome, Sales: $_totalSales, Outcome: $_totalOutcome');
-    print('📊 Net Total: $_netTotal, Count: $_movementsCount');
   }
 
   void _generateHourlyData() {
     _hourlyData.clear();
-    
+
     // Inicializar todas las horas del día con 0
     for (int i = 0; i < 24; i++) {
       _hourlyData[i] = 0.0;
     }
-    
+
     // Sumar movimientos por hora
     for (var movement in _dailyMovements) {
       final hour = movement.createdAt.hour;
-      final amount = movement.type == 'expense' ? -movement.amount : movement.amount;
+      final amount = movement.type == 'expense'
+          ? -movement.amount
+          : movement.amount;
       _hourlyData[hour] = (_hourlyData[hour] ?? 0.0) + amount;
     }
   }
@@ -160,14 +154,14 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Utils.colorGnav, Utils.colorGnav.withOpacity(0.8)],
+          colors: [Utils.colorGnav, Utils.colorGnav.withValues(alpha: 0.8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             spreadRadius: 2,
             blurRadius: 8,
             offset: Offset(0, 4),
@@ -192,28 +186,34 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
                     ),
                   ),
                   Text(
-                    DateFormat('EEEE, dd MMMM yyyy', 'es').format(_selectedDate),
+                    DateFormat(
+                      'EEEE, dd MMMM yyyy',
+                      'es',
+                    ).format(_selectedDate),
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       fontSize: 16,
                     ),
                   ),
                 ],
               ),
-              Icon(
-                Icons.analytics,
-                color: Colors.white,
-                size: 32,
-              ),
+              Icon(Icons.analytics, color: Colors.white, size: 32),
             ],
           ),
           SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildHeaderStat('Total Neto', _netTotal, 
-                _netTotal >= 0 ? Icons.trending_up : Icons.trending_down),
-              _buildHeaderStat('Movimientos', _movementsCount.toDouble(), Icons.receipt),
+              _buildHeaderStat(
+                'Total Neto',
+                _netTotal,
+                _netTotal >= 0 ? Icons.trending_up : Icons.trending_down,
+              ),
+              _buildHeaderStat(
+                'Movimientos',
+                _movementsCount.toDouble(),
+                Icons.receipt,
+              ),
             ],
           ),
         ],
@@ -229,12 +229,14 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
         Text(
           label,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.9),
+            color: Colors.white.withValues(alpha: 0.9),
             fontSize: 12,
           ),
         ),
         Text(
-          label == 'Movimientos' ? value.toInt().toString() : '\$${value.toStringAsFixed(2)}',
+          label == 'Movimientos'
+              ? value.toInt().toString()
+              : '\$${value.toStringAsFixed(2)}',
           style: TextStyle(
             color: Colors.white,
             fontSize: 18,
@@ -248,16 +250,42 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
   Widget _buildQuickStats() {
     return Row(
       children: [
-        Expanded(child: _buildStatCard('Ingresos', _totalIncome, Colors.green, Icons.add_circle)),
+        Expanded(
+          child: _buildStatCard(
+            'Ingresos',
+            _totalIncome,
+            Colors.green,
+            Icons.add_circle,
+          ),
+        ),
         SizedBox(width: 12),
-        Expanded(child: _buildStatCard('Ventas', _totalSales, Colors.blue, Icons.shopping_cart)),
+        Expanded(
+          child: _buildStatCard(
+            'Ventas',
+            _totalSales,
+            Colors.blue,
+            Icons.shopping_cart,
+          ),
+        ),
         SizedBox(width: 12),
-        Expanded(child: _buildStatCard('Egresos', _totalOutcome, Colors.red, Icons.remove_circle)),
+        Expanded(
+          child: _buildStatCard(
+            'Egresos',
+            _totalOutcome,
+            Colors.red,
+            Icons.remove_circle,
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildStatCard(String title, double amount, Color color, IconData icon) {
+  Widget _buildStatCard(
+    String title,
+    double amount,
+    Color color,
+    IconData icon,
+  ) {
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -265,7 +293,7 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 4,
             offset: Offset(0, 2),
@@ -277,7 +305,7 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
           Container(
             padding: EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Icon(icon, color: color, size: 24),
@@ -322,9 +350,14 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
                 PieChartSectionData(
                   color: Colors.green,
                   value: _totalIncome,
-                  title: '${((_totalIncome / total) * 100).toStringAsFixed(1)}%',
+                  title:
+                      '${((_totalIncome / total) * 100).toStringAsFixed(1)}%',
                   radius: 80,
-                  titleStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                  titleStyle: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               if (_totalSales > 0)
                 PieChartSectionData(
@@ -332,24 +365,36 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
                   value: _totalSales,
                   title: '${((_totalSales / total) * 100).toStringAsFixed(1)}%',
                   radius: 80,
-                  titleStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                  titleStyle: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               if (_totalOutcome > 0)
                 PieChartSectionData(
                   color: Colors.red,
                   value: _totalOutcome,
-                  title: '${((_totalOutcome / total) * 100).toStringAsFixed(1)}%',
+                  title:
+                      '${((_totalOutcome / total) * 100).toStringAsFixed(1)}%',
                   radius: 80,
-                  titleStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                  titleStyle: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
             ],
           ),
         ),
       ),
       legend: [
-        if (_totalIncome > 0) _buildLegendItem('Ingresos', Colors.green, _totalIncome),
-        if (_totalSales > 0) _buildLegendItem('Ventas', Colors.blue, _totalSales),
-        if (_totalOutcome > 0) _buildLegendItem('Egresos', Colors.red, _totalOutcome),
+        if (_totalIncome > 0)
+          _buildLegendItem('Ingresos', Colors.green, _totalIncome),
+        if (_totalSales > 0)
+          _buildLegendItem('Ventas', Colors.blue, _totalSales),
+        if (_totalOutcome > 0)
+          _buildLegendItem('Egresos', Colors.red, _totalOutcome),
       ],
     );
   }
@@ -371,7 +416,10 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
                 sideTitles: SideTitles(
                   showTitles: true,
                   getTitlesWidget: (value, meta) {
-                    return Text('\$${value.toInt()}', style: TextStyle(fontSize: 10));
+                    return Text(
+                      '\$${value.toInt()}',
+                      style: TextStyle(fontSize: 10),
+                    );
                   },
                 ),
               ),
@@ -380,11 +428,16 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
                   showTitles: true,
                   interval: 4,
                   getTitlesWidget: (value, meta) {
-                    return Text('${value.toInt()}h', style: TextStyle(fontSize: 10));
+                    return Text(
+                      '${value.toInt()}h',
+                      style: TextStyle(fontSize: 10),
+                    );
                   },
                 ),
               ),
-              rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles: AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
               topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
             ),
             borderData: FlBorderData(show: false),
@@ -398,7 +451,7 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
                 barWidth: 3,
                 belowBarData: BarAreaData(
                   show: true,
-                  color: Utils.colorBotones.withOpacity(0.1),
+                  color: Utils.colorBotones.withValues(alpha: 0.1),
                 ),
                 dotData: FlDotData(show: false),
               ),
@@ -425,14 +478,18 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
         child: BarChart(
           BarChartData(
             alignment: BarChartAlignment.spaceAround,
-            maxY: typeCount.values.reduce((a, b) => a > b ? a : b).toDouble() + 2,
+            maxY:
+                typeCount.values.reduce((a, b) => a > b ? a : b).toDouble() + 2,
             barTouchData: BarTouchData(enabled: false),
             titlesData: FlTitlesData(
               leftTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
                   getTitlesWidget: (value, meta) {
-                    return Text(value.toInt().toString(), style: TextStyle(fontSize: 10));
+                    return Text(
+                      value.toInt().toString(),
+                      style: TextStyle(fontSize: 10),
+                    );
                   },
                 ),
               ),
@@ -444,19 +501,36 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
                     if (value.toInt() < types.length) {
                       final type = types[value.toInt()];
                       switch (type) {
-                        case 'income': return Text('Ingresos', style: TextStyle(fontSize: 10));
-                        case 'expense': return Text('Egresos', style: TextStyle(fontSize: 10));
-                        case 'sale': return Text('Ventas', style: TextStyle(fontSize: 10));
-                        case 'opening': return Text('Apertura', style: TextStyle(fontSize: 10));
-                        case 'closing': return Text('Cierre', style: TextStyle(fontSize: 10));
-                        default: return Text(type, style: TextStyle(fontSize: 10));
+                        case 'income':
+                          return Text(
+                            'Ingresos',
+                            style: TextStyle(fontSize: 10),
+                          );
+                        case 'expense':
+                          return Text(
+                            'Egresos',
+                            style: TextStyle(fontSize: 10),
+                          );
+                        case 'sale':
+                          return Text('Ventas', style: TextStyle(fontSize: 10));
+                        case 'opening':
+                          return Text(
+                            'Apertura',
+                            style: TextStyle(fontSize: 10),
+                          );
+                        case 'closing':
+                          return Text('Cierre', style: TextStyle(fontSize: 10));
+                        default:
+                          return Text(type, style: TextStyle(fontSize: 10));
                       }
                     }
                     return Text('');
                   },
                 ),
               ),
-              rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles: AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
               topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
             ),
             borderData: FlBorderData(show: false),
@@ -464,14 +538,25 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
               final index = typeCount.keys.toList().indexOf(entry.key);
               Color barColor;
               switch (entry.key) {
-                case 'income': barColor = Colors.green; break;
-                case 'expense': barColor = Colors.red; break;
-                case 'sale': barColor = Colors.blue; break;
-                case 'opening': barColor = Colors.orange; break;
-                case 'closing': barColor = Colors.purple; break;
-                default: barColor = Colors.grey;
+                case 'income':
+                  barColor = Colors.green;
+                  break;
+                case 'expense':
+                  barColor = Colors.red;
+                  break;
+                case 'sale':
+                  barColor = Colors.blue;
+                  break;
+                case 'opening':
+                  barColor = Colors.orange;
+                  break;
+                case 'closing':
+                  barColor = Colors.purple;
+                  break;
+                default:
+                  barColor = Colors.grey;
               }
-              
+
               return BarChartGroupData(
                 x: index,
                 barRods: [
@@ -479,7 +564,9 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
                     toY: entry.value.toDouble(),
                     color: barColor,
                     width: 30,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(4),
+                    ),
                   ),
                 ],
               );
@@ -498,7 +585,7 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 4,
             offset: Offset(0, 2),
@@ -517,11 +604,17 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
             ),
           ),
           SizedBox(height: 16),
-          _buildAnalysisItem('Promedio por movimiento', 
-            _movementsCount > 0 ? (_totalIncome + _totalSales) / _movementsCount : 0.0),
+          _buildAnalysisItem(
+            'Promedio por movimiento',
+            _movementsCount > 0
+                ? (_totalIncome + _totalSales) / _movementsCount
+                : 0.0,
+          ),
           _buildAnalysisItem('Margen de ganancia', _netTotal),
-          _buildAnalysisItem('Eficiencia operativa', 
-            _movementsCount > 0 ? (_netTotal / _movementsCount) : 0.0),
+          _buildAnalysisItem(
+            'Eficiencia operativa',
+            _movementsCount > 0 ? (_netTotal / _movementsCount) : 0.0,
+          ),
           SizedBox(height: 12),
           _buildPerformanceIndicator(),
         ],
@@ -535,13 +628,7 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 14,
-            ),
-          ),
+          Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
           Text(
             '\$${value.toStringAsFixed(2)}',
             style: TextStyle(
@@ -581,9 +668,9 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
     return Container(
       padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -602,7 +689,11 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
     );
   }
 
-  Widget _buildChartContainer(String title, Widget chart, {List<Widget>? legend}) {
+  Widget _buildChartContainer(
+    String title,
+    Widget chart, {
+    List<Widget>? legend,
+  }) {
     return Container(
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -610,7 +701,7 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 4,
             offset: Offset(0, 2),
@@ -632,11 +723,7 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
           chart,
           if (legend != null) ...[
             SizedBox(height: 30),
-            Wrap(
-              spacing: 16,
-              runSpacing: 8,
-              children: legend,
-            ),
+            Wrap(spacing: 16, runSpacing: 8, children: legend),
           ],
         ],
       ),
@@ -672,7 +759,7 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 4,
             offset: Offset(0, 2),
@@ -686,10 +773,7 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
             SizedBox(height: 12),
             Text(
               message,
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 16,
-              ),
+              style: TextStyle(color: Colors.grey[600], fontSize: 16),
             ),
           ],
         ),
@@ -705,7 +789,7 @@ class _DailyCashReportPageState extends State<DailyCashReportPage> {
       lastDate: DateTime.now(),
       locale: Locale('es'),
     );
-    
+
     if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;

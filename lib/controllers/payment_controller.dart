@@ -127,7 +127,7 @@ class PaymentController extends GetxController {
   
   // Obtener información del pago para mostrar
   Map<String, dynamic> getPaymentInfo() {
-    return {
+    return <String, dynamic>{
       'method': selectedPaymentMethod.value,
       'methodValue': selectedPaymentMethod.value.value,
       'methodDisplayName': selectedPaymentMethod.value.displayName,
@@ -139,7 +139,7 @@ class PaymentController extends GetxController {
   
   // Obtener detalles del pago como texto
   String getPaymentDetails(double totalAmount) {
-    final method = selectedPaymentMethod.value;
+    final PaymentMethod method = selectedPaymentMethod.value;
     String details = '${method.icon} ${method.displayName}';
     
     switch (method) {
@@ -164,10 +164,10 @@ class PaymentController extends GetxController {
   
   // Obtener resumen del pago para la orden
   Map<String, dynamic> getPaymentSummary() {
-    final info = getPaymentInfo();
-    return {
+    final Map<String, dynamic> info = getPaymentInfo();
+    return <String, dynamic>{
       'payment_method': info['methodValue'],
-      'payment_details': {
+      'payment_details': <String, dynamic>{
         'method': info['methodDisplayName'],
         'qr_reference': info['qrReference'],
         'received_amount': info['receivedAmount'],

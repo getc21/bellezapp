@@ -44,7 +44,7 @@ class StoreManagementPage extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              Utils.colorFondo.withOpacity(0.3),
+              Utils.colorFondo.withValues(alpha: 0.3),
               Colors.white,
             ],
             begin: Alignment.topCenter,
@@ -97,7 +97,7 @@ class StoreManagementPage extends StatelessWidget {
           Container(
             padding: EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Utils.colorBotones.withOpacity(0.1),
+              color: Utils.colorBotones.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -120,7 +120,7 @@ class StoreManagementPage extends StatelessWidget {
             'Crea tu primera tienda para comenzar',
             style: TextStyle(
               fontSize: 16,
-              color: Utils.colorTexto.withOpacity(0.6),
+              color: Utils.colorTexto.withValues(alpha: 0.6),
             ),
           ),
         ],
@@ -139,7 +139,7 @@ class StoreManagementPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 10,
             offset: Offset(0, 4),
           ),
@@ -156,8 +156,8 @@ class StoreManagementPage extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: isActive
-                    ? [Utils.colorBotones.withOpacity(0.1), Utils.colorGnav.withOpacity(0.1)]
-                    : [Colors.grey.withOpacity(0.1), Colors.grey.withOpacity(0.05)],
+                    ? [Utils.colorBotones.withValues(alpha: 0.1), Utils.colorGnav.withValues(alpha: 0.1)]
+                    : [Colors.grey.withValues(alpha: 0.1), Colors.grey.withValues(alpha: 0.05)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -223,7 +223,7 @@ class StoreManagementPage extends StatelessWidget {
                       Container(
                         padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: isActive ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2),
+                          color: isActive ? Colors.green.withValues(alpha: 0.2) : Colors.red.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -294,7 +294,7 @@ class StoreManagementPage extends StatelessWidget {
                     SizedBox(width: 8),
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.1),
+                        color: Colors.red.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: IconButton(
@@ -318,7 +318,7 @@ class StoreManagementPage extends StatelessWidget {
       padding: EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: Utils.colorTexto.withOpacity(0.6)),
+          Icon(icon, size: 18, color: Utils.colorTexto.withValues(alpha: 0.6)),
           SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -459,7 +459,7 @@ class StoreManagementPage extends StatelessWidget {
                 Obx(() => Container(
                   padding: EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Utils.colorFondo.withOpacity(0.3),
+                    color: Utils.colorFondo.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
@@ -477,25 +477,92 @@ class StoreManagementPage extends StatelessWidget {
                       Row(
                         children: [
                           Expanded(
-                            child: RadioListTile<String>(
-                              value: 'active',
-                              groupValue: statusValue.value,
-                              onChanged: (value) => statusValue.value = value!,
-                              title: Text('Activa', style: TextStyle(fontSize: 14)),
-                              activeColor: Utils.colorBotones,
-                              dense: true,
-                              contentPadding: EdgeInsets.zero,
+                            child: GestureDetector(
+                              onTap: () => statusValue.value = 'active',
+                              child: Container(
+                                padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                                decoration: BoxDecoration(
+                                  color: statusValue.value == 'active' 
+                                      ? Utils.colorBotones.withValues(alpha: 0.1) 
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: statusValue.value == 'active' 
+                                        ? Utils.colorBotones 
+                                        : Colors.grey.shade300,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 16,
+                                      height: 16,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: statusValue.value == 'active' 
+                                            ? Utils.colorBotones 
+                                            : Colors.transparent,
+                                        border: Border.all(
+                                          color: statusValue.value == 'active' 
+                                              ? Utils.colorBotones 
+                                              : Colors.grey.shade400,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      child: statusValue.value == 'active'
+                                          ? Icon(Icons.check, size: 10, color: Colors.white)
+                                          : null,
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text('Activa', style: TextStyle(fontSize: 14)),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
+                          SizedBox(width: 12),
                           Expanded(
-                            child: RadioListTile<String>(
-                              value: 'inactive',
-                              groupValue: statusValue.value,
-                              onChanged: (value) => statusValue.value = value!,
-                              title: Text('Inactiva', style: TextStyle(fontSize: 14)),
-                              activeColor: Utils.colorBotones,
-                              dense: true,
-                              contentPadding: EdgeInsets.zero,
+                            child: GestureDetector(
+                              onTap: () => statusValue.value = 'inactive',
+                              child: Container(
+                                padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                                decoration: BoxDecoration(
+                                  color: statusValue.value == 'inactive' 
+                                      ? Utils.colorBotones.withValues(alpha: 0.1) 
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: statusValue.value == 'inactive' 
+                                        ? Utils.colorBotones 
+                                        : Colors.grey.shade300,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 16,
+                                      height: 16,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: statusValue.value == 'inactive' 
+                                            ? Utils.colorBotones 
+                                            : Colors.transparent,
+                                        border: Border.all(
+                                          color: statusValue.value == 'inactive' 
+                                              ? Utils.colorBotones 
+                                              : Colors.grey.shade400,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      child: statusValue.value == 'inactive'
+                                          ? Icon(Icons.check, size: 10, color: Colors.white)
+                                          : null,
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text('Inactiva', style: TextStyle(fontSize: 14)),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -512,7 +579,6 @@ class StoreManagementPage extends StatelessWidget {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () => Navigator.pop(context),
-                        child: Text('Cancelar'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Utils.colorTexto,
                           padding: EdgeInsets.symmetric(vertical: 16),
@@ -520,6 +586,7 @@ class StoreManagementPage extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
+                        child: Text('Cancelar'),
                       ),
                     ),
                     SizedBox(width: 12),
@@ -555,14 +622,10 @@ class StoreManagementPage extends StatelessWidget {
                             );
                           }
 
-                          if (success) {
+                          if (success && context.mounted) {
                             Navigator.pop(context);
                           }
                         },
-                        child: Text(
-                          isEdit ? 'Guardar' : 'Crear',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Utils.colorBotones,
                           foregroundColor: Colors.white,
@@ -570,6 +633,10 @@ class StoreManagementPage extends StatelessWidget {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
+                        ),
+                        child: Text(
+                          isEdit ? 'Guardar' : 'Crear',
+                          style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
@@ -593,7 +660,7 @@ class StoreManagementPage extends StatelessWidget {
             Container(
               padding: EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(Icons.warning_amber_rounded, color: Colors.red),
@@ -614,9 +681,9 @@ class StoreManagementPage extends StatelessWidget {
             Container(
               padding: EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.05),
+                color: Colors.red.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.red.withOpacity(0.3)),
+                border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -632,7 +699,7 @@ class StoreManagementPage extends StatelessWidget {
                     Text(
                       store.address!,
                       style: TextStyle(
-                        color: Utils.colorTexto.withOpacity(0.7),
+                        color: Utils.colorTexto.withValues(alpha: 0.7),
                         fontSize: 14,
                       ),
                     ),

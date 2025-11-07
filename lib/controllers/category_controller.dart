@@ -3,11 +3,9 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import '../providers/category_provider.dart';
 import 'auth_controller.dart';
-import 'store_controller.dart';
 
 class CategoryController extends GetxController {
   final AuthController _authController = Get.find<AuthController>();
-  final StoreController _storeController = Get.find<StoreController>();
   
   CategoryProvider get _categoryProvider => CategoryProvider(_authController.token);
 
@@ -48,6 +46,8 @@ class CategoryController extends GetxController {
           'Error',
           _errorMessage.value,
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
       }
     } catch (e) {
@@ -56,6 +56,8 @@ class CategoryController extends GetxController {
         'Error',
         _errorMessage.value,
         snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
     } finally {
       _isLoading.value = false;
@@ -76,6 +78,8 @@ class CategoryController extends GetxController {
           'Error',
           result['message'] ?? 'Error obteniendo categoría',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
         return null;
       }
@@ -84,6 +88,8 @@ class CategoryController extends GetxController {
         'Error',
         'Error de conexión: $e',
         snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
       return null;
     } finally {
@@ -109,7 +115,6 @@ class CategoryController extends GetxController {
       if (result['success']) {
         // No mostrar snackbar aquí, se manejará en la página
         await loadCategories();
-        print('🎯 CategoryController: Retornando true');
         return true;
       } else {
         final errorMessage = result['message'] ?? 'Error creando categoría';
@@ -117,8 +122,8 @@ class CategoryController extends GetxController {
           'Error',
           errorMessage,
           snackPosition: SnackPosition.TOP,
-          backgroundColor: Colors.red.withOpacity(0.1),
-          colorText: Colors.red[800],
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
           duration: Duration(seconds: 3),
         );
         return false;
@@ -128,8 +133,8 @@ class CategoryController extends GetxController {
         'Error',
         'Error de conexión: $e',
         snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red.withOpacity(0.1),
-        colorText: Colors.red[800],
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
         duration: Duration(seconds: 3),
       );
       return false;

@@ -250,7 +250,7 @@ class FinancialReportPageState extends State<FinancialReportPage> {
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Utils.colorBotones, Utils.colorBotones.withOpacity(0.7)],
+            colors: [Utils.colorBotones, Utils.colorBotones.withValues(alpha: 0.7)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -301,7 +301,7 @@ class FinancialReportPageState extends State<FinancialReportPage> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(

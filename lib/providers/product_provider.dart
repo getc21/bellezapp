@@ -123,7 +123,6 @@ class ProductProvider {
       if (imageFile != null) {
         // Detectar el tipo MIME del archivo
         final mimeType = lookupMimeType(imageFile.path);
-        final fileExtension = imageFile.path.split('.').last.toLowerCase();
         
         // Si no se detecta, usar el tipo según la extensión
         String contentType = mimeType ?? 'image/jpeg';
@@ -134,9 +133,6 @@ class ProductProvider {
             ? MediaType(mimeParts[0], mimeParts[1])
             : MediaType('image', 'jpeg');
         
-        print('DEBUG ProductProvider - Tipo MIME detectado: $contentType');
-        print('DEBUG ProductProvider - Extensión archivo: $fileExtension');
-        
         request.files.add(
           await http.MultipartFile.fromPath(
             'foto',
@@ -145,17 +141,8 @@ class ProductProvider {
           ),
         );
       }
-
-      print('DEBUG ProductProvider - Enviando request a: $baseUrl/products');
-      print('DEBUG ProductProvider - Fields: ${request.fields}');
-      print('DEBUG ProductProvider - Files: ${imageFile != null ? "Con imagen" : "Sin imagen"}');
-
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
-      
-      print('DEBUG ProductProvider - Status Code: ${response.statusCode}');
-      print('DEBUG ProductProvider - Response Body: ${response.body}');
-      
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 201) {
@@ -167,7 +154,6 @@ class ProductProvider {
         };
       }
     } catch (e) {
-      print('DEBUG ProductProvider - Exception: $e');
       return {'success': false, 'message': 'Error de conexión: $e'};
     }
   }

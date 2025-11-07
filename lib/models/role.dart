@@ -20,7 +20,7 @@ class Role {
 
   // Convertir Role a Map
   Map<String, dynamic> toMap() {
-    return {
+    return <String, dynamic>{
       if (id != null) 'id': id,
       'name': name,
       'description': description,

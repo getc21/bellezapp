@@ -12,7 +12,7 @@ enum DiscountType {
 
   static DiscountType fromString(String value) {
     return DiscountType.values.firstWhere(
-      (type) => type.value == value,
+      (DiscountType type) => type.value == value,
       orElse: () => DiscountType.percentage,
     );
   }
@@ -46,7 +46,7 @@ class Discount {
   }) : createdAt = createdAt ?? DateTime.now();
 
   Map<String, dynamic> toMap() {
-    return {
+    return <String, dynamic>{
       if (id != null) '_id': id,
       'name': name,
       'description': description,
@@ -87,7 +87,7 @@ class Discount {
     if (!isActive) return 0.0;
     
     // Verificar fechas de validez
-    final now = DateTime.now();
+    final DateTime now = DateTime.now();
     if (startDate != null && now.isBefore(startDate!)) return 0.0;
     if (endDate != null && now.isAfter(endDate!)) return 0.0;
     
@@ -122,7 +122,7 @@ class Discount {
   bool isApplicable(double totalAmount) {
     if (!isActive) return false;
     
-    final now = DateTime.now();
+    final DateTime now = DateTime.now();
     if (startDate != null && now.isBefore(startDate!)) return false;
     if (endDate != null && now.isAfter(endDate!)) return false;
     
@@ -152,7 +152,7 @@ class Discount {
   String get statusText {
     if (!isActive) return 'Inactivo';
     
-    final now = DateTime.now();
+    final DateTime now = DateTime.now();
     if (startDate != null && now.isBefore(startDate!)) {
       return 'Programado';
     }
@@ -246,7 +246,7 @@ class OrderDiscount {
   }
 
   Map<String, dynamic> toMap() {
-    return {
+    return <String, dynamic>{
       'discount_id': discount.id,
       'discount_name': discount.name,
       'original_amount': originalAmount,

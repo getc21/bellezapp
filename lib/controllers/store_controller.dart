@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/store_provider.dart';
@@ -64,6 +66,8 @@ class StoreController extends GetxController {
           'Error',
           _errorMessage.value,
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
       }
     } catch (e) {
@@ -72,6 +76,8 @@ class StoreController extends GetxController {
         'Error',
         _errorMessage.value,
         snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
     } finally {
       _isLoading.value = false;
@@ -95,7 +101,6 @@ class StoreController extends GetxController {
         
         if (savedStore.isNotEmpty) {
           _currentStore.value = savedStore;
-          print('✅ Tienda restaurada: ${savedStore['name']}');
           return;
         }
       }
@@ -103,10 +108,8 @@ class StoreController extends GetxController {
       // Si no hay tienda guardada o no se encontró, seleccionar la primera
       _currentStore.value = _stores.first;
       await _saveSelectedStore(_stores.first);
-      print('✅ Tienda seleccionada por defecto: ${_stores.first['name']}');
       
     } catch (e) {
-      print('Error seleccionando tienda inicial: $e');
       // Fallback: seleccionar la primera tienda
       if (_stores.isNotEmpty) {
         _currentStore.value = _stores.first;
@@ -120,7 +123,9 @@ class StoreController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('selected_store_id', store['_id'].toString());
     } catch (e) {
-      print('Error guardando tienda seleccionada: $e');
+      if (kDebugMode) {
+        print('Error guardando tienda seleccionada: $e');
+      }
     }
   }
 
@@ -130,9 +135,7 @@ class StoreController extends GetxController {
     _currentStore.value = store;
     
     // ⭐ GUARDAR LA SELECCIÓN AUTOMÁTICAMENTE
-    _saveSelectedStore(store);
-    print('🏪 Tienda seleccionada: ${store['name']}');
-    
+    _saveSelectedStore(store);    
     // ⭐ REFRESCAR TODOS LOS DATOS CUANDO CAMBIE LA TIENDA
     if (previousStore?['_id'] != store['_id']) {
       _refreshAllControllersData();
@@ -140,9 +143,7 @@ class StoreController extends GetxController {
   }
 
   // ⭐ NUEVO MÉTODO PARA REFRESCAR TODOS LOS CONTROLADORES
-  Future<void> _refreshAllControllersData() async {
-    print('🔄 Refrescando datos para tienda: ${_currentStore.value?['name']}');
-    
+  Future<void> _refreshAllControllersData() async {    
     try {
       // Buscar y refrescar controladores que dependen de la tienda
       if (Get.isRegistered<ProductController>()) {
@@ -184,10 +185,14 @@ class StoreController extends GetxController {
         'Datos actualizados para ${_currentStore.value?['name']}',
         snackPosition: SnackPosition.BOTTOM,
         duration: const Duration(seconds: 2),
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
       );
       
     } catch (e) {
-      print('Error refrescando datos para nueva tienda: $e');
+      if (kDebugMode) {
+        print('Error refrescando datos para nueva tienda: $e');
+      }
     }
   }
 
@@ -195,7 +200,6 @@ class StoreController extends GetxController {
   void clearStores() {
     _stores.clear();
     _currentStore.value = null;
-    print('🧹 Tiendas limpiadas al cerrar sesión');
   }
 
   // Cambiar a otra tienda (alias para compatibilidad)
@@ -236,6 +240,8 @@ class StoreController extends GetxController {
           'Error',
           result['message'] ?? 'Error obteniendo tienda',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
         return null;
       }
@@ -282,6 +288,8 @@ class StoreController extends GetxController {
           'Éxito',
           'Tienda creada correctamente',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
         );
         await loadStores();
         return true;
@@ -290,6 +298,8 @@ class StoreController extends GetxController {
           'Error',
           result['message'] ?? 'Error creando tienda',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
         return false;
       }
@@ -338,6 +348,8 @@ class StoreController extends GetxController {
           'Éxito',
           'Tienda actualizada correctamente',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
         );
         await loadStores();
         return true;
@@ -346,6 +358,8 @@ class StoreController extends GetxController {
           'Error',
           result['message'] ?? 'Error actualizando tienda',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
         return false;
       }
@@ -382,6 +396,8 @@ class StoreController extends GetxController {
           'Éxito',
           'Tienda eliminada correctamente',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
         );
         _stores.removeWhere((s) => s['_id'] == id);
         

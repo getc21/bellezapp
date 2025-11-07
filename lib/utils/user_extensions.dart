@@ -24,15 +24,15 @@ extension UserMapExtension on Map<String, dynamic> {
   }
   
   String get fullName {
-    final first = firstName;
-    final last = lastName;
+    final String first = firstName;
+    final String last = lastName;
     if (first.isEmpty && last.isEmpty) return username;
     return '$first $last'.trim();
   }
   
   String get initials {
-    final first = firstName;
-    final last = lastName;
+    final String first = firstName;
+    final String last = lastName;
     String result = '';
     if (first.isNotEmpty) result += first[0].toUpperCase();
     if (last.isNotEmpty) result += last[0].toUpperCase();

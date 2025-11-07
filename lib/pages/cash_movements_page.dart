@@ -1,5 +1,6 @@
 import 'package:bellezapp/controllers/cash_controller.dart';
 import 'package:bellezapp/utils/utils.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -9,10 +10,10 @@ class CashMovementsPage extends StatefulWidget {
   const CashMovementsPage({super.key});
 
   @override
-  _CashMovementsPageState createState() => _CashMovementsPageState();
+  CashMovementsPageState createState() => CashMovementsPageState();
 }
 
-class _CashMovementsPageState extends State<CashMovementsPage> {
+class CashMovementsPageState extends State<CashMovementsPage> {
   late CashController cashController;
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
@@ -26,7 +27,9 @@ class _CashMovementsPageState extends State<CashMovementsPage> {
     try {
       cashController = Get.find<CashController>();
     } catch (e) {
-      print('Error al encontrar CashController: $e');
+      if (kDebugMode) {
+        print('Error al encontrar CashController: $e');
+      }
       cashController = Get.put(CashController(), permanent: true);
     }
     
@@ -95,7 +98,7 @@ class _CashMovementsPageState extends State<CashMovementsPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 4,
             offset: Offset(0, 2),
@@ -301,7 +304,7 @@ class _CashMovementsPageState extends State<CashMovementsPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 4,
             offset: Offset(0, 2),
@@ -314,7 +317,7 @@ class _CashMovementsPageState extends State<CashMovementsPage> {
           width: 50,
           height: 50,
           decoration: BoxDecoration(
-            color: typeColor.withOpacity(0.1),
+            color: typeColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(25),
           ),
           child: Icon(
@@ -517,7 +520,7 @@ class _CashMovementsPageState extends State<CashMovementsPage> {
 
       _amountController.clear();
       _descriptionController.clear();
-      Navigator.of(context).pop();
+      if (mounted) Navigator.of(context).pop();
       
       await _loadMovements();
       

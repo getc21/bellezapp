@@ -1,6 +1,7 @@
 import 'package:bellezapp/controllers/category_controller.dart';
 import 'package:bellezapp/pages/edit_category_page.dart';
 import 'package:bellezapp/pages/add_category_page.dart';
+import 'package:bellezapp/pages/filtered_products_page.dart';
 import 'package:bellezapp/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -75,9 +76,9 @@ class CategoryListPageState extends State<CategoryListPage> {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
+                  color: Colors.grey.withValues(alpha: 0.1),
                   blurRadius: 4,
-                  offset: Offset(0, 2),
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
@@ -95,14 +96,14 @@ class CategoryListPageState extends State<CategoryListPage> {
                   child: TextField(
                     controller: _searchController,
                     onChanged: (value) => setState(() {}),
-                    style: TextStyle(fontSize: 13),
+                    style: const TextStyle(fontSize: 13),
                     decoration: InputDecoration(
                       hintText: 'Buscar categorías por nombre o descripción...',
                       hintStyle: TextStyle(color: Colors.grey[500], fontSize: 12),
                       prefixIcon: Icon(Icons.search, color: Utils.colorBotones, size: 20),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
-                              icon: Icon(Icons.clear, color: Colors.grey, size: 18),
+                              icon: const Icon(Icons.clear, color: Colors.grey, size: 18),
                               onPressed: () {
                                 _searchController.clear();
                                 setState(() {});
@@ -110,11 +111,11 @@ class CategoryListPageState extends State<CategoryListPage> {
                             )
                           : null,
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
                   ),
                 ),
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
                 
                 // Contador de categorías
                 Row(
@@ -129,9 +130,9 @@ class CategoryListPageState extends State<CategoryListPage> {
                       ),
                     ),
                     Obx(() => Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Utils.colorBotones.withOpacity(0.1),
+                        color: Utils.colorBotones.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -145,7 +146,7 @@ class CategoryListPageState extends State<CategoryListPage> {
                     )),
                   ],
                 ),
-                SizedBox(height: 6),
+                const SizedBox(height: 6),
               ],
             ),
           ),
@@ -215,9 +216,9 @@ class CategoryListPageState extends State<CategoryListPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: EdgeInsets.all(32),
+            padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-              color: Utils.colorBotones.withOpacity(0.1),
+              color: Utils.colorBotones.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -225,7 +226,7 @@ class CategoryListPageState extends State<CategoryListPage> {
                   ? Icons.category_outlined
                   : Icons.search_off,
               size: 80,
-              color: Utils.colorBotones.withOpacity(0.5),
+              color: Utils.colorBotones.withValues(alpha: 0.5),
             ),
           ),
           const SizedBox(height: 24),
@@ -259,56 +260,76 @@ class CategoryListPageState extends State<CategoryListPage> {
     final description = category['description'] ?? '';
     final imageUrl = _getImageUrl(category);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Utils.colorFondoCards,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Imagen con overlay gradient
-          Stack(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () {        
+        // Navegar a productos filtrados por esta categoría
+        Get.to(() => FilteredProductsPage(
+          filterType: 'category',
+          filterId: category['_id'].toString(),
+          filterName: name,
+          filterImage: imageUrl,
+        ));
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Utils.colorFondoCards,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withValues(alpha: 0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Imagen con overlay gradient
+            Stack(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
                   ),
-                ),
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
-                  child: Stack(
-                    children: [
-                      imageUrl.isNotEmpty
-                          ? CachedNetworkImage(
-                              imageUrl: imageUrl,
-                              height: 140,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              placeholder: (context, url) => Container(
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
+                    child: Stack(
+                      children: [
+                        imageUrl.isNotEmpty
+                            ? CachedNetworkImage(
+                                imageUrl: imageUrl,
                                 height: 140,
-                                child: Center(
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Utils.colorBotones,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => SizedBox(
+                                  height: 140,
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Utils.colorBotones,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              errorWidget: (context, url, error) => Container(
+                                errorWidget: (context, url, error) => SizedBox(
+                                  height: 140,
+                                  child: Image.asset(
+                                    'assets/img/perfume.webp',
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                  ),
+                                ),
+                              )
+                            : SizedBox(
                                 height: 140,
                                 child: Image.asset(
                                   'assets/img/perfume.webp',
@@ -316,140 +337,132 @@ class CategoryListPageState extends State<CategoryListPage> {
                                   width: double.infinity,
                                 ),
                               ),
-                            )
-                          : Container(
-                              height: 140,
-                              child: Image.asset(
-                                'assets/img/perfume.webp',
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                              ),
+                        // Gradient overlay
+                        Container(
+                          height: 140,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withValues(alpha: 0.1),
+                              ],
                             ),
-                      // Gradient overlay
-                      Container(
-                        height: 140,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withOpacity(0.1),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              
-              // Botones de acción compactos
-              Positioned(
-                top: 6,
-                right: 6,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 8,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildCompactActionButton(
-                        icon: Icons.edit_rounded,
-                        color: Utils.edit,
-                        onTap: () async {
-                          final result = await Get.to(() => EditCategoryPage(category: category));
-                          if (result == true || result == null) {
-                            categoryController.loadCategories();
-                          }
-                        },
-                        tooltip: 'Editar',
-                      ),
-                      const SizedBox(width: 4),
-                      _buildCompactActionButton(
-                        icon: Icons.delete_rounded,
-                        color: Utils.delete,
-                        onTap: () => _deleteCategory(category['_id'].toString()),
-                        tooltip: 'Eliminar',
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          // Información con mejor diseño
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Nombre con icono
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        name,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[800],
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                
-                if (description.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.description_outlined,
-                          size: 14,
-                          color: Colors.grey[600],
-                        ),
-                        SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            description,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey[600],
-                              height: 1.3,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
+                ),
+                
+                // Botones de acción compactos
+                Positioned(
+                  top: 6,
+                  right: 6,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildCompactActionButton(
+                          icon: Icons.edit_rounded,
+                          color: Utils.edit,
+                          onTap: () async {
+                            final result = await Get.to(() => EditCategoryPage(category: category));
+                            if (result == true || result == null) {
+                              categoryController.loadCategories();
+                            }
+                          },
+                          tooltip: 'Editar',
+                        ),
+                        const SizedBox(width: 4),
+                        _buildCompactActionButton(
+                          icon: Icons.delete_rounded,
+                          color: Utils.delete,
+                          onTap: () => _deleteCategory(category['_id'].toString()),
+                          tooltip: 'Eliminar',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
-          ),
-        ],
+
+            // Información con mejor diseño
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Nombre con icono
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          name,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  if (description.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.description_outlined,
+                            size: 14,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              description,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[600],
+                                height: 1.3,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -472,9 +485,9 @@ class CategoryListPageState extends State<CategoryListPage> {
             borderRadius: BorderRadius.circular(6),
             boxShadow: [
               BoxShadow(
-                color: color.withOpacity(0.4),
+                color: color.withValues(alpha: 0.4),
                 blurRadius: 3,
-                offset: Offset(0, 2),
+                offset: const Offset(0, 2),
               ),
             ],
           ),

@@ -72,14 +72,14 @@ class _AdvancedReportsPageState extends State<AdvancedReportsPage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Utils.colorBotones.withOpacity(0.8),
+            Utils.colorBotones.withValues(alpha: 0.8),
             Utils.colorBotones,
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Utils.colorBotones.withOpacity(0.3),
+            color: Utils.colorBotones.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -107,7 +107,7 @@ class _AdvancedReportsPageState extends State<AdvancedReportsPage> {
             return Text(
               'Reportes para: $storeName',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha: 0.9),
                 fontSize: 14,
               ),
               textAlign: TextAlign.center,
@@ -117,7 +117,7 @@ class _AdvancedReportsPageState extends State<AdvancedReportsPage> {
           Text(
             'Accede a análisis detallados de tu negocio',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
               fontSize: 12,
             ),
             textAlign: TextAlign.center,
@@ -199,7 +199,7 @@ class _AdvancedReportsPageState extends State<AdvancedReportsPage> {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -218,7 +218,7 @@ class _AdvancedReportsPageState extends State<AdvancedReportsPage> {
                     end: Alignment.bottomRight,
                     colors: [
                       color,
-                      color.withOpacity(0.8),
+                      color.withValues(alpha: 0.8),
                     ],
                   ),
                   borderRadius: const BorderRadius.vertical(
@@ -269,10 +269,10 @@ class _AdvancedReportsPageState extends State<AdvancedReportsPage> {
                       width: double.infinity,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.1),
+                        color: color.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: color.withOpacity(0.3),
+                          color: color.withValues(alpha: 0.3),
                         ),
                       ),
                       child: Center(

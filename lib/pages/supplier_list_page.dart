@@ -1,6 +1,7 @@
 import 'package:bellezapp/controllers/supplier_controller.dart';
 import 'package:bellezapp/pages/add_supplier_page.dart';
 import 'package:bellezapp/pages/edit_supplier_page.dart';
+import 'package:bellezapp/pages/filtered_products_page.dart';
 import 'package:bellezapp/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -88,7 +89,6 @@ class SupplierListPageState extends State<SupplierListPage> {
         }
       }
     } catch (e) {
-      print('Error abriendo Gmail: $e');
       _showEmailOptions(email);
     }
   }
@@ -141,7 +141,7 @@ class SupplierListPageState extends State<SupplierListPage> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Color(0xFFDB4437).withOpacity(0.3),
+                    color: Color(0xFFDB4437).withValues(alpha: 0.3),
                     blurRadius: 8,
                     offset: Offset(0, 4),
                   ),
@@ -151,7 +151,7 @@ class SupplierListPageState extends State<SupplierListPage> {
                 leading: Container(
                   padding: EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(Icons.mail, color: Colors.white, size: 24),
@@ -191,7 +191,7 @@ class SupplierListPageState extends State<SupplierListPage> {
                 leading: Container(
                   padding: EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
+                    color: Colors.orange.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(Icons.email_outlined, color: Colors.orange, size: 24),
@@ -225,33 +225,46 @@ class SupplierListPageState extends State<SupplierListPage> {
   }
 
   Future<void> _openWhatsApp(String phone) async {
-    // Limpiar el número de teléfono (quitar espacios, guiones, etc.)
-    String cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
-    
-    // Si no empieza con '+', agregar código de país (Colombia +57)
-    if (!cleanPhone.startsWith('+')) {
-      if (cleanPhone.length == 10) {
-        cleanPhone = '+57$cleanPhone';
-      } else if (cleanPhone.length == 12 && cleanPhone.startsWith('57')) {
-        cleanPhone = '+$cleanPhone';
-      } else {
-        cleanPhone = '+$cleanPhone';
-      }
-    }
-
     try {
+      
+      // Limpiar el número de teléfono (quitar espacios, guiones, paréntesis, etc.)
+      String cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
+      
+      // Si no empieza con '+', agregar código de país (Colombia +57)
+      if (!cleanPhone.startsWith('+')) {
+        if (cleanPhone.length == 10) {
+          cleanPhone = '+57$cleanPhone';
+        } else if (cleanPhone.length == 12 && cleanPhone.startsWith('57')) {
+          cleanPhone = '+$cleanPhone';
+        } else if (cleanPhone.length == 7 || cleanPhone.length == 8) {
+          // Números locales cortos, agregar código de área de Bogotá
+          cleanPhone = '+571$cleanPhone';
+        } else {
+          cleanPhone = '+$cleanPhone';
+        }
+      }
+      
+
       // URL para WhatsApp con mensaje predeterminado
-      final whatsappUrl = 'https://wa.me/$cleanPhone?text=Hola,%20me%20contacto%20desde%20BellezApp';
+      final whatsappUrl = 'https://wa.me/${cleanPhone.replaceAll('+', '')}?text=${Uri.encodeComponent('Hola, me contacto desde BellezApp')}';      
       final uri = Uri.parse(whatsappUrl);
       
-      if (await canLaunchUrl(uri)) {
+      // Intentar abrir directamente sin verificar canLaunchUrl (a veces da falsos negativos)
+      try {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        // Si no puede abrir WhatsApp, mostrar diálogo con opciones
-        _showContactOptions(phone);
+      } catch (launchError) {
+        
+        // Intentar URL alternativa para WhatsApp
+        final alternativeUrl = 'whatsapp://send?phone=${cleanPhone.replaceAll('+', '')}&text=${Uri.encodeComponent('Hola, me contacto desde BellezApp')}';
+        final alternativeUri = Uri.parse(alternativeUrl);
+        
+        try {
+          await launchUrl(alternativeUri, mode: LaunchMode.externalApplication);
+        } catch (alternativeError) {
+          _showContactOptions(phone);
+        }
       }
     } catch (e) {
-      print('Error abriendo WhatsApp: $e');
       _showContactOptions(phone);
     }
   }
@@ -304,7 +317,7 @@ class SupplierListPageState extends State<SupplierListPage> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Color(0xFF25D366).withOpacity(0.3),
+                    color: Color(0xFF25D366).withValues(alpha: 0.3),
                     blurRadius: 8,
                     offset: Offset(0, 4),
                   ),
@@ -314,7 +327,7 @@ class SupplierListPageState extends State<SupplierListPage> {
                 leading: Container(
                   padding: EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(Icons.chat, color: Colors.white, size: 24),
@@ -352,7 +365,7 @@ class SupplierListPageState extends State<SupplierListPage> {
                 leading: Container(
                   padding: EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
+                    color: Colors.blue.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(Icons.phone, color: Colors.blue, size: 24),
@@ -405,7 +418,7 @@ class SupplierListPageState extends State<SupplierListPage> {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
+                  color: Colors.grey.withValues(alpha: 0.1),
                   blurRadius: 4,
                   offset: Offset(0, 2),
                 ),
@@ -420,7 +433,7 @@ class SupplierListPageState extends State<SupplierListPage> {
                     Container(
                       padding: EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Utils.colorBotones.withOpacity(0.1),
+                        color: Utils.colorBotones.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -489,7 +502,7 @@ class SupplierListPageState extends State<SupplierListPage> {
                     Obx(() => Container(
                       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Utils.colorBotones.withOpacity(0.1),
+                        color: Utils.colorBotones.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -554,7 +567,7 @@ class SupplierListPageState extends State<SupplierListPage> {
           Container(
             padding: EdgeInsets.all(32),
             decoration: BoxDecoration(
-              color: Utils.colorBotones.withOpacity(0.1),
+              color: Utils.colorBotones.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -562,7 +575,7 @@ class SupplierListPageState extends State<SupplierListPage> {
                   ? Icons.business_outlined
                   : Icons.search_off,
               size: 80,
-              color: Utils.colorBotones.withOpacity(0.5),
+              color: Utils.colorBotones.withValues(alpha: 0.5),
             ),
           ),
           const SizedBox(height: 24),
@@ -607,7 +620,7 @@ class SupplierListPageState extends State<SupplierListPage> {
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
+            color: Colors.grey.withValues(alpha: 0.08),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -630,13 +643,13 @@ class SupplierListPageState extends State<SupplierListPage> {
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            Utils.colorBotones.withOpacity(0.1),
-                            Utils.colorBotones.withOpacity(0.05),
+                            Utils.colorBotones.withValues(alpha: 0.1),
+                            Utils.colorBotones.withValues(alpha: 0.05),
                           ],
                         ),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Utils.colorBotones.withOpacity(0.2),
+                          color: Utils.colorBotones.withValues(alpha: 0.2),
                           width: 2,
                         ),
                       ),
@@ -657,13 +670,13 @@ class SupplierListPageState extends State<SupplierListPage> {
                                 errorWidget: (context, url, error) => Icon(
                                   Icons.business,
                                   size: 35,
-                                  color: Utils.colorBotones.withOpacity(0.5),
+                                  color: Utils.colorBotones.withValues(alpha: 0.5),
                                 ),
                               )
                             : Icon(
                                 Icons.business,
                                 size: 35,
-                                color: Utils.colorBotones.withOpacity(0.5),
+                                color: Utils.colorBotones.withValues(alpha: 0.5),
                               ),
                       ),
                     ),
@@ -737,6 +750,20 @@ class SupplierListPageState extends State<SupplierListPage> {
                   child: Column(
                     children: [
                       _buildCompactActionButton(
+                        icon: Icons.inventory_rounded,
+                        color: Utils.colorBotones,
+                        onTap: () {
+                          // Navegar a productos filtrados por este proveedor
+                          Get.to(() => FilteredProductsPage(
+                            filterType: 'supplier',
+                            filterId: supplier['_id'].toString(),
+                            filterName: supplier['name'] ?? 'Sin nombre',
+                          ));
+                        },
+                        tooltip: 'Ver productos',
+                      ),
+                      const SizedBox(height: 4),
+                      _buildCompactActionButton(
                         icon: Icons.edit_rounded,
                         color: Utils.edit,
                         onTap: () async {
@@ -787,10 +814,10 @@ class SupplierListPageState extends State<SupplierListPage> {
                         SizedBox(width: 8),
                         Container(
                           decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.1),
+                            color: Colors.blue.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: Colors.blue.withOpacity(0.3),
+                              color: Colors.blue.withValues(alpha: 0.3),
                               width: 1,
                             ),
                           ),
@@ -853,7 +880,7 @@ class SupplierListPageState extends State<SupplierListPage> {
             borderRadius: BorderRadius.circular(6),
             boxShadow: [
               BoxShadow(
-                color: color.withOpacity(0.4),
+                color: color.withValues(alpha: 0.4),
                 blurRadius: 3,
                 offset: Offset(0, 2),
               ),
@@ -881,10 +908,10 @@ class SupplierListPageState extends State<SupplierListPage> {
       child: Container(
         padding: EdgeInsets.symmetric(vertical: 8, horizontal: 10),
         decoration: BoxDecoration(
-          color: onTap != null ? color.withOpacity(0.05) : Colors.transparent,
+          color: onTap != null ? color.withValues(alpha: 0.05) : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: color.withOpacity(0.2),
+            color: color.withValues(alpha: 0.2),
             width: 1,
           ),
         ),
@@ -893,7 +920,7 @@ class SupplierListPageState extends State<SupplierListPage> {
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
+                color: color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(icon, size: 16, color: color),
@@ -915,7 +942,7 @@ class SupplierListPageState extends State<SupplierListPage> {
               Icon(
                 Icons.touch_app_rounded,
                 size: 16,
-                color: color.withOpacity(0.7),
+                color: color.withValues(alpha: 0.7),
               ),
           ],
         ),

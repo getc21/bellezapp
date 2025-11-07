@@ -1,4 +1,4 @@
-﻿import 'package:bellezapp/utils/utils.dart';
+import 'package:bellezapp/utils/utils.dart';
 import 'package:bellezapp/utils/user_extensions.dart';
 import 'package:bellezapp/widgets/store_aware_app_bar.dart';
 import 'package:flutter/material.dart';
@@ -95,7 +95,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
           // Barra de búsqueda
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Container(
+            child: SizedBox(
               height: 40,
               child: TextField(
                 controller: _searchController,
@@ -295,7 +295,7 @@ class _AddUserDialogState extends State<AddUserDialog> {
 
     if (success) {
       widget.onUserAdded();
-      Navigator.of(context).pop();
+      if (mounted) Navigator.of(context).pop();
     }
   }
 
@@ -448,7 +448,7 @@ class _AddUserDialogState extends State<AddUserDialog> {
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
-                        value: _selectedRole,
+                        initialValue: _selectedRole,
                         decoration: const InputDecoration(
                           labelText: 'Rol',
                           prefixIcon: Icon(Icons.security),
@@ -904,7 +904,7 @@ class _EditUserDialogState extends State<EditUserDialog> {
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
-                        value: _selectedRole,
+                        initialValue: _selectedRole,
                         decoration: const InputDecoration(
                           labelText: 'Rol',
                           prefixIcon: Icon(Icons.security),

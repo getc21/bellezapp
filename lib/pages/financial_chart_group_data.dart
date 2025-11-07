@@ -8,16 +8,16 @@ class FinancialChartPage extends StatelessWidget {
   const FinancialChartPage({super.key, required this.financialData});
 
   Widget _buildModernBarChart() {
-    List<BarChartGroupData> barGroups = financialData.asMap().entries.map((entry) {
-      int index = entry.key;
-      var data = entry.value;
-      final month = int.tryParse(data['month']?.toString() ?? '0') ?? (index + 1);
+    final List<BarChartGroupData> barGroups = financialData.asMap().entries.map((MapEntry<int, Map<String, dynamic>> entry) {
+      final int index = entry.key;
+      final Map<String, dynamic> data = entry.value;
+      final int month = int.tryParse(data['month']?.toString() ?? '0') ?? (index + 1);
       final totalIncome = (data['totalIncome'] ?? 0).toDouble();
       final totalExpense = (data['totalExpense'] ?? 0).toDouble();
 
       return BarChartGroupData(
         x: month,
-        barRods: [
+        barRods: <BarChartRodData>[
           BarChartRodData(
             toY: totalIncome,
             color: Colors.green.shade600,
@@ -38,8 +38,8 @@ class FinancialChartPage extends StatelessWidget {
 
     return Container(
       height: 400,
-      margin: EdgeInsets.symmetric(horizontal: 20),
-      padding: EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -53,11 +53,11 @@ class FinancialChartPage extends StatelessWidget {
               sideTitles: SideTitles(
                 showTitles: true,
                 reservedSize: 50,
-                getTitlesWidget: (value, meta) {
+                getTitlesWidget: (double value, TitleMeta meta) {
                   return Text(
                     '\$${(value / 1000).toStringAsFixed(0)}K',
                     style: TextStyle(
-                      color: Utils.colorTexto.withOpacity(0.7),
+                      color: Utils.colorTexto.withValues(alpha: 0.7),
                       fontSize: 10,
                       fontWeight: FontWeight.w500,
                     ),
@@ -65,22 +65,22 @@ class FinancialChartPage extends StatelessWidget {
                 },
               ),
             ),
-            rightTitles: AxisTitles(
+            rightTitles: const AxisTitles(
               sideTitles: SideTitles(showTitles: false),
             ),
-            topTitles: AxisTitles(
+            topTitles: const AxisTitles(
               sideTitles: SideTitles(showTitles: false),
             ),
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
                 getTitlesWidget: (double value, TitleMeta meta) {
-                  const style = TextStyle(
+                  const TextStyle style = TextStyle(
                     color: Colors.black87,
                     fontWeight: FontWeight.w600,
                     fontSize: 11,
                   );
-                  String text = _getMonthName(value.toInt(), short: true);
+                  final String text = _getMonthName(value.toInt(), short: true);
                   return SideTitleWidget(
                     meta: meta,
                     space: 8,
@@ -95,24 +95,24 @@ class FinancialChartPage extends StatelessWidget {
             show: true,
             drawVerticalLine: false,
             horizontalInterval: 10000,
-            getDrawingHorizontalLine: (value) {
+            getDrawingHorizontalLine: (double value) {
               return FlLine(
                 color: Colors.grey.shade300,
                 strokeWidth: 1,
-                dashArray: [5, 5],
+                dashArray: <int>[5, 5],
               );
             },
           ),
           barTouchData: BarTouchData(
             touchTooltipData: BarTouchTooltipData(
-              getTooltipColor: (group) => Utils.colorGnav.withOpacity(0.9),
-              tooltipPadding: EdgeInsets.all(12),
-              getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                String month = _getMonthName(group.x.toInt());
-                String type = rodIndex == 0 ? 'Ingresos' : 'Gastos';
+              getTooltipColor: (BarChartGroupData group) => Utils.colorGnav.withValues(alpha: 0.9),
+              tooltipPadding: const EdgeInsets.all(12),
+              getTooltipItem: (BarChartGroupData group, int groupIndex, BarChartRodData rod, int rodIndex) {
+                final String month = _getMonthName(group.x.toInt());
+                final String type = rodIndex == 0 ? 'Ingresos' : 'Gastos';
                 return BarTooltipItem(
                   '$month\n$type: \$${rod.toY.toStringAsFixed(0)}',
-                  TextStyle(
+                  const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
@@ -129,7 +129,7 @@ class FinancialChartPage extends StatelessWidget {
 
   Widget _buildModernLegend() {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
         borderRadius: BorderRadius.circular(12),
@@ -137,7 +137,7 @@ class FinancialChartPage extends StatelessWidget {
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
+        children: <Widget>[
           _buildLegendItem('Ingresos', Colors.green.shade600, Icons.trending_up),
           Container(width: 1, height: 30, color: Colors.grey.shade300),
           _buildLegendItem('Gastos', Colors.red.shade600, Icons.trending_down),
@@ -149,16 +149,16 @@ class FinancialChartPage extends StatelessWidget {
   Widget _buildLegendItem(String label, Color color, IconData icon) {
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: [
+      children: <Widget>[
         Container(
-          padding: EdgeInsets.all(6),
+          padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(6),
           ),
           child: Icon(icon, color: color, size: 16),
         ),
-        SizedBox(width: 8),
+        const SizedBox(width: 8),
         Text(
           label,
           style: TextStyle(
@@ -172,7 +172,7 @@ class FinancialChartPage extends StatelessWidget {
   }
 
   Widget _buildInsights() {
-    if (financialData.isEmpty) return SizedBox.shrink();
+    if (financialData.isEmpty) return const SizedBox.shrink();
 
     // Calculate insights
     double totalIncome = 0;
@@ -180,10 +180,10 @@ class FinancialChartPage extends StatelessWidget {
     String bestMonth = '';
     double bestBalance = double.negativeInfinity;
     
-    for (var data in financialData) {
-      double income = (data['totalIncome'] ?? 0).toDouble();
-      double expense = (data['totalExpense'] ?? 0).toDouble();
-      double balance = income - expense;
+    for (Map<String, dynamic> data in financialData) {
+      final double income = (data['totalIncome'] ?? 0).toDouble();
+      final double expense = (data['totalExpense'] ?? 0).toDouble();
+      final double balance = income - expense;
       
       totalIncome += income;
       totalExpenses += expense;
@@ -194,30 +194,30 @@ class FinancialChartPage extends StatelessWidget {
       }
     }
 
-    double averageIncome = totalIncome / financialData.length;
-    double averageExpenses = totalExpenses / financialData.length;
+    final double averageIncome = totalIncome / financialData.length;
+    final double averageExpenses = totalExpenses / financialData.length;
 
     return Container(
-      padding: EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Utils.colorFondoCards,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
+        boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             spreadRadius: 2,
             blurRadius: 10,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        children: <Widget>[
           Row(
-            children: [
+            children: <Widget>[
               Icon(Icons.lightbulb_outline, color: Utils.colorGnav, size: 24),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               Text(
                 'Insights Financieros',
                 style: TextStyle(
@@ -228,7 +228,7 @@ class FinancialChartPage extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           _buildInsightCard(
             'Mejor Mes',
             bestMonth,
@@ -236,7 +236,7 @@ class FinancialChartPage extends StatelessWidget {
             Icons.star,
             Colors.amber,
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           _buildInsightCard(
             'Promedio Ingresos',
             '\$${averageIncome.toStringAsFixed(0)}',
@@ -244,7 +244,7 @@ class FinancialChartPage extends StatelessWidget {
             Icons.trending_up,
             Colors.green,
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           _buildInsightCard(
             'Promedio Gastos',
             '\$${averageExpenses.toStringAsFixed(0)}',
@@ -259,36 +259,36 @@ class FinancialChartPage extends StatelessWidget {
 
   Widget _buildInsightCard(String title, String value, String subtitle, IconData icon, Color color) {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
-        children: [
+        children: <Widget>[
           Container(
-            padding: EdgeInsets.all(8),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: color, size: 20),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+              children: <Widget>[
                 Text(
                   title,
                   style: TextStyle(
                     fontSize: 12,
-                    color: Utils.colorTexto.withOpacity(0.7),
+                    color: Utils.colorTexto.withValues(alpha: 0.7),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   value,
                   style: TextStyle(
@@ -301,7 +301,7 @@ class FinancialChartPage extends StatelessWidget {
                   subtitle,
                   style: TextStyle(
                     fontSize: 11,
-                    color: Utils.colorTexto.withOpacity(0.5),
+                    color: Utils.colorTexto.withValues(alpha: 0.5),
                   ),
                 ),
               ],
@@ -313,11 +313,11 @@ class FinancialChartPage extends StatelessWidget {
   }
 
   String _getMonthName(int month, {bool short = false}) {
-    const months = [
+    const List<String> months = <String>[
       'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
       'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
     ];
-    const shortMonths = [
+    const List<String> shortMonths = <String>[
       'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
       'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
     ];
@@ -328,9 +328,9 @@ class FinancialChartPage extends StatelessWidget {
 
   double _getMaxValue() {
     double max = 0;
-    for (var data in financialData) {
-      double income = (data['totalIncome'] ?? 0).toDouble();
-      double expense = (data['totalExpense'] ?? 0).toDouble();
+    for (Map<String, dynamic> data in financialData) {
+      final double income = (data['totalIncome'] ?? 0).toDouble();
+      final double expense = (data['totalExpense'] ?? 0).toDouble();
       if (income > max) max = income;
       if (expense > max) max = expense;
     }
@@ -342,7 +342,7 @@ class FinancialChartPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Utils.colorFondo,
       appBar: AppBar(
-        title: Text(
+        title: const Text(
           'Análisis Financiero',
           style: TextStyle(
             fontWeight: FontWeight.bold,
@@ -356,14 +356,14 @@ class FinancialChartPage extends StatelessWidget {
       body: financialData.isEmpty
           ? _buildEmptyChartState()
           : SingleChildScrollView(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                children: <Widget>[
                   _buildChartHeader(),
-                  SizedBox(height: 24),
+                  const SizedBox(height: 24),
                   _buildChartContainer(),
-                  SizedBox(height: 24),
+                  const SizedBox(height: 24),
                   _buildInsights(),
                 ],
               ),
@@ -374,29 +374,29 @@ class FinancialChartPage extends StatelessWidget {
   Widget _buildEmptyChartState() {
     return Center(
       child: Container(
-        padding: EdgeInsets.all(32),
-        margin: EdgeInsets.all(24),
+        padding: const EdgeInsets.all(32),
+        margin: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: Utils.colorFondoCards,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [
+          boxShadow: <BoxShadow>[
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               spreadRadius: 2,
               blurRadius: 10,
-              offset: Offset(0, 4),
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
+          children: <Widget>[
             Icon(
               Icons.show_chart,
               size: 64,
-              color: Utils.colorGnav.withOpacity(0.5),
+              color: Utils.colorGnav.withValues(alpha: 0.5),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
               'Sin datos para mostrar',
               style: TextStyle(
@@ -405,13 +405,13 @@ class FinancialChartPage extends StatelessWidget {
                 color: Utils.colorTexto,
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
               'El gráfico aparecerá cuando\ntengas datos financieros',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
-                color: Utils.colorTexto.withOpacity(0.7),
+                color: Utils.colorTexto.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -424,34 +424,34 @@ class FinancialChartPage extends StatelessWidget {
     double totalIncome = 0;
     double totalExpenses = 0;
     
-    for (var data in financialData) {
+    for (Map<String, dynamic> data in financialData) {
       totalIncome += (data['totalIncome'] ?? 0).toDouble();
       totalExpenses += (data['totalExpense'] ?? 0).toDouble();
     }
 
     return Container(
-      padding: EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Utils.colorGnav, Utils.colorBotones],
+          colors: <Color>[Utils.colorGnav, Utils.colorBotones],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
+        boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Utils.colorGnav.withOpacity(0.3),
+            color: Utils.colorGnav.withValues(alpha: 0.3),
             spreadRadius: 2,
             blurRadius: 10,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
+        children: <Widget>[
+          const Row(
+            children: <Widget>[
               Icon(Icons.trending_up, color: Colors.white, size: 24),
               SizedBox(width: 12),
               Text(
@@ -464,9 +464,9 @@ class FinancialChartPage extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           Row(
-            children: [
+            children: <Widget>[
               Expanded(
                 child: _buildHeaderMetric(
                   'Total Ingresos',
@@ -475,7 +475,7 @@ class FinancialChartPage extends StatelessWidget {
                   Colors.green.shade300,
                 ),
               ),
-              SizedBox(width: 16),
+              const SizedBox(width: 16),
               Expanded(
                 child: _buildHeaderMetric(
                   'Total Gastos',
@@ -493,24 +493,24 @@ class FinancialChartPage extends StatelessWidget {
 
   Widget _buildHeaderMetric(String title, String value, IconData icon, Color color) {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        children: <Widget>[
           Row(
-            children: [
+            children: <Widget>[
               Icon(icon, color: color, size: 20),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   title,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -518,10 +518,10 @@ class FinancialChartPage extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
             value,
-            style: TextStyle(
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -533,28 +533,28 @@ class FinancialChartPage extends StatelessWidget {
   }
 
   Widget _buildChartContainer() {
-    return Container(
+    return DecoratedBox(
       decoration: BoxDecoration(
         color: Utils.colorFondoCards,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
+        boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             spreadRadius: 2,
             blurRadius: 10,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        children: <Widget>[
           Padding(
-            padding: EdgeInsets.all(20),
+            padding: const EdgeInsets.all(20),
             child: Row(
-              children: [
+              children: <Widget>[
                 Icon(Icons.bar_chart, color: Utils.colorGnav, size: 24),
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Text(
                   'Comparativa Mensual',
                   style: TextStyle(
@@ -568,7 +568,7 @@ class FinancialChartPage extends StatelessWidget {
           ),
           _buildModernBarChart(),
           Padding(
-            padding: EdgeInsets.all(20),
+            padding: const EdgeInsets.all(20),
             child: _buildModernLegend(),
           ),
         ],

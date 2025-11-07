@@ -1,5 +1,6 @@
 import 'package:bellezapp/controllers/location_controller.dart';
 import 'package:bellezapp/utils/utils.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -44,9 +45,6 @@ class EditLocationPageState extends State<EditLocationPage> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-
-    print('🔄 Iniciando actualización de ubicación...');
-
     final locationId = widget.location['_id'].toString();
     final success = await locationController.updateLocation(
       id: locationId,
@@ -55,12 +53,7 @@ class EditLocationPageState extends State<EditLocationPage> {
           ? null 
           : _descriptionController.text,
     );
-
-    print('📊 Resultado de la actualización: $success');
-
-    if (success) {
-      print('✅ Éxito! Ejecutando Navigator.pop()...');
-      
+    if (success) {      
       // Primero navegar de regreso
       if (mounted) {
         Navigator.of(context).pop();
@@ -71,14 +64,16 @@ class EditLocationPageState extends State<EditLocationPage> {
             'Éxito',
             'Ubicación actualizada correctamente',
             snackPosition: SnackPosition.TOP,
-            backgroundColor: Colors.green.withOpacity(0.1),
+            backgroundColor: Colors.green.withValues(alpha: 0.1),
             colorText: Colors.green[800],
             duration: Duration(seconds: 2),
           );
         });
       }
     } else {
-      print('❌ Error en la actualización, no se ejecuta Navigator.pop()');
+      if (kDebugMode) {
+        print('❌ Error en la actualización, no se ejecuta Navigator.pop()');
+      }
     }
   }
 
@@ -101,17 +96,10 @@ class EditLocationPageState extends State<EditLocationPage> {
       ),
     );
 
-    if (confirm == true) {
-      print('🗑️ Iniciando eliminación de ubicación...');
-      
+    if (confirm == true) {      
       final locationId = widget.location['_id'].toString();
-      final success = await locationController.deleteLocation(locationId);
-      
-      print('📊 Resultado de la eliminación: $success');
-      
-      if (success) {
-        print('✅ Éxito! Ejecutando Navigator.pop()...');
-        
+      final success = await locationController.deleteLocation(locationId);      
+      if (success) {        
         // Primero navegar de regreso
         if (mounted) {
           Navigator.of(context).pop();
@@ -122,14 +110,16 @@ class EditLocationPageState extends State<EditLocationPage> {
               'Éxito',
               'Ubicación eliminada correctamente',
               snackPosition: SnackPosition.TOP,
-              backgroundColor: Colors.red.withOpacity(0.1),
+              backgroundColor: Colors.red.withValues(alpha: 0.1),
               colorText: Colors.red[800],
               duration: Duration(seconds: 2),
             );
           });
         }
       } else {
-        print('❌ Error en la eliminación, no se ejecuta Navigator.pop()');
+        if (kDebugMode) {
+          print('❌ Error en la eliminación, no se ejecuta Navigator.pop()');
+        }
       }
     }
   }

@@ -10,7 +10,7 @@ enum PaymentMethod {
 
   static PaymentMethod fromString(String value) {
     return PaymentMethod.values.firstWhere(
-      (method) => method.value == value,
+      (PaymentMethod method) => method.value == value,
       orElse: () => PaymentMethod.cash,
     );
   }

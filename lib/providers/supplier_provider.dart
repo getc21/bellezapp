@@ -9,19 +9,19 @@ class SupplierProvider {
 
   SupplierProvider(this.token);
 
-  Map<String, String> get _headers => {
+  Map<String, String> get _headers => <String, String>{
     'Content-Type': 'application/json',
     'Authorization': 'Bearer $token',
   };
 
-  Map<String, String> get _authHeaders => {
+  Map<String, String> get _authHeaders => <String, String>{
     'Authorization': 'Bearer $token',
   };
 
   // Obtener todos los proveedores
   Future<Map<String, dynamic>> getSuppliers() async {
     try {
-      final response = await http.get(
+      final http.Response response = await http.get(
         Uri.parse('$baseUrl/suppliers'),
         headers: _headers,
       );
@@ -30,40 +30,40 @@ class SupplierProvider {
       if (response.statusCode == 200) {
         final suppliers = data['data']['suppliers'];
         if (suppliers is List) {
-          return {'success': true, 'data': suppliers};
+          return <String, dynamic>{'success': true, 'data': suppliers};
         } else {
-          return {'success': false, 'message': 'Formato de respuesta inválido'};
+          return <String, dynamic>{'success': false, 'message': 'Formato de respuesta inválido'};
         }
       } else {
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error obteniendo proveedores'
         };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 
   // Obtener proveedor por ID
   Future<Map<String, dynamic>> getSupplierById(String id) async {
     try {
-      final response = await http.get(
+      final http.Response response = await http.get(
         Uri.parse('$baseUrl/suppliers/$id'),
         headers: _headers,
       );
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        return {'success': true, 'data': data['data']['supplier']};
+        return <String, dynamic>{'success': true, 'data': data['data']['supplier']};
       } else {
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error obteniendo proveedor'
         };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 
@@ -77,7 +77,7 @@ class SupplierProvider {
     File? imageFile,
   }) async {
     try {
-      var request = http.MultipartRequest(
+      final http.MultipartRequest request = http.MultipartRequest(
         'POST',
         Uri.parse('$baseUrl/suppliers'),
       );
@@ -94,20 +94,20 @@ class SupplierProvider {
             await http.MultipartFile.fromPath('foto', imageFile.path));
       }
 
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      final http.StreamedResponse streamedResponse = await request.send();
+      final http.Response response = await http.Response.fromStream(streamedResponse);
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 201) {
-        return {'success': true, 'data': data['data']};
+        return <String, dynamic>{'success': true, 'data': data['data']};
       } else {
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error creando proveedor'
         };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 
@@ -122,7 +122,7 @@ class SupplierProvider {
     File? imageFile,
   }) async {
     try {
-      var request = http.MultipartRequest(
+      final http.MultipartRequest request = http.MultipartRequest(
         'PATCH',
         Uri.parse('$baseUrl/suppliers/$id'),
       );
@@ -139,42 +139,42 @@ class SupplierProvider {
             await http.MultipartFile.fromPath('foto', imageFile.path));
       }
 
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      final http.StreamedResponse streamedResponse = await request.send();
+      final http.Response response = await http.Response.fromStream(streamedResponse);
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        return {'success': true, 'data': data['data']};
+        return <String, dynamic>{'success': true, 'data': data['data']};
       } else {
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error actualizando proveedor'
         };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 
   // Eliminar proveedor
   Future<Map<String, dynamic>> deleteSupplier(String id) async {
     try {
-      final response = await http.delete(
+      final http.Response response = await http.delete(
         Uri.parse('$baseUrl/suppliers/$id'),
         headers: _headers,
       );
 
       if (response.statusCode == 204) {
-        return {'success': true};
+        return <String, dynamic>{'success': true};
       } else {
         final data = jsonDecode(response.body);
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error eliminando proveedor'
         };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 }

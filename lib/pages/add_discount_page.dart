@@ -1,4 +1,5 @@
 import 'package:bellezapp/utils/utils.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/discount_controller.dart';
@@ -216,29 +217,100 @@ class _AddDiscountPageState extends State<AddDiscountPage> {
         Row(
           children: [
             Expanded(
-              child: RadioListTile<String>(
-                title: const Text('Porcentaje (%)'),
-                subtitle: const Text('Ej: 15% de descuento'),
-                value: 'percentage',
-                groupValue: _selectedType,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedType = value!;
-                  });
-                },
+              child: Card(
+                elevation: _selectedType == 'percentage' ? 3 : 1,
+                color: _selectedType == 'percentage' 
+                    ? Theme.of(context).colorScheme.primaryContainer
+                    : null,
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _selectedType = 'percentage';
+                    });
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.percent,
+                          color: _selectedType == 'percentage'
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.grey,
+                          size: 32,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Porcentaje (%)',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: _selectedType == 'percentage'
+                                ? Theme.of(context).colorScheme.primary
+                                : Colors.grey[700],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Ej: 15% de descuento',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
+            const SizedBox(width: 12),
             Expanded(
-              child: RadioListTile<String>(
-                title: const Text('Monto fijo (\$)'),
-                subtitle: const Text('Ej: \$50 de descuento'),
-                value: 'fixed',
-                groupValue: _selectedType,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedType = value!;
-                  });
-                },
+              child: Card(
+                elevation: _selectedType == 'fixed' ? 3 : 1,
+                color: _selectedType == 'fixed' 
+                    ? Theme.of(context).colorScheme.primaryContainer
+                    : null,
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _selectedType = 'fixed';
+                    });
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.attach_money,
+                          color: _selectedType == 'fixed'
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.grey,
+                          size: 32,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Monto fijo (\$)',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: _selectedType == 'fixed'
+                                ? Theme.of(context).colorScheme.primary
+                                : Colors.grey[700],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Ej: \$50 de descuento',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
@@ -443,10 +515,10 @@ class _AddDiscountPageState extends State<AddDiscountPage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: (_isActive ? Colors.green : Colors.grey).withOpacity(0.1),
+                    color: (_isActive ? Colors.green : Colors.grey).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: (_isActive ? Colors.green : Colors.grey).withOpacity(0.3),
+                      color: (_isActive ? Colors.green : Colors.grey).withValues(alpha: 0.3),
                     ),
                   ),
                   child: Text(
@@ -480,9 +552,9 @@ class _AddDiscountPageState extends State<AddDiscountPage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.green.withOpacity(0.3)),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
               ),
               child: Text(
                 _selectedType == 'percentage'
@@ -569,8 +641,8 @@ class _AddDiscountPageState extends State<AddDiscountPage> {
     
     // Mostrar loading
     Get.dialog(
-      WillPopScope(
-        onWillPop: () async => false,
+      PopScope(
+        canPop: false,
         child: Center(
           child: Card(
             child: Padding(
@@ -633,7 +705,7 @@ class _AddDiscountPageState extends State<AddDiscountPage> {
       
       // Cerrar loading dialog si está abierto
       if (Get.isDialogOpen == true) {
-        Navigator.of(context).pop();
+        if (mounted) Navigator.of(context).pop();
       }
       
       // Esperar otro momento antes de cerrar la página
@@ -644,11 +716,13 @@ class _AddDiscountPageState extends State<AddDiscountPage> {
         Navigator.of(context).pop();
       }
     } catch (e) {
-      print('Error al guardar descuento: $e');
+      if (kDebugMode) {
+        print('Error al guardar descuento: $e');
+      }
       
       // Cerrar loading dialog si está abierto
       if (Get.isDialogOpen == true) {
-        Navigator.of(context).pop();
+        if (mounted) Navigator.of(context).pop();
       }
       
       // Esperar antes de mostrar el error

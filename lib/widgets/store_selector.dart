@@ -55,9 +55,9 @@ class StoreSelector extends StatelessWidget {
           icon: Container(
             padding: EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withOpacity(0.3)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
             ),
             child: Icon(
               Icons.store,
@@ -76,7 +76,7 @@ class StoreSelector extends StatelessWidget {
                       Container(
                         padding: EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Utils.colorGnav.withOpacity(0.1),
+                          color: Utils.colorGnav.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
@@ -102,7 +102,7 @@ class StoreSelector extends StatelessWidget {
                               'Vista completa del sistema',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Utils.colorTexto.withOpacity(0.6),
+                                color: Utils.colorTexto.withValues(alpha: 0.6),
                               ),
                             ),
                           ],
@@ -125,7 +125,7 @@ class StoreSelector extends StatelessWidget {
                 child: Container(
                   padding: EdgeInsets.symmetric(vertical: 4),
                   decoration: BoxDecoration(
-                    color: isSelected ? Utils.colorBotones.withOpacity(0.05) : null,
+                    color: isSelected ? Utils.colorBotones.withValues(alpha: 0.05) : null,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -133,7 +133,7 @@ class StoreSelector extends StatelessWidget {
                       Container(
                         padding: EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Utils.colorBotones.withOpacity(0.1),
+                          color: Utils.colorBotones.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
@@ -160,7 +160,7 @@ class StoreSelector extends StatelessWidget {
                                 store['address'],
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Utils.colorTexto.withOpacity(0.6),
+                                  color: Utils.colorTexto.withValues(alpha: 0.6),
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -185,7 +185,7 @@ class StoreSelector extends StatelessWidget {
                   ),
                 ),
               );
-            }).toList(),
+            }),
             if (storeController.isAdmin)
               PopupMenuItem<Map<String, dynamic>?>(
                 enabled: false,
@@ -201,7 +201,7 @@ class StoreSelector extends StatelessWidget {
                       Container(
                         padding: EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Utils.colorBotones.withOpacity(0.1),
+                          color: Utils.colorBotones.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(

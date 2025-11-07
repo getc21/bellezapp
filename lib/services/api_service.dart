@@ -19,33 +19,33 @@ class ApiService {
   bool get isAuthenticated => _authToken != null;
 
   // Headers comunes
-  Map<String, String> get _headers => {
+  Map<String, String> get _headers => <String, String>{
     'Content-Type': 'application/json',
     if (_authToken != null) 'Authorization': 'Bearer $_authToken',
   };
 
   // Headers para multipart
-  Map<String, String> get _authHeaders => {
+  Map<String, String> get _authHeaders => <String, String>{
     if (_authToken != null) 'Authorization': 'Bearer $_authToken',
   };
 
   // Inicializar (cargar token guardado)
   Future<void> initialize() async {
-    final prefs = await SharedPreferences.getInstance();
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
     _authToken = prefs.getString('auth_token');
   }
 
   // Guardar token
   Future<void> _saveToken(String token) async {
     _authToken = token;
-    final prefs = await SharedPreferences.getInstance();
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('auth_token', token);
   }
 
   // Eliminar token
   Future<void> _clearToken() async {
     _authToken = null;
-    final prefs = await SharedPreferences.getInstance();
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');
   }
 
@@ -60,10 +60,10 @@ class ApiService {
     required String role,
   }) async {
     try {
-      final response = await http.post(
+      final http.Response response = await http.post(
         Uri.parse('$baseUrl/auth/register'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
+        headers: <String, String>{'Content-Type': 'application/json'},
+        body: jsonEncode(<String, String>{
           'username': username,
           'email': email,
           'password': password,
@@ -80,16 +80,16 @@ class ApiService {
 
   Future<ApiResponse> login(String username, String password) async {
     try {
-      final response = await http.post(
+      final http.Response response = await http.post(
         Uri.parse('$baseUrl/auth/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
+        headers: <String, String>{'Content-Type': 'application/json'},
+        body: jsonEncode(<String, String>{
           'username': username,
           'password': password,
         }),
       );
       
-      final result = _handleResponse(response);
+      final ApiResponse result = _handleResponse(response);
       
       if (result.success && result.data != null) {
         final token = result.data['token'];
@@ -106,7 +106,7 @@ class ApiService {
 
   Future<ApiResponse> getProfile() async {
     try {
-      final response = await http.get(
+      final http.Response response = await http.get(
         Uri.parse('$baseUrl/auth/profile'),
         headers: _headers,
       );
@@ -124,7 +124,7 @@ class ApiService {
   
   Future<ApiResponse> getCategories() async {
     try {
-      final response = await http.get(
+      final http.Response response = await http.get(
         Uri.parse('$baseUrl/categories'),
         headers: _headers,
       );
@@ -136,7 +136,7 @@ class ApiService {
 
   Future<ApiResponse> getCategoryById(String id) async {
     try {
-      final response = await http.get(
+      final http.Response response = await http.get(
         Uri.parse('$baseUrl/categories/$id'),
         headers: _headers,
       );
@@ -152,7 +152,7 @@ class ApiService {
     File? imageFile,
   }) async {
     try {
-      var request = http.MultipartRequest(
+      final http.MultipartRequest request = http.MultipartRequest(
         'POST',
         Uri.parse('$baseUrl/categories'),
       );
@@ -165,8 +165,8 @@ class ApiService {
         request.files.add(await http.MultipartFile.fromPath('foto', imageFile.path));
       }
       
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      final http.StreamedResponse streamedResponse = await request.send();
+      final http.Response response = await http.Response.fromStream(streamedResponse);
       return _handleResponse(response);
     } catch (e) {
       return ApiResponse.error('Error de conexión: $e');
@@ -180,7 +180,7 @@ class ApiService {
     File? imageFile,
   }) async {
     try {
-      var request = http.MultipartRequest(
+      final http.MultipartRequest request = http.MultipartRequest(
         'PATCH',
         Uri.parse('$baseUrl/categories/$id'),
       );
@@ -193,8 +193,8 @@ class ApiService {
         request.files.add(await http.MultipartFile.fromPath('foto', imageFile.path));
       }
       
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      final http.StreamedResponse streamedResponse = await request.send();
+      final http.Response response = await http.Response.fromStream(streamedResponse);
       return _handleResponse(response);
     } catch (e) {
       return ApiResponse.error('Error de conexión: $e');
@@ -203,7 +203,7 @@ class ApiService {
 
   Future<ApiResponse> deleteCategory(String id) async {
     try {
-      final response = await http.delete(
+      final http.Response response = await http.delete(
         Uri.parse('$baseUrl/categories/$id'),
         headers: _headers,
       );
@@ -217,7 +217,7 @@ class ApiService {
   
   Future<ApiResponse> getSuppliers() async {
     try {
-      final response = await http.get(
+      final http.Response response = await http.get(
         Uri.parse('$baseUrl/suppliers'),
         headers: _headers,
       );
@@ -229,7 +229,7 @@ class ApiService {
 
   Future<ApiResponse> getSupplierById(String id) async {
     try {
-      final response = await http.get(
+      final http.Response response = await http.get(
         Uri.parse('$baseUrl/suppliers/$id'),
         headers: _headers,
       );
@@ -248,7 +248,7 @@ class ApiService {
     File? imageFile,
   }) async {
     try {
-      var request = http.MultipartRequest(
+      final http.MultipartRequest request = http.MultipartRequest(
         'POST',
         Uri.parse('$baseUrl/suppliers'),
       );
@@ -264,8 +264,8 @@ class ApiService {
         request.files.add(await http.MultipartFile.fromPath('foto', imageFile.path));
       }
       
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      final http.StreamedResponse streamedResponse = await request.send();
+      final http.Response response = await http.Response.fromStream(streamedResponse);
       return _handleResponse(response);
     } catch (e) {
       return ApiResponse.error('Error de conexión: $e');
@@ -282,7 +282,7 @@ class ApiService {
     File? imageFile,
   }) async {
     try {
-      var request = http.MultipartRequest(
+      final http.MultipartRequest request = http.MultipartRequest(
         'PATCH',
         Uri.parse('$baseUrl/suppliers/$id'),
       );
@@ -298,8 +298,8 @@ class ApiService {
         request.files.add(await http.MultipartFile.fromPath('foto', imageFile.path));
       }
       
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      final http.StreamedResponse streamedResponse = await request.send();
+      final http.Response response = await http.Response.fromStream(streamedResponse);
       return _handleResponse(response);
     } catch (e) {
       return ApiResponse.error('Error de conexión: $e');
@@ -308,7 +308,7 @@ class ApiService {
 
   Future<ApiResponse> deleteSupplier(String id) async {
     try {
-      final response = await http.delete(
+      final http.Response response = await http.delete(
         Uri.parse('$baseUrl/suppliers/$id'),
         headers: _headers,
       );
@@ -322,13 +322,13 @@ class ApiService {
   
   Future<ApiResponse> getProducts({String? storeId, String? categoryId, bool? lowStock}) async {
     try {
-      final queryParams = <String, String>{};
+      final Map<String, String> queryParams = <String, String>{};
       if (storeId != null) queryParams['storeId'] = storeId;
       if (categoryId != null) queryParams['categoryId'] = categoryId;
       if (lowStock != null) queryParams['lowStock'] = lowStock.toString();
       
-      final uri = Uri.parse('$baseUrl/products').replace(queryParameters: queryParams);
-      final response = await http.get(uri, headers: _headers);
+      final Uri uri = Uri.parse('$baseUrl/products').replace(queryParameters: queryParams);
+      final http.Response response = await http.get(uri, headers: _headers);
       return _handleResponse(response);
     } catch (e) {
       return ApiResponse.error('Error de conexión: $e');
@@ -337,7 +337,7 @@ class ApiService {
 
   Future<ApiResponse> getProductById(String id) async {
     try {
-      final response = await http.get(
+      final http.Response response = await http.get(
         Uri.parse('$baseUrl/products/$id'),
         headers: _headers,
       );
@@ -361,7 +361,7 @@ class ApiService {
     File? imageFile,
   }) async {
     try {
-      var request = http.MultipartRequest(
+      final http.MultipartRequest request = http.MultipartRequest(
         'POST',
         Uri.parse('$baseUrl/products'),
       );
@@ -382,8 +382,8 @@ class ApiService {
         request.files.add(await http.MultipartFile.fromPath('foto', imageFile.path));
       }
       
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      final http.StreamedResponse streamedResponse = await request.send();
+      final http.Response response = await http.Response.fromStream(streamedResponse);
       return _handleResponse(response);
     } catch (e) {
       return ApiResponse.error('Error de conexión: $e');
@@ -403,7 +403,7 @@ class ApiService {
     File? imageFile,
   }) async {
     try {
-      var request = http.MultipartRequest(
+      final http.MultipartRequest request = http.MultipartRequest(
         'PATCH',
         Uri.parse('$baseUrl/products/$id'),
       );
@@ -422,8 +422,8 @@ class ApiService {
         request.files.add(await http.MultipartFile.fromPath('foto', imageFile.path));
       }
       
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      final http.StreamedResponse streamedResponse = await request.send();
+      final http.Response response = await http.Response.fromStream(streamedResponse);
       return _handleResponse(response);
     } catch (e) {
       return ApiResponse.error('Error de conexión: $e');
@@ -432,7 +432,7 @@ class ApiService {
 
   Future<ApiResponse> deleteProduct(String id) async {
     try {
-      final response = await http.delete(
+      final http.Response response = await http.delete(
         Uri.parse('$baseUrl/products/$id'),
         headers: _headers,
       );
@@ -444,10 +444,10 @@ class ApiService {
 
   Future<ApiResponse> updateProductStock(String id, int quantity, String operation) async {
     try {
-      final response = await http.patch(
+      final http.Response response = await http.patch(
         Uri.parse('$baseUrl/products/$id/stock'),
         headers: _headers,
-        body: jsonEncode({
+        body: jsonEncode(<String, Object>{
           'quantity': quantity,
           'operation': operation, // 'add' o 'subtract'
         }),
@@ -462,7 +462,7 @@ class ApiService {
   
   Future<ApiResponse> getStores() async {
     try {
-      final response = await http.get(
+      final http.Response response = await http.get(
         Uri.parse('$baseUrl/stores'),
         headers: _headers,
       );
@@ -476,11 +476,11 @@ class ApiService {
   
   Future<ApiResponse> getCustomers({String? search}) async {
     try {
-      final queryParams = <String, String>{};
+      final Map<String, String> queryParams = <String, String>{};
       if (search != null) queryParams['search'] = search;
       
-      final uri = Uri.parse('$baseUrl/customers').replace(queryParameters: queryParams);
-      final response = await http.get(uri, headers: _headers);
+      final Uri uri = Uri.parse('$baseUrl/customers').replace(queryParameters: queryParams);
+      final http.Response response = await http.get(uri, headers: _headers);
       return _handleResponse(response);
     } catch (e) {
       return ApiResponse.error('Error de conexión: $e');
@@ -494,10 +494,10 @@ class ApiService {
     String? address,
   }) async {
     try {
-      final response = await http.post(
+      final http.Response response = await http.post(
         Uri.parse('$baseUrl/customers'),
         headers: _headers,
-        body: jsonEncode({
+        body: jsonEncode(<String, String>{
           'name': name,
           if (phone != null) 'phone': phone,
           if (email != null) 'email': email,
@@ -520,10 +520,10 @@ class ApiService {
     required List<Map<String, dynamic>> items,
   }) async {
     try {
-      final response = await http.post(
+      final http.Response response = await http.post(
         Uri.parse('$baseUrl/orders'),
         headers: _headers,
-        body: jsonEncode({
+        body: jsonEncode(<String, Object>{
           'customerId': customerId,
           'storeId': storeId,
           'userId': userId,

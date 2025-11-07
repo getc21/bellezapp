@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:bellezapp/controllers/category_controller.dart';
 import 'package:bellezapp/utils/utils.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
@@ -14,9 +15,9 @@ class AddCategoryPage extends StatefulWidget {
 
 class AddCategoryPageState extends State<AddCategoryPage> {
   final CategoryController categoryController = Get.find<CategoryController>();
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _descriptionController = TextEditingController();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
   File? _imageFile;
 
   @override
@@ -46,10 +47,8 @@ class AddCategoryPageState extends State<AddCategoryPage> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-
-    print('🔄 Iniciando guardado de categoría...');
     
-    final success = await categoryController.createCategory(
+    final bool success = await categoryController.createCategory(
       name: _nameController.text,
       description: _descriptionController.text.isEmpty 
           ? null 
@@ -57,29 +56,28 @@ class AddCategoryPageState extends State<AddCategoryPage> {
       imageFile: _imageFile,
     );
 
-    print('📊 Resultado del guardado: $success');
-
     if (success) {
-      print('✅ Éxito! Ejecutando Navigator.pop()...');
       
       // Primero navegar de regreso
       if (mounted) {
         Navigator.of(context).pop();
         
         // Mostrar snackbar después de regresar
-        Future.delayed(Duration(milliseconds: 300), () {
+        Future.delayed(const Duration(milliseconds: 300), () {
           Get.snackbar(
             'Éxito',
             'Categoría creada correctamente',
             snackPosition: SnackPosition.TOP,
-            backgroundColor: Colors.green.withOpacity(0.1),
+            backgroundColor: Colors.green.withValues(alpha: 0.1),
             colorText: Colors.green[800],
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
           );
         });
       }
     } else {
-      print('❌ Error en el guardado, no se ejecuta Get.back()');
+      if (kDebugMode) {
+        print('❌ Error en el guardado, no se ejecuta Get.back()');
+      }
     }
   }
 
@@ -94,16 +92,16 @@ class AddCategoryPageState extends State<AddCategoryPage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12, top: 8),
       child: Row(
-        children: [
+        children: <Widget>[
           Container(
-            padding: EdgeInsets.all(8),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Utils.colorBotones.withOpacity(0.1),
+              color: Utils.colorBotones.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: Utils.colorBotones, size: 20),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Text(
             title,
             style: TextStyle(
@@ -123,8 +121,8 @@ class AddCategoryPageState extends State<AddCategoryPage> {
       backgroundColor: Utils.colorFondo,
       appBar: AppBar(
         elevation: 0,
-        title: Row(
-          children: const [
+        title: const Row(
+          children: <Widget>[
             Icon(Icons.category_rounded, size: 24),
             SizedBox(width: 8),
             Text('Nueva Categoría'),
@@ -137,7 +135,7 @@ class AddCategoryPageState extends State<AddCategoryPage> {
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
-          children: [
+          children: <Widget>[
             // Sección de Imagen con Card
             Card(
               elevation: 2,
@@ -148,9 +146,9 @@ class AddCategoryPageState extends State<AddCategoryPage> {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                  children: <Widget>[
                     _buildSectionTitle('Imagen de categoría', Icons.image_rounded),
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     GestureDetector(
                       onTap: _showImageSourceDialog,
                       child: Container(
@@ -160,14 +158,14 @@ class AddCategoryPageState extends State<AddCategoryPage> {
                           color: Colors.grey[100],
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: Utils.colorBotones.withOpacity(0.3),
+                            color: Utils.colorBotones.withValues(alpha: 0.3),
                             width: 2,
                             style: BorderStyle.solid,
                           ),
                         ),
                         child: _imageFile != null
                             ? Stack(
-                                children: [
+                                children: <Widget>[
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(10),
                                     child: Image.file(
@@ -182,29 +180,29 @@ class AddCategoryPageState extends State<AddCategoryPage> {
                                     bottom: 12,
                                     right: 12,
                                     child: Container(
-                                      padding: EdgeInsets.symmetric(
+                                      padding: const EdgeInsets.symmetric(
                                         horizontal: 16,
                                         vertical: 8,
                                       ),
                                       decoration: BoxDecoration(
                                         gradient: LinearGradient(
-                                          colors: [
+                                          colors: <Color>[
                                             Utils.colorBotones,
-                                            Utils.colorBotones.withOpacity(0.8),
+                                            Utils.colorBotones.withValues(alpha: 0.8),
                                           ],
                                         ),
                                         borderRadius: BorderRadius.circular(20),
-                                        boxShadow: [
+                                        boxShadow: <BoxShadow>[
                                           BoxShadow(
-                                            color: Colors.black.withOpacity(0.3),
+                                            color: Colors.black.withValues(alpha: 0.3),
                                             blurRadius: 8,
-                                            offset: Offset(0, 2),
+                                            offset: const Offset(0, 2),
                                           ),
                                         ],
                                       ),
-                                      child: Row(
+                                      child: const Row(
                                         mainAxisSize: MainAxisSize.min,
-                                        children: [
+                                        children: <Widget>[
                                           Icon(
                                             Icons.edit_rounded,
                                             color: Colors.white,
@@ -227,11 +225,11 @@ class AddCategoryPageState extends State<AddCategoryPage> {
                               )
                             : Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
+                                children: <Widget>[
                                   Container(
-                                    padding: EdgeInsets.all(20),
+                                    padding: const EdgeInsets.all(20),
                                     decoration: BoxDecoration(
-                                      color: Utils.colorBotones.withOpacity(0.1),
+                                      color: Utils.colorBotones.withValues(alpha: 0.1),
                                       shape: BoxShape.circle,
                                     ),
                                     child: Icon(
@@ -277,14 +275,14 @@ class AddCategoryPageState extends State<AddCategoryPage> {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                  children: <Widget>[
                     _buildSectionTitle('Información Básica', Icons.info_outline_rounded),
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
 
                     // Nombre
                     TextFormField(
                       controller: _nameController,
-                      style: TextStyle(fontSize: 15),
+                      style: const TextStyle(fontSize: 15),
                       decoration: InputDecoration(
                         labelText: 'Nombre de la categoría*',
                         hintText: 'Ej: Maquillaje, Perfumes, Cuidado facial...',
@@ -308,10 +306,10 @@ class AddCategoryPageState extends State<AddCategoryPage> {
                         ),
                         errorBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.red, width: 2),
+                          borderSide: const BorderSide(color: Colors.red, width: 2),
                         ),
                       ),
-                      validator: (value) {
+                      validator: (String? value) {
                         if (value == null || value.isEmpty) {
                           return 'El nombre es obligatorio';
                         }
@@ -326,7 +324,7 @@ class AddCategoryPageState extends State<AddCategoryPage> {
                     // Descripción
                     TextFormField(
                       controller: _descriptionController,
-                      style: TextStyle(fontSize: 15),
+                      style: const TextStyle(fontSize: 15),
                       decoration: InputDecoration(
                         labelText: 'Descripción (opcional)',
                         hintText: 'Describe brevemente esta categoría...',
@@ -364,11 +362,11 @@ class AddCategoryPageState extends State<AddCategoryPage> {
                 height: 56,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
+                  boxShadow: <BoxShadow>[
                     BoxShadow(
-                      color: Utils.colorBotones.withOpacity(0.3),
+                      color: Utils.colorBotones.withValues(alpha: 0.3),
                       blurRadius: 12,
-                      offset: Offset(0, 6),
+                      offset: const Offset(0, 6),
                     ),
                   ],
                 ),
@@ -383,9 +381,9 @@ class AddCategoryPageState extends State<AddCategoryPage> {
                     elevation: 0,
                   ),
                   child: categoryController.isLoading
-                      ? Row(
+                      ? const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
+                          children: <Widget>[
                             SizedBox(
                               height: 20,
                               width: 20,
@@ -404,9 +402,9 @@ class AddCategoryPageState extends State<AddCategoryPage> {
                             ),
                           ],
                         )
-                      : Row(
+                      : const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
+                          children: <Widget>[
                             Icon(Icons.save_rounded, size: 22),
                             SizedBox(width: 8),
                             Text(
@@ -422,7 +420,7 @@ class AddCategoryPageState extends State<AddCategoryPage> {
                 ),
               );
             }),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
           ],
         ),
       ),

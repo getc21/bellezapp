@@ -11,7 +11,7 @@ class CashRegisterProvider {
 
   CashRegisterProvider(this.token);
 
-  Map<String, String> get _headers => {
+  Map<String, String> get _headers => <String, String>{
     'Content-Type': 'application/json',
     'Authorization': 'Bearer $token',
   };
@@ -19,65 +19,44 @@ class CashRegisterProvider {
   // Obtener storeId y userId reales
   Map<String, String> _getRealIds() {
     try {
-      final storeController = Get.find<StoreController>();
-      final authController = Get.find<AuthController>();
-
-      print('🔍 Estado del StoreController:');
-      print('   - Tiendas cargadas: ${storeController.stores.length}');
-      print('   - Tienda actual: ${storeController.currentStore}');
-      
-      print('🔍 Estado del AuthController:');
-      print('   - Usuario actual: ${authController.currentUser}');
-
-      final currentStore = storeController.currentStore;
-      final currentUser = authController.currentUser;
+      final StoreController storeController = Get.find<StoreController>();
+      final AuthController authController = Get.find<AuthController>();
+      final Map<String, dynamic>? currentStore = storeController.currentStore;
+      final Map<String, dynamic>? currentUser = authController.currentUser;
 
       if (currentStore == null) {
-        print('❌ ERROR: No hay tienda seleccionada');
         throw Exception('No hay tienda seleccionada. Selecciona una tienda primero.');
       }
 
       if (currentUser == null) {
-        print('❌ ERROR: No hay usuario autenticado');
         throw Exception('No hay usuario autenticado.');
       }
 
-      final storeId = currentStore['_id']?.toString();
-      final userId = currentUser['_id']?.toString() ?? currentUser['id']?.toString();
+      final String? storeId = currentStore['_id']?.toString();
+      final String? userId = currentUser['_id']?.toString() ?? currentUser['id']?.toString();
 
       if (storeId == null || storeId.isEmpty) {
-        print('❌ ERROR: storeId es null o vacío');
         throw Exception('El ID de la tienda no es válido.');
       }
 
       if (userId == null || userId.isEmpty) {
-        print('❌ ERROR: userId es null o vacío');
-        print('   Intenté buscar _id: ${currentUser['_id']}');
-        print('   Intenté buscar id: ${currentUser['id']}');
         throw Exception('El ID del usuario no es válido.');
       }
 
       // Validar que sean ObjectIds válidos (24 caracteres hexadecimales)
-      final objectIdRegex = RegExp(r'^[0-9a-fA-F]{24}$');
+      final RegExp objectIdRegex = RegExp(r'^[0-9a-fA-F]{24}$');
       
       if (!objectIdRegex.hasMatch(storeId)) {
-        print('❌ ERROR: storeId no es un ObjectId válido: $storeId');
         throw Exception('El ID de la tienda no tiene formato ObjectId válido.');
       }
-
       if (!objectIdRegex.hasMatch(userId)) {
-        print('❌ ERROR: userId no es un ObjectId válido: $userId');
         throw Exception('El ID del usuario no tiene formato ObjectId válido.');
       }
-
-      print('✅ IDs válidos obtenidos: storeId=$storeId, userId=$userId');
-
-      return {
+      return <String, String>{
         'storeId': storeId,
         'userId': userId,
       };
     } catch (e) {
-      print('⚠️ Error obteniendo IDs reales: $e');
       rethrow; // Re-lanzar la excepción para manejarla en el método que llama
     }
   }
@@ -86,10 +65,10 @@ class CashRegisterProvider {
   Future<Map<String, dynamic>> getCashRegisters({String? storeId}) async {
     try {
       // Como el backend no tiene endpoint para listar cajas, simulamos una respuesta
-      return {
+      return <String, dynamic>{
         'success': true, 
-        'data': [
-          {
+        'data': <Map<String, String>>[
+          <String, String>{
             '_id': 'default-cash-register',
             'id': 'default-cash-register',
             'name': 'Caja Principal',
@@ -99,53 +78,48 @@ class CashRegisterProvider {
         ]
       };
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 
   // Obtener caja por ID
   Future<Map<String, dynamic>> getCashRegisterById(String id) async {
     try {
-      final response = await http.get(
+      final http.Response response = await http.get(
         Uri.parse('$baseUrl/cash-registers/$id'),
         headers: _headers,
       );
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        return {'success': true, 'data': data['data']['cashRegister']};
+        return <String, dynamic>{'success': true, 'data': data['data']['cashRegister']};
       } else {
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error obteniendo caja'
         };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 
   // Obtener estado actual de la caja
   Future<Map<String, dynamic>> getCurrentCashRegisterStatus() async {
     try {
-      final realIds = _getRealIds();
-      final response = await http.get(
+      final Map<String, String> realIds = _getRealIds();
+      final http.Response response = await http.get(
         Uri.parse('$baseUrl/cash/status?storeId=${realIds['storeId']}'),
         headers: _headers,
       );
-
-      print('📊 Estado de caja - Código: ${response.statusCode}');
-      print('📋 Respuesta: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return {'success': true, 'data': data['data']};
+        return <String, dynamic>{'success': true, 'data': data['data']};
       } else {
-        return {'success': false, 'message': 'Error obteniendo estado de caja'};
+        return <String, dynamic>{'success': false, 'message': 'Error obteniendo estado de caja'};
       }
     } catch (e) {
-      print('💥 Error obteniendo estado de caja: $e');
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 
@@ -156,10 +130,10 @@ class CashRegisterProvider {
     required double initialBalance,
   }) async {
     try {
-      final response = await http.post(
+      final http.Response response = await http.post(
         Uri.parse('$baseUrl/cash-registers'),
         headers: _headers,
-        body: jsonEncode({
+        body: jsonEncode(<String, Object>{
           'storeId': storeId,
           'name': name,
           'initialBalance': initialBalance,
@@ -168,15 +142,15 @@ class CashRegisterProvider {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 201) {
-        return {'success': true, 'data': data['data']};
+        return <String, dynamic>{'success': true, 'data': data['data']};
       } else {
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error creando caja'
         };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 
@@ -187,11 +161,11 @@ class CashRegisterProvider {
     double? initialBalance,
   }) async {
     try {
-      final Map<String, dynamic> body = {};
+      final Map<String, dynamic> body = <String, dynamic>{};
       if (name != null) body['name'] = name;
       if (initialBalance != null) body['initialBalance'] = initialBalance;
 
-      final response = await http.patch(
+      final http.Response response = await http.patch(
         Uri.parse('$baseUrl/cash-registers/$id'),
         headers: _headers,
         body: jsonEncode(body),
@@ -199,37 +173,37 @@ class CashRegisterProvider {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        return {'success': true, 'data': data['data']};
+        return <String, dynamic>{'success': true, 'data': data['data']};
       } else {
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error actualizando caja'
         };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 
   // Eliminar caja registradora
   Future<Map<String, dynamic>> deleteCashRegister(String id) async {
     try {
-      final response = await http.delete(
+      final http.Response response = await http.delete(
         Uri.parse('$baseUrl/cash-registers/$id'),
         headers: _headers,
       );
 
       if (response.statusCode == 204) {
-        return {'success': true};
+        return <String, dynamic>{'success': true};
       } else {
         final data = jsonDecode(response.body);
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error eliminando caja'
         };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 
@@ -238,52 +212,35 @@ class CashRegisterProvider {
     required String cashRegisterId,
     required double openingBalance,
   }) async {
-    try {
-      print('🔄 Enviando petición para abrir caja...');
-      print('💰 Monto: \$${openingBalance.toStringAsFixed(2)}');
-      print('🌐 URL: $baseUrl/cash/register/open');
-      
-      final realIds = _getRealIds();
-      final requestBody = {
+    try {    
+      final Map<String, String> realIds = _getRealIds();
+      final Map<String, Object?> requestBody = <String, Object?>{
         'openingAmount': openingBalance,
         'storeId': realIds['storeId'],
         'userId': realIds['userId']
-      };
-      
-      print('📤 Datos enviados: $requestBody');
-      
-      final response = await http.post(
+      };      
+      final http.Response response = await http.post(
         Uri.parse('$baseUrl/cash/register/open'),
         headers: _headers,
         body: jsonEncode(requestBody),
-      );
-      
-      print('📥 Código de respuesta: ${response.statusCode}');
-      print('📋 Respuesta raw: ${response.body}');
-      
+      );    
       final data = jsonDecode(response.body);
-      print('📊 Datos parseados: $data');
-
       if (response.statusCode == 201) {
-        print('✅ Caja abierta exitosamente');
-        return {'success': true, 'data': data['data']};
+        return <String, dynamic>{'success': true, 'data': data['data']};
       } else if (response.statusCode == 400 && data['message']?.toString().contains('already an open cash register') == true) {
-        print('⚠️ Ya hay una caja abierta');
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': 'Ya hay una caja abierta en esta tienda',
           'isAlreadyOpen': true,
         };
       } else {
-        print('❌ Error del servidor: ${data['message']}');
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error abriendo caja'
         };
       }
     } catch (e) {
-      print('💥 Excepción en openCashRegister: $e');
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 
@@ -293,23 +250,23 @@ class CashRegisterProvider {
     required double closingBalance,
   }) async {
     try {
-      final response = await http.post(
+      final http.Response response = await http.post(
         Uri.parse('$baseUrl/cash/register/close/$cashRegisterId'),
         headers: _headers,
-        body: jsonEncode({'closingAmount': closingBalance}),
+        body: jsonEncode(<String, double>{'closingAmount': closingBalance}),
       );
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        return {'success': true, 'data': data['data']};
+        return <String, dynamic>{'success': true, 'data': data['data']};
       } else {
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error cerrando caja'
         };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 
@@ -320,35 +277,31 @@ class CashRegisterProvider {
     String? endDate,
   }) async {
     try {
-      final realIds = _getRealIds();
-      final queryParams = <String, String>{
+      final Map<String, String> realIds = _getRealIds();
+      final Map<String, String> queryParams = <String, String>{
         'storeId': realIds['storeId']!,
       };
       if (startDate != null) queryParams['startDate'] = startDate;
       if (endDate != null) queryParams['endDate'] = endDate;
 
-      final uri = Uri.parse('$baseUrl/cash/movements')
+      final Uri uri = Uri.parse('$baseUrl/cash/movements')
           .replace(queryParameters: queryParams);
-      final response = await http.get(uri, headers: _headers);
+      final http.Response response = await http.get(uri, headers: _headers);
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        final movements = data['data']['movements'] ?? data['data'] ?? [];
-        print('📋 Movimientos recibidos del backend:');
+        final movements = data['data']['movements'] ?? data['data'] ?? <dynamic>[];
         if (movements.isNotEmpty) {
-          print('   - Total de movimientos: ${movements.length}');
-          print('   - Primer movimiento: ${movements[0]}');
-          print('   - Tipo del primer movimiento: ${movements[0]['type']}');
         }
-        return {'success': true, 'data': movements};
+        return <String, dynamic>{'success': true, 'data': movements};
       } else {
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error obteniendo movimientos'
         };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 
@@ -360,11 +313,11 @@ class CashRegisterProvider {
     required String description,
   }) async {
     try {
-      final realIds = _getRealIds();
-      final response = await http.post(
+      final Map<String, String> realIds = _getRealIds();
+      final http.Response response = await http.post(
         Uri.parse('$baseUrl/cash/movements'),
         headers: _headers,
-        body: jsonEncode({
+        body: jsonEncode(<String, Object>{
           'date': DateTime.now().toIso8601String(),
           'type': type,
           'amount': amount,
@@ -376,15 +329,15 @@ class CashRegisterProvider {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 201) {
-        return {'success': true, 'data': data['data']};
+        return <String, dynamic>{'success': true, 'data': data['data']};
       } else {
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error registrando movimiento'
         };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 }

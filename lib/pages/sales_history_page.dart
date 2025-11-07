@@ -189,7 +189,7 @@ class SalesHistoryPageState extends State<SalesHistoryPage> {
 
                 // Selector de método de pago
                 DropdownButtonFormField<String>(
-                  value: _selectedPaymentMethod ?? 'Todos',
+                  initialValue: _selectedPaymentMethod ?? 'Todos',
                   decoration: InputDecoration(
                     labelText: 'Método de pago',
                     border: OutlineInputBorder(
@@ -257,7 +257,7 @@ class SalesHistoryPageState extends State<SalesHistoryPage> {
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.grey.withOpacity(0.2),
+                          color: Colors.grey.withValues(alpha: 0.2),
                           blurRadius: 8,
                           offset: const Offset(0, 4),
                         ),
@@ -290,7 +290,7 @@ class SalesHistoryPageState extends State<SalesHistoryPage> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Column(
@@ -355,7 +355,7 @@ class SalesHistoryPageState extends State<SalesHistoryPage> {
         leading: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Utils.colorBotones.withOpacity(0.1),
+            color: Utils.colorBotones.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(

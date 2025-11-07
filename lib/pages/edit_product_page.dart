@@ -5,6 +5,7 @@ import 'package:bellezapp/controllers/supplier_controller.dart';
 import 'package:bellezapp/controllers/location_controller.dart';
 import 'package:bellezapp/controllers/store_controller.dart';
 import 'package:bellezapp/utils/utils.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:get/get.dart';
@@ -46,17 +47,30 @@ class EditProductPageState extends State<EditProductPage> {
   void initState() {
     super.initState();
     _initializeControllers();
-    _loadData();
+    
+    // Usar SchedulerBinding para asegurar que la carga se ejecute después del build
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
   }
 
   Future<void> _loadData() async {
-    await categoryController.loadCategories();
-    await supplierController.loadSuppliers();
     
-    // Cargar ubicaciones de la tienda actual
-    final storeId = storeController.currentStore?['_id'];
-    if (storeId != null) {
-      await locationController.loadLocations(storeId: storeId);
+    try {
+      await categoryController.loadCategories();
+      await supplierController.loadSuppliers();
+      
+      // Cargar ubicaciones de la tienda actual
+      final storeId = storeController.currentStore?['_id'];
+      
+      if (storeId != null) {
+        await locationController.loadLocations(storeId: storeId);
+      } else {
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ EditProductPage: Error cargando datos: $e');
+      }
     }
   }
 
@@ -175,11 +189,11 @@ class EditProductPageState extends State<EditProductPage> {
     }
   }
 
-  Future<void> _updateProduct() async {
-    print('DEBUG EditProductPage - Iniciando actualización...');
-    
+  Future<void> _updateProduct() async {    
     if (!_formKey.currentState!.validate()) {
-      print('DEBUG EditProductPage - Validación del formulario falló');
+      if (kDebugMode) {
+        print('DEBUG EditProductPage - Validación del formulario falló');
+      }
       return;
     }
 
@@ -206,18 +220,6 @@ class EditProductPageState extends State<EditProductPage> {
     final productId = widget.product['_id'].toString();
     final weightValue = _weightController.text.isEmpty ? null : double.tryParse(_weightController.text);
 
-    print('DEBUG EditProductPage - Datos a enviar:');
-    print('  productId: $productId');
-    print('  name: ${_nameController.text}');
-    print('  categoryId: $_selectedCategoryId');
-    print('  supplierId: $_selectedSupplierId');
-    print('  locationId: $_selectedLocationId');
-    print('  purchasePrice: ${_purchasePriceController.text}');
-    print('  salePrice: ${_salePriceController.text}');
-    print('  weight: $weightValue');
-    print('  expiryDate: $_selectedExpiryDate');
-    print('  hasImage: ${_newImageFile != null}');
-
     final success = await productController.updateProduct(
       id: productId,
       name: _nameController.text,
@@ -231,22 +233,17 @@ class EditProductPageState extends State<EditProductPage> {
       expiryDate: _selectedExpiryDate,
       imageFile: _newImageFile,
     );
-
-    print('DEBUG EditProductPage - Resultado: $success');
-
-    if (success) {
-      print('DEBUG EditProductPage - Producto actualizado exitosamente, volviendo atrás...');
-      
+    if (success) {      
       // Usar SchedulerBinding para ejecutar después del frame actual
       SchedulerBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          print('DEBUG EditProductPage - Ejecutando Navigator.pop');
           Navigator.of(context).pop(true);
-          print('DEBUG EditProductPage - Navegación completada');
         }
       });
     } else {
-      print('DEBUG EditProductPage - Error al actualizar producto');
+      if (kDebugMode) {
+        print('DEBUG EditProductPage - Error al actualizar producto');
+      }
     }
   }
 
@@ -339,7 +336,7 @@ class EditProductPageState extends State<EditProductPage> {
           color: Colors.grey[100],
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: Utils.colorBotones.withOpacity(0.3),
+            color: Utils.colorBotones.withValues(alpha: 0.3),
             width: 2,
           ),
         ),
@@ -387,13 +384,13 @@ class EditProductPageState extends State<EditProductPage> {
                         gradient: LinearGradient(
                           colors: [
                             Utils.colorBotones,
-                            Utils.colorBotones.withOpacity(0.8),
+                            Utils.colorBotones.withValues(alpha: 0.8),
                           ],
                         ),
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
+                            color: Colors.black.withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: Offset(0, 2),
                           ),
@@ -428,7 +425,7 @@ class EditProductPageState extends State<EditProductPage> {
                   Container(
                     padding: EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Utils.colorBotones.withOpacity(0.1),
+                      color: Utils.colorBotones.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -468,7 +465,7 @@ class EditProductPageState extends State<EditProductPage> {
           Container(
             padding: EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Utils.colorBotones.withOpacity(0.1),
+              color: Utils.colorBotones.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: Utils.colorBotones, size: 20),
@@ -587,7 +584,8 @@ class EditProductPageState extends State<EditProductPage> {
                     Obx(() {
                       final categories = categoryController.categories;
                       return DropdownButtonFormField<String>(
-                        value: _selectedCategoryId,
+                        initialValue: _selectedCategoryId,
+                        isExpanded: true,
                         decoration: InputDecoration(
                           labelText: 'Categoría*',
                           prefixIcon: Icon(Icons.label_outline, color: Utils.colorBotones),
@@ -605,7 +603,11 @@ class EditProductPageState extends State<EditProductPage> {
                         items: categories.map((category) {
                           return DropdownMenuItem(
                             value: category['_id'].toString(),
-                            child: Text(category['name'] ?? 'Sin nombre'),
+                            child: Text(
+                              category['name'] ?? 'Sin nombre',
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
                           );
                         }).toList(),
                         onChanged: (value) {
@@ -627,7 +629,8 @@ class EditProductPageState extends State<EditProductPage> {
                     Obx(() {
                       final suppliers = supplierController.suppliers;
                       return DropdownButtonFormField<String>(
-                        value: _selectedSupplierId,
+                        initialValue: _selectedSupplierId,
+                        isExpanded: true,
                         decoration: InputDecoration(
                           labelText: 'Proveedor*',
                           prefixIcon: Icon(Icons.local_shipping_outlined, color: Utils.colorBotones),
@@ -645,7 +648,11 @@ class EditProductPageState extends State<EditProductPage> {
                         items: suppliers.map((supplier) {
                           return DropdownMenuItem(
                             value: supplier['_id'].toString(),
-                            child: Text(supplier['name'] ?? 'Sin nombre'),
+                            child: Text(
+                              supplier['name'] ?? 'Sin nombre',
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
                           );
                         }).toList(),
                         onChanged: (value) {
@@ -666,8 +673,10 @@ class EditProductPageState extends State<EditProductPage> {
                     // Ubicación
                     Obx(() {
                       final locations = locationController.locations;
+                      
                       return DropdownButtonFormField<String>(
-                        value: _selectedLocationId,
+                        initialValue: _selectedLocationId,
+                        isExpanded: true,
                         decoration: InputDecoration(
                           labelText: 'Ubicación en Tienda*',
                           prefixIcon: Icon(Icons.place_outlined, color: Utils.colorBotones),
@@ -913,7 +922,7 @@ class EditProductPageState extends State<EditProductPage> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: productController.isLoading ? [] : [
                     BoxShadow(
-                      color: Utils.colorBotones.withOpacity(0.3),
+                      color: Utils.colorBotones.withValues(alpha: 0.3),
                       blurRadius: 12,
                       offset: Offset(0, 6),
                     ),

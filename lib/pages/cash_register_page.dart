@@ -1,9 +1,10 @@
 import 'package:bellezapp/controllers/cash_controller.dart';
 import 'package:bellezapp/models/cash_movement.dart';
-import 'package:bellezapp/pages/cash_movements_page.dart';
 import 'package:bellezapp/pages/daily_cash_report_page.dart';
+import 'package:bellezapp/pages/cash_movements_page.dart';
 import 'package:bellezapp/utils/utils.dart';
 import 'package:bellezapp/widgets/store_aware_app_bar.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -22,7 +23,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
   final TextEditingController _incomeAmountController = TextEditingController();
   final TextEditingController _outcomeAmountController = TextEditingController();
   
-  // Variable para controlar diálogos abiertos
+  // Variable para controlar di�logos abiertos
   bool _isDialogOpen = false;
   DateTime? _lastDialogOpen;
 
@@ -33,12 +34,11 @@ class CashRegisterPageState extends State<CashRegisterPage> {
     try {
       cashController = Get.find<CashController>();
     } catch (e) {
-      print('Error al encontrar CashController: $e');
       // Si no existe, intentar crearlo
       cashController = Get.put(CashController(), permanent: true);
     }
     
-    // Cargar datos cuando se abre la página
+    // Cargar datos cuando se abre la p�gina
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await cashController.initialize();
     });
@@ -53,53 +53,50 @@ class CashRegisterPageState extends State<CashRegisterPage> {
     super.dispose();
   }
 
-  // Método helper para verificar si se puede abrir un diálogo
+  // M�todo helper para verificar si se puede abrir un di�logo
   bool _canOpenDialog() {
     final now = DateTime.now();
     return !_isDialogOpen && 
            (_lastDialogOpen == null || now.difference(_lastDialogOpen!).inMilliseconds >= 500);
   }
 
-  // Método helper para marcar diálogo como abierto
+  // M�todo helper para marcar di�logo como abierto
   void _markDialogOpen() {
     _isDialogOpen = true;
     _lastDialogOpen = DateTime.now();
   }
 
-  // Método helper para marcar diálogo como cerrado
+  // M�todo helper para marcar di�logo como cerrado
   void _markDialogClosed() {
     _isDialogOpen = false;
   }
 
-  // Método helper para obtener dinero disponible de forma segura
+  // M�todo helper para obtener dinero disponible de forma segura
   double _getSafeAvailableCash() {
     try {
       if (!mounted || !cashController.isCashRegisterOpen) return 0.0;
       return cashController.totalCashInHand;
     } catch (e) {
-      print('Error al obtener dinero disponible: $e');
       return 0.0;
     }
   }
 
-  // Método helper para formatear moneda de forma segura
+  // M�todo helper para formatear moneda de forma segura
   String _safeFormatCurrency(double amount) {
     try {
       if (!mounted) return '\$${amount.toStringAsFixed(2)}';
       return cashController.formatCurrency(amount);
     } catch (e) {
-      print('Error al formatear moneda: $e');
       return '\$${amount.toStringAsFixed(2)}';
     }
   }
 
-  // Método helper para obtener monto esperado de forma segura
+  // M�todo helper para obtener monto esperado de forma segura
   double _getSafeExpectedAmount() {
     try {
       if (!mounted || !cashController.isCashRegisterOpen) return 0.0;
       return cashController.expectedAmount;
     } catch (e) {
-      print('Error al obtener monto esperado: $e');
       return 0.0;
     }
   }
@@ -143,7 +140,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
                 _buildCashStatusCard(),
                 SizedBox(height: 16),
                 
-                // Resumen del día
+                // Resumen del d�a
                 _buildDailySummaryCard(),
                 SizedBox(height: 16),
                 
@@ -227,7 +224,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
               ],
             ),
             
-            // Información adicional si la caja está abierta
+            // Informaci�n adicional si la caja est� abierta
             if (cashController.isCashRegisterOpen) ...[
               SizedBox(height: 16),
               Divider(),
@@ -242,7 +239,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
                         'Hora de apertura',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Utils.colorTexto.withOpacity(0.7),
+                          color: Utils.colorTexto.withValues(alpha: 0.7),
                         ),
                       ),
                       Text(
@@ -262,7 +259,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
                         'Monto inicial',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Utils.colorTexto.withOpacity(0.7),
+                          color: Utils.colorTexto.withValues(alpha: 0.7),
                         ),
                       ),
                       Text(
@@ -284,7 +281,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
     );
   }
 
-  // Card del resumen del día
+  // Card del resumen del d�a
   Widget _buildDailySummaryCard() {
     return Card(
       elevation: 4,
@@ -296,7 +293,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Resumen del Día',
+              'Resumen del D�a',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -305,7 +302,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
             ),
             SizedBox(height: 16),
             
-            // Grid de métricas
+            // Grid de m�tricas
             GridView.count(
               shrinkWrap: true,
               physics: NeverScrollableScrollPhysics(),
@@ -348,10 +345,10 @@ class CashRegisterPageState extends State<CashRegisterPage> {
                 width: double.infinity,
                 padding: EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Utils.colorBotones.withOpacity(0.1),
+                  color: Utils.colorBotones.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: Utils.colorBotones.withOpacity(0.3),
+                    color: Utils.colorBotones.withValues(alpha: 0.3),
                     width: 1,
                   ),
                 ),
@@ -384,42 +381,42 @@ class CashRegisterPageState extends State<CashRegisterPage> {
     );
   }
 
-  // Card de métrica individual
+  // Card de m�trica individual
   Widget _buildMetricCard(String title, String value, IconData icon, Color color) {
     return Container(
       padding: EdgeInsets.all(12), // Reducir padding
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: color.withOpacity(0.3),
+          color: color.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min, // Añadir para minimizar espacio
+        mainAxisSize: MainAxisSize.min, // A�adir para minimizar espacio
         children: [
-          Icon(icon, color: color, size: 18), // Reducir más el tamaño del icono
-          SizedBox(height: 4), // Reducir más el espaciado
+          Icon(icon, color: color, size: 18), // Reducir m�s el tama�o del icono
+          SizedBox(height: 4), // Reducir m�s el espaciado
           Flexible( // Usar Flexible para evitar overflow
             child: Text(
               title,
               style: TextStyle(
-                fontSize: 9, // Reducir más el tamaño de fuente
-                color: Utils.colorTexto.withOpacity(0.7),
+                fontSize: 9, // Reducir m�s el tama�o de fuente
+                color: Utils.colorTexto.withValues(alpha: 0.7),
               ),
               textAlign: TextAlign.center,
-              maxLines: 2, // Permitir 2 líneas
+              maxLines: 2, // Permitir 2 l�neas
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          SizedBox(height: 1), // Reducir más el espaciado
+          SizedBox(height: 1), // Reducir m�s el espaciado
           Flexible( // Usar Flexible para evitar overflow
             child: Text(
               value,
               style: TextStyle(
-                fontSize: 11, // Reducir más el tamaño de fuente
+                fontSize: 11, // Reducir m�s el tama�o de fuente
                 fontWeight: FontWeight.bold,
                 color: Utils.colorTexto,
               ),
@@ -454,7 +451,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
             ),
             SizedBox(height: 16),
             
-            // Botones de acción - Reactivos a cambios del controlador
+            // Botones de acci�n - Reactivos a cambios del controlador
             Obx(() {
               if (cashController.canOpenCashRegister) {
                 return _buildActionButton(
@@ -513,7 +510,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
                   width: double.infinity,
                   padding: EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.1),
+                    color: Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Column(
@@ -546,7 +543,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
     );
   }
 
-  // Botón de acción principal
+  // Bot�n de acci�n principal
   Widget _buildActionButton(String title, String subtitle, IconData icon, Color color, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
@@ -555,10 +552,10 @@ class CashRegisterPageState extends State<CashRegisterPage> {
         width: double.infinity,
         padding: EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: color.withOpacity(0.3),
+            color: color.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -589,7 +586,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
                     subtitle,
                     style: TextStyle(
                       fontSize: 14,
-                      color: Utils.colorTexto.withOpacity(0.7),
+                      color: Utils.colorTexto.withValues(alpha: 0.7),
                     ),
                   ),
                 ],
@@ -602,7 +599,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
     );
   }
 
-  // Botón de acción secundario
+  // Bot�n de acci�n secundario
   Widget _buildSecondaryActionButton(String title, IconData icon, Color color, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
@@ -610,10 +607,10 @@ class CashRegisterPageState extends State<CashRegisterPage> {
       child: Container(
         padding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: color.withOpacity(0.3),
+            color: color.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -710,7 +707,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
     Color color;
     IconData icon;
     
-    // Si movement es un Map, convertirlo a CashMovement para usar sus métodos
+    // Si movement es un Map, convertirlo a CashMovement para usar sus m�todos
     CashMovement movementObj;
     if (movement is Map<String, dynamic>) {
       movementObj = CashMovement.fromMap(movement);
@@ -765,7 +762,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
           Container(
             padding: EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: color, size: 20),
@@ -787,7 +784,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
                   movementObj.description,
                   style: TextStyle(
                     fontSize: 12,
-                    color: Utils.colorTexto.withOpacity(0.7),
+                    color: Utils.colorTexto.withValues(alpha: 0.7),
                   ),
                 ),
               ],
@@ -805,10 +802,10 @@ class CashRegisterPageState extends State<CashRegisterPage> {
                 ),
               ),
               Text(
-                '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
+                Utils.formatTime12Hour(time),
                 style: TextStyle(
                   fontSize: 12,
-                  color: Utils.colorTexto.withOpacity(0.7),
+                  color: Utils.colorTexto.withValues(alpha: 0.7),
                 ),
               ),
             ],
@@ -818,7 +815,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
     );
   }
 
-  // Diálogo para abrir caja
+  // Di�logo para abrir caja
   void _showOpenCashDialog() {
     _openAmountController.clear();
     
@@ -860,7 +857,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
                 Get.back();
                 cashController.openCashRegisterSimple(amount);
               } else {
-                Get.snackbar('Error', 'Ingrese un monto válido');
+                Get.snackbar('Error', 'Ingrese un monto v�lido');
               }
             },
             style: ElevatedButton.styleFrom(
@@ -874,7 +871,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
     );
   }
 
-  // Diálogo para cerrar caja
+  // Di�logo para cerrar caja
   void _showCloseCashDialog() {
     // Verificar que haya una caja abierta
     if (!cashController.isCashRegisterOpen) {
@@ -884,7 +881,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
     
     _closeAmountController.clear();
     
-    // Capturar el valor antes de mostrar el diálogo para evitar problemas de contexto
+    // Capturar el valor antes de mostrar el di�logo para evitar problemas de contexto
     final expectedAmount = _getSafeExpectedAmount();
     
     Get.dialog(
@@ -927,7 +924,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
                 Get.back();
                 cashController.closeCashRegisterSimple(amount);
               } else {
-                Get.snackbar('Error', 'Ingrese un monto válido');
+                Get.snackbar('Error', 'Ingrese un monto v�lido');
               }
             },
             style: ElevatedButton.styleFrom(
@@ -941,9 +938,9 @@ class CashRegisterPageState extends State<CashRegisterPage> {
     );
   }
 
-  // Diálogo para entrada de dinero
+  // Di�logo para entrada de dinero
   void _showAddIncomeDialog() {
-    // Prevenir múltiples diálogos
+    // Prevenir m�ltiples di�logos
     if (_isDialogOpen) return;
     
     // Verificar que haya una caja abierta
@@ -982,7 +979,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
             TextFormField(
               controller: descriptionController,
               decoration: InputDecoration(
-                labelText: 'Descripción',
+                labelText: 'Descripci�n',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -1024,9 +1021,9 @@ class CashRegisterPageState extends State<CashRegisterPage> {
     );
   }
 
-  // Diálogo para salida de dinero
+  // Di�logo para salida de dinero
   void _showAddOutcomeDialog() {
-    // Prevenir múltiples diálogos y clicks rápidos
+    // Prevenir m�ltiples di�logos y clicks r�pidos
     if (!_canOpenDialog()) return;
     
     try {
@@ -1036,12 +1033,12 @@ class CashRegisterPageState extends State<CashRegisterPage> {
         return;
       }
       
-      // Verificar que el contexto esté montado
+      // Verificar que el contexto est� montado
       if (!mounted) return;
       
       _markDialogOpen();
       
-      // Capturar valores antes de mostrar el diálogo
+      // Capturar valores antes de mostrar el di�logo
       final availableCash = _getSafeAvailableCash();
       
       showDialog<bool>(
@@ -1057,12 +1054,11 @@ class CashRegisterPageState extends State<CashRegisterPage> {
       );
     } catch (e) {
       _markDialogClosed();
-      print('Error al mostrar diálogo de salida: $e');
-      Get.snackbar('Error', 'Error al abrir el diálogo. Intente nuevamente.');
+      Get.snackbar('Error', 'Error al abrir el di�logo. Intente nuevamente.');
     }
   }
 
-  // Métodos de formateo para datos de caja
+  // M�todos de formateo para datos de caja
   String? _formatOpeningTime(Map<String, dynamic>? cashRegister) {
     if (cashRegister == null) return null;
     
@@ -1071,10 +1067,25 @@ class CashRegisterPageState extends State<CashRegisterPage> {
       final openingTime = cashRegister['openingTime'] ?? cashRegister['createdAt'];
       if (openingTime != null) {
         final DateTime dateTime = DateTime.parse(openingTime.toString());
-        return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+        
+        // Convertir a formato de 12 horas
+        int hour = dateTime.hour;
+        String period = hour >= 12 ? 'PM' : 'AM';
+        
+        // Convertir hora de 24h a 12h
+        if (hour == 0) {
+          hour = 12; // Medianoche
+        } else if (hour > 12) {
+          hour = hour - 12; // Tarde
+        }
+        
+        return '${hour.toString()}:${dateTime.minute.toString().padLeft(2, '0')} $period';
       }
     } catch (e) {
-      print('Error formateando hora de apertura: $e');
+      if (kDebugMode) {
+        print('Error formateando hora de apertura: $e');
+      }
+      // Error silencioso - continúa con valor por defecto
     }
     
     return null;
@@ -1092,7 +1103,10 @@ class CashRegisterPageState extends State<CashRegisterPage> {
         return '\$${amount.toStringAsFixed(2)}';
       }
     } catch (e) {
-      print('Error formateando monto de apertura: $e');
+      if (kDebugMode) {
+        print('Error formateando monto de apertura: $e');
+      }
+      // Error silencioso - continúa con valor por defecto
     }
     
     return null;
@@ -1154,7 +1168,7 @@ class _OutcomeDialogState extends State<_OutcomeDialog> {
           TextField(
             controller: descriptionController,
             decoration: const InputDecoration(
-              labelText: 'Descripción',
+              labelText: 'Descripci�n',
               border: OutlineInputBorder(),
             ),
           ),

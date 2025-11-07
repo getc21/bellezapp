@@ -223,7 +223,7 @@ class _SalesTrendsPageState extends State<SalesTrendsPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -425,7 +425,7 @@ class _SalesTrendsPageState extends State<SalesTrendsPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.withOpacity(0.3),
+            color: Colors.blue.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -439,7 +439,7 @@ class _SalesTrendsPageState extends State<SalesTrendsPage> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -522,7 +522,7 @@ class _SalesTrendsPageState extends State<SalesTrendsPage> {
       padding: const EdgeInsets.all(12),
       margin: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -540,7 +540,7 @@ class _SalesTrendsPageState extends State<SalesTrendsPage> {
           Text(
             title,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
               fontSize: 10,
             ),
             textAlign: TextAlign.center,
@@ -566,7 +566,7 @@ class _SalesTrendsPageState extends State<SalesTrendsPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -643,8 +643,8 @@ class _SalesTrendsPageState extends State<SalesTrendsPage> {
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            Utils.colorBotones.withOpacity(0.8),
-                            Utils.colorBotones.withOpacity(0.6),
+                            Utils.colorBotones.withValues(alpha: 0.8),
+                            Utils.colorBotones.withValues(alpha: 0.6),
                           ],
                         ),
                         borderRadius: BorderRadius.circular(10),
@@ -707,7 +707,7 @@ class _SalesTrendsPageState extends State<SalesTrendsPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -834,7 +834,7 @@ class _SalesTrendsPageState extends State<SalesTrendsPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),

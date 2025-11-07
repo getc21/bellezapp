@@ -34,9 +34,9 @@ class _DebugNetworkPageState extends State<DebugNetworkPage> {
     });
 
     try {
-      final response = await http.get(
+      final http.Response response = await http.get(
         Uri.parse('${ApiConfig.baseUrl}/auth/login'),
-        headers: {'Content-Type': 'application/json'},
+        headers: <String, String>{'Content-Type': 'application/json'},
       ).timeout(const Duration(seconds: 5));
 
       setState(() {
@@ -70,13 +70,13 @@ class _DebugNetworkPageState extends State<DebugNetworkPage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          children: <Widget>[
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                  children: <Widget>[
                     const Text(
                       'Configuración de Red',
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -95,7 +95,7 @@ class _DebugNetworkPageState extends State<DebugNetworkPage> {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                  children: <Widget>[
                     const Text(
                       'Prueba de Conexión',
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -117,13 +117,13 @@ class _DebugNetworkPageState extends State<DebugNetworkPage> {
               ),
             ),
             const SizedBox(height: 16),
-            if (_debugInfo != null) ...[
+            if (_debugInfo != null) ...<Widget>[
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                    children: <Widget>[
                       const Text(
                         'Información de Debug',
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -154,7 +154,7 @@ class _DebugNetworkPageState extends State<DebugNetworkPage> {
               ),
               child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                children: <Widget>[
                   Text(
                     'ℹ️ Información',
                     style: TextStyle(fontWeight: FontWeight.bold),

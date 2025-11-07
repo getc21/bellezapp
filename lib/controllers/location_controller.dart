@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../providers/location_provider.dart';
 import 'auth_controller.dart';
@@ -32,16 +34,12 @@ class LocationController extends GetxController {
         _errorMessage.value = 'No hay tienda seleccionada';
         _locations.clear();
         return;
-      }
-
-      print('🔍 LocationController: Cargando ubicaciones para tienda: $currentStoreId');
-      
+      }      
       final result = await _locationProvider.getLocations(storeId: currentStoreId);
 
       if (result['success']) {
         final newLocations = List<Map<String, dynamic>>.from(result['data']);
         _locations.value = newLocations;
-        print('✅ LocationController: ${newLocations.length} ubicaciones cargadas para tienda $currentStoreId');
         
         // Verificar que todas las ubicaciones pertenezcan a la tienda correcta
         final wrongStoreLocations = newLocations.where((l) => 
@@ -49,18 +47,31 @@ class LocationController extends GetxController {
         ).toList();
         
         if (wrongStoreLocations.isNotEmpty) {
-          print('⚠️ ADVERTENCIA: ${wrongStoreLocations.length} ubicaciones pertenecen a otra tienda!');
           for (var location in wrongStoreLocations) {
-            print('   - ${location['name']} pertenece a ${location['storeId']?['_id']}');
+            if (kDebugMode) {
+              print('   - ${location['name']} pertenece a ${location['storeId']?['_id']}');
+            }
           }
         }
       } else {
         _errorMessage.value = result['message'] ?? 'Error cargando ubicaciones';
-        Get.snackbar('Error', _errorMessage.value, snackPosition: SnackPosition.TOP);
+        Get.snackbar(
+          'Error', 
+          _errorMessage.value, 
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
       }
     } catch (e) {
       _errorMessage.value = 'Error de conexión: $e';
-      Get.snackbar('Error', _errorMessage.value, snackPosition: SnackPosition.TOP);
+      Get.snackbar(
+        'Error', 
+        _errorMessage.value, 
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     } finally {
       _isLoading.value = false;
     }
@@ -70,7 +81,6 @@ class LocationController extends GetxController {
   void clearLocations() {
     _locations.clear();
     _errorMessage.value = '';
-    print('🧹 LocationController: Ubicaciones limpiadas');
   }
 
   // Crear ubicación
@@ -172,7 +182,6 @@ class LocationController extends GetxController {
 
   // Refrescar datos para la tienda específica
   Future<void> refreshForStore() async {
-    print('🔄 LocationController: Refrescando ubicaciones para nueva tienda');
     await loadForCurrentStore();
   }
 }

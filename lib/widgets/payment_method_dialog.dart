@@ -52,9 +52,9 @@ class _PaymentMethodDialogState extends State<PaymentMethodDialog> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Utils.colorBotones.withOpacity(0.1),
+                  color: Utils.colorBotones.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Utils.colorBotones.withOpacity(0.3)),
+                  border: Border.all(color: Utils.colorBotones.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -97,9 +97,9 @@ class _PaymentMethodDialogState extends State<PaymentMethodDialog> {
                     ? Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.1),
+                          color: Colors.red.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.red.withOpacity(0.3)),
+                          border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           children: [
@@ -163,8 +163,35 @@ class _PaymentMethodDialogState extends State<PaymentMethodDialog> {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       elevation: isSelected ? 3 : 1,
-      color: isSelected ? Utils.colorBotones.withOpacity(0.1) : null,
-      child: RadioListTile<PaymentMethod>(
+      color: isSelected ? Utils.colorBotones.withValues(alpha: 0.1) : null,
+      child: ListTile(
+        leading: GestureDetector(
+          onTap: () {
+            paymentController.selectPaymentMethod(method);
+            paymentController.calculateChange(widget.totalAmount);
+          },
+          child: Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isSelected ? Utils.colorBotones : Colors.grey,
+                width: 2,
+              ),
+              color: isSelected ? Utils.colorBotones : Colors.transparent,
+            ),
+            child: isSelected
+                ? const Center(
+                    child: Icon(
+                      Icons.check,
+                      color: Colors.white,
+                      size: 12,
+                    ),
+                  )
+                : null,
+          ),
+        ),
         title: Text(
           method.displayLabel,
           style: TextStyle(
@@ -172,15 +199,10 @@ class _PaymentMethodDialogState extends State<PaymentMethodDialog> {
           ),
         ),
         subtitle: _buildPaymentMethodSubtitle(method),
-        value: method,
-        groupValue: paymentController.selectedPaymentMethod.value,
-        onChanged: (PaymentMethod? value) {
-          if (value != null) {
-            paymentController.selectPaymentMethod(value);
-            paymentController.calculateChange(widget.totalAmount);
-          }
+        onTap: () {
+          paymentController.selectPaymentMethod(method);
+          paymentController.calculateChange(widget.totalAmount);
         },
-        activeColor: Utils.colorBotones,
       ),
     );
   }
@@ -233,9 +255,9 @@ class _PaymentMethodDialogState extends State<PaymentMethodDialog> {
             ? Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
+                  color: Colors.green.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                  border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -20,17 +20,10 @@ class ReportsProvider {
     String period = 'monthly',
   }) async {
     try {
-      print('ReportsProvider.getInventoryRotationAnalysis - StoreId: $storeId');
-      print('ReportsProvider.getInventoryRotationAnalysis - Period: $startDate to $endDate');
-      
       final response = await http.get(
         Uri.parse('$baseUrl/financial/analysis/inventory-rotation?storeId=$storeId&startDate=$startDate&endDate=$endDate&period=$period'),
         headers: _headers,
       );
-      
-      print('ReportsProvider.getInventoryRotationAnalysis - Status: ${response.statusCode}');
-      print('ReportsProvider.getInventoryRotationAnalysis - Response: ${response.body}');
-      
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
@@ -42,7 +35,6 @@ class ReportsProvider {
         };
       }
     } catch (e) {
-      print('ReportsProvider.getInventoryRotationAnalysis - Exception: $e');
       return {
         'success': false,
         'message': 'Error de conexión: $e'
@@ -57,17 +49,10 @@ class ReportsProvider {
     required String endDate,
   }) async {
     try {
-      print('ReportsProvider.getProfitabilityAnalysis - StoreId: $storeId');
-      print('ReportsProvider.getProfitabilityAnalysis - Period: $startDate to $endDate');
-      
       final response = await http.get(
         Uri.parse('$baseUrl/financial/analysis/profitability?storeId=$storeId&startDate=$startDate&endDate=$endDate'),
         headers: _headers,
       );
-      
-      print('ReportsProvider.getProfitabilityAnalysis - Status: ${response.statusCode}');
-      print('ReportsProvider.getProfitabilityAnalysis - Response: ${response.body}');
-      
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
@@ -79,7 +64,6 @@ class ReportsProvider {
         };
       }
     } catch (e) {
-      print('ReportsProvider.getProfitabilityAnalysis - Exception: $e');
       return {
         'success': false,
         'message': 'Error de conexión: $e'
@@ -95,17 +79,10 @@ class ReportsProvider {
     String period = 'daily',
   }) async {
     try {
-      print('ReportsProvider.getSalesTrendsAnalysis - StoreId: $storeId');
-      print('ReportsProvider.getSalesTrendsAnalysis - Period: $startDate to $endDate ($period)');
-      
       final response = await http.get(
         Uri.parse('$baseUrl/financial/analysis/sales-trends?storeId=$storeId&startDate=$startDate&endDate=$endDate&period=$period'),
         headers: _headers,
       );
-      
-      print('ReportsProvider.getSalesTrendsAnalysis - Status: ${response.statusCode}');
-      print('ReportsProvider.getSalesTrendsAnalysis - Response: ${response.body}');
-      
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
@@ -117,7 +94,6 @@ class ReportsProvider {
         };
       }
     } catch (e) {
-      print('ReportsProvider.getSalesTrendsAnalysis - Exception: $e');
       return {
         'success': false,
         'message': 'Error de conexión: $e'
@@ -134,18 +110,10 @@ class ReportsProvider {
     required String previousEndDate,
   }) async {
     try {
-      print('ReportsProvider.getPeriodsComparison - StoreId: $storeId');
-      print('ReportsProvider.getPeriodsComparison - Current: $currentStartDate to $currentEndDate');
-      print('ReportsProvider.getPeriodsComparison - Previous: $previousStartDate to $previousEndDate');
-      
       final response = await http.get(
         Uri.parse('$baseUrl/financial/analysis/periods-comparison?storeId=$storeId&currentStartDate=$currentStartDate&currentEndDate=$currentEndDate&previousStartDate=$previousStartDate&previousEndDate=$previousEndDate'),
         headers: _headers,
       );
-      
-      print('ReportsProvider.getPeriodsComparison - Status: ${response.statusCode}');
-      print('ReportsProvider.getPeriodsComparison - Response: ${response.body}');
-      
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
@@ -157,7 +125,6 @@ class ReportsProvider {
         };
       }
     } catch (e) {
-      print('ReportsProvider.getPeriodsComparison - Exception: $e');
       return {
         'success': false,
         'message': 'Error de conexión: $e'

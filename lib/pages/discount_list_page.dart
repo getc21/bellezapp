@@ -1,5 +1,6 @@
 import 'package:bellezapp/utils/utils.dart';
 import 'package:bellezapp/widgets/store_aware_app_bar.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/discount_controller.dart';
@@ -9,8 +10,12 @@ class DiscountListPage extends StatelessWidget {
   final DiscountController discountController = Get.put(DiscountController());
 
   DiscountListPage({super.key}) {
-    print('DiscountListPage - Constructor called');
-    print('DiscountListPage - DiscountController instance: $discountController');
+    if (kDebugMode) {
+      print('DiscountListPage - Constructor called');
+    }
+    if (kDebugMode) {
+      print('DiscountListPage - DiscountController instance: $discountController');
+    }
   }
 
   @override
@@ -29,7 +34,6 @@ class DiscountListPage extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.bug_report),
             onPressed: () async {
-              print('DiscountListPage - Testing: Loading all discounts');
               await discountController.loadAllDiscountsForTesting();
             },
           ),
@@ -41,7 +45,7 @@ class DiscountListPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16.0),
             color: Colors.grey[50],
-            child: Container(
+            child: SizedBox(
               height: 40,
               child: TextField(
                 style: TextStyle(fontSize: 13),
@@ -94,19 +98,12 @@ class DiscountListPage extends StatelessWidget {
           // Lista de descuentos
           Expanded(
             child: Obx(() {
-              print('DiscountListPage - Building discount list');
-              print('DiscountListPage - IsLoading: ${discountController.isLoading}');
-              print('DiscountListPage - Total discounts: ${discountController.discounts.length}');
-              print('DiscountListPage - Filtered discounts: ${discountController.filteredDiscounts.length}');
-              print('DiscountListPage - Error message: ${discountController.errorMessage}');
-              
+
               if (discountController.isLoading) {
-                print('DiscountListPage - Showing loading indicator');
                 return const Center(child: CircularProgressIndicator());
               }
               
               if (discountController.filteredDiscounts.isEmpty) {
-                print('DiscountListPage - No discounts to show, showing empty state');
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -141,7 +138,6 @@ class DiscountListPage extends StatelessWidget {
                 );
               }
               
-              print('DiscountListPage - Showing discount list with ${discountController.filteredDiscounts.length} items');
               return RefreshIndicator(
                 onRefresh: () async => await discountController.refresh(),
                 child: ListView.builder(
@@ -169,9 +165,9 @@ class DiscountListPage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -187,7 +183,7 @@ class DiscountListPage extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 12,
-              color: color.withOpacity(0.8),
+              color: color.withValues(alpha: 0.8),
             ),
           ),
         ],
@@ -237,9 +233,9 @@ class DiscountListPage extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.green.withOpacity(0.3)),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
               ),
               child: Text(
                 _getDisplayValue(discount),
@@ -311,9 +307,9 @@ class DiscountListPage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(
         label,
@@ -341,10 +337,10 @@ class DiscountListPage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: (isActive ? Colors.green : Colors.grey).withOpacity(0.1),
+        color: (isActive ? Colors.green : Colors.grey).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: (isActive ? Colors.green : Colors.grey).withOpacity(0.3),
+          color: (isActive ? Colors.green : Colors.grey).withValues(alpha: 0.3),
         ),
       ),
       child: Text(
@@ -402,9 +398,9 @@ class DiscountListPage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(
         text,
@@ -437,12 +433,12 @@ class DiscountListPage extends StatelessWidget {
           TextButton(
             onPressed: () async {
               Get.back();
-              print('DiscountListPage - Deleting discount: ${discount['name']}');
               final success = await discountController.deleteDiscount(discount['_id']!.toString());
               if (success) {
-                print('DiscountListPage - Discount deleted successfully, list should update automatically');
               } else {
-                print('DiscountListPage - Failed to delete discount');
+                if (kDebugMode) {
+                  print('DiscountListPage - Failed to delete discount');
+                }
               }
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),

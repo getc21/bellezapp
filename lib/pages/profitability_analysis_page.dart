@@ -211,7 +211,7 @@ class _ProfitabilityAnalysisPageState extends State<ProfitabilityAnalysisPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -392,7 +392,7 @@ class _ProfitabilityAnalysisPageState extends State<ProfitabilityAnalysisPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.green.withOpacity(0.3),
+            color: Colors.green.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -406,7 +406,7 @@ class _ProfitabilityAnalysisPageState extends State<ProfitabilityAnalysisPage> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -476,7 +476,7 @@ class _ProfitabilityAnalysisPageState extends State<ProfitabilityAnalysisPage> {
       padding: const EdgeInsets.all(12),
       margin: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -494,7 +494,7 @@ class _ProfitabilityAnalysisPageState extends State<ProfitabilityAnalysisPage> {
           Text(
             title,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
               fontSize: 10,
             ),
             textAlign: TextAlign.center,
@@ -513,7 +513,7 @@ class _ProfitabilityAnalysisPageState extends State<ProfitabilityAnalysisPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -673,7 +673,7 @@ class _ProfitabilityAnalysisPageState extends State<ProfitabilityAnalysisPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -760,9 +760,9 @@ class _ProfitabilityAnalysisPageState extends State<ProfitabilityAnalysisPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: profitColor.withOpacity(0.1),
+                  color: profitColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: profitColor.withOpacity(0.3)),
+                  border: Border.all(color: profitColor.withValues(alpha: 0.3)),
                 ),
                 child: Text(
                   '${profitMargin.toStringAsFixed(1)}%',
@@ -834,9 +834,9 @@ class _ProfitabilityAnalysisPageState extends State<ProfitabilityAnalysisPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(
           children: [

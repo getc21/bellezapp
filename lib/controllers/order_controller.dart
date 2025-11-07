@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../providers/order_provider.dart';
 import 'auth_controller.dart';
@@ -57,13 +59,10 @@ class OrderController extends GetxController {
       
       // ✅ Validar que hay un storeId antes de cargar
       if (effectiveStoreId == null) {
-        print('⚠️ OrderController: No hay tienda actual seleccionada');
         _orders.clear();
         return;
       }
       
-      print('🔄 OrderController: Cargando órdenes para tienda: $effectiveStoreId');
-
       final result = await _orderProvider.getOrders(
         storeId: effectiveStoreId, // ⭐ Usar el storeId efectivo
         customerId: customerId,
@@ -77,20 +76,18 @@ class OrderController extends GetxController {
         for (final order in List<Map<String, dynamic>>.from(result['data'])) {
           final orderStoreId = order['storeId'];
           if (orderStoreId != effectiveStoreId) {
-            print('🚨 OrderController: Orden con storeId incorrecto detectada!');
-            print('   Expected: $effectiveStoreId, Got: $orderStoreId');
-            print('   Order ID: ${order['_id']}');
           }
         }
         
         _orders.value = List<Map<String, dynamic>>.from(result['data']);
-        print('✅ OrderController: ${_orders.length} órdenes cargadas para tienda $effectiveStoreId');
       } else {
         _errorMessage.value = result['message'] ?? 'Error cargando órdenes';
         Get.snackbar(
           'Error',
           _errorMessage.value,
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
       }
     } catch (e) {
@@ -99,6 +96,8 @@ class OrderController extends GetxController {
         'Error',
         _errorMessage.value,
         snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
     } finally {
       _isLoading.value = false;
@@ -119,6 +118,8 @@ class OrderController extends GetxController {
           'Error',
           result['message'] ?? 'Error obteniendo orden',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
         return null;
       }
@@ -127,6 +128,8 @@ class OrderController extends GetxController {
         'Error',
         'Error de conexión: $e',
         snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
       return null;
     } finally {
@@ -144,12 +147,6 @@ class OrderController extends GetxController {
     String? discountId,
   }) async {
     _isLoading.value = true;
-    
-    // ✅ LOG: Confirmación de creación de orden
-    print('🆕 OrderController: Creando nueva orden');
-    print('   StoreId: $storeId');
-    print('   Items: ${items.length}');
-    print('   Payment Method: $paymentMethod');
 
     try {
       final result = await _orderProvider.createOrder(
@@ -161,9 +158,7 @@ class OrderController extends GetxController {
         discountId: discountId,
       );
 
-      if (result['success']) {
-        print('✅ OrderController: Orden creada exitosamente para tienda $storeId');
-        
+      if (result['success']) {        
         // Refrescar lista de órdenes
         await loadOrders(storeId: storeId);
         
@@ -171,15 +166,18 @@ class OrderController extends GetxController {
         try {
           final customerController = Get.find<CustomerController>();
           await customerController.loadCustomers();
-          print('✅ OrderController: CustomerController refrescado después de crear orden');
         } catch (e) {
-          print('ℹ️ OrderController: CustomerController no está instanciado');
+          if (kDebugMode) {
+            print('ℹ️ OrderController: CustomerController no está instanciado');
+          }
         }
         
         Get.snackbar(
           'Éxito',
           'Orden creada correctamente',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
         );
         return true;
       } else {
@@ -187,6 +185,8 @@ class OrderController extends GetxController {
           'Error',
           result['message'] ?? 'Error creando orden',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
         return false;
       }
@@ -195,6 +195,8 @@ class OrderController extends GetxController {
         'Error',
         'Error de conexión: $e',
         snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
       return false;
     } finally {
@@ -220,6 +222,8 @@ class OrderController extends GetxController {
           'Éxito',
           'Estado actualizado correctamente',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
         );
         await loadOrders();
         return true;
@@ -228,6 +232,8 @@ class OrderController extends GetxController {
           'Error',
           result['message'] ?? 'Error actualizando estado',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
         return false;
       }
@@ -236,6 +242,8 @@ class OrderController extends GetxController {
         'Error',
         'Error de conexión: $e',
         snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
       return false;
     } finally {
@@ -324,7 +332,6 @@ class OrderController extends GetxController {
 
   // Limpiar órdenes (útil para cambios de tienda)
   void clearOrders() {
-    print('🧹 OrderController: Limpiando órdenes');
     _orders.clear();
   }
 }

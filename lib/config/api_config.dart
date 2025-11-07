@@ -13,10 +13,8 @@ class ApiConfig {
   // Detecta automáticamente si estamos en emulador o dispositivo físico
   static String get baseUrl {
     if (_isEmulator()) {
-      print('🔧 ApiConfig: Usando emulador - $_emulatorIP:$_port');
       return 'http://$_emulatorIP:$_port/api';
     } else {
-      print('📱 ApiConfig: Usando dispositivo físico - $_localIP:$_port');
       return 'http://$_localIP:$_port/api';
     }
   }
@@ -26,11 +24,11 @@ class ApiConfig {
     // En Android, podemos detectar el emulador por varias características
     if (Platform.isAndroid) {
       // Verificar variables de entorno específicas del emulador
-      final androidHome = Platform.environment['ANDROID_HOME'];
-      final isEmulator = Platform.environment['ANDROID_EMULATOR'];
+      final String? androidHome = Platform.environment['ANDROID_HOME'];
+      final String? isEmulator = Platform.environment['ANDROID_EMULATOR'];
       
       // Los emuladores tienen este directorio específico
-      final isGenymotion = Platform.environment['USER']?.contains('genymotion') ?? false;
+      final bool isGenymotion = Platform.environment['USER']?.contains('genymotion') ?? false;
       
       return isEmulator == 'true' || 
              androidHome != null || 
@@ -58,7 +56,7 @@ class ApiConfig {
   
   // Información de debug
   static Map<String, dynamic> getDebugInfo() {
-    return {
+    return <String, dynamic>{
       'isEmulator': _isEmulator(),
       'platform': Platform.operatingSystem,
       'baseUrl': baseUrl,

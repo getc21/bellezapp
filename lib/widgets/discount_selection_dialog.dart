@@ -1,3 +1,4 @@
+import 'package:bellezapp/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/discount_controller.dart';
@@ -27,7 +28,6 @@ class _DiscountSelectionDialogState extends State<DiscountSelectionDialog> {
     try {
       discountController = Get.find<DiscountController>();
     } catch (e) {
-      print('⚠️ DiscountController no encontrado, creando uno nuevo');
       discountController = Get.put(DiscountController());
     }
     
@@ -36,19 +36,13 @@ class _DiscountSelectionDialogState extends State<DiscountSelectionDialog> {
   }
   
   Future<void> _loadDiscounts() async {
-    print('🔄 DiscountSelectionDialog._loadDiscounts - Starting...');
-    print('🔄 DiscountSelectionDialog._loadDiscounts - Total amount: ${widget.totalAmount}');
     
     await discountController.loadDiscounts();
     
-    print('📋 DiscountSelectionDialog._loadDiscounts - Discounts loaded: ${discountController.discounts.length}');
-    print('📋 DiscountSelectionDialog._loadDiscounts - All discounts: ${discountController.discounts}');
     
     // Actualizar descuentos aplicables cuando se abre el diálogo
     discountController.updateApplicableDiscounts(widget.totalAmount);
     
-    print('🎯 DiscountSelectionDialog._loadDiscounts - Applicable discounts: ${discountController.applicableDiscounts.length}');
-    print('🎯 DiscountSelectionDialog._loadDiscounts - Applicable list: ${discountController.applicableDiscounts}');
   }
 
   @override
@@ -152,15 +146,12 @@ class _DiscountSelectionDialogState extends State<DiscountSelectionDialog> {
             // Lista de descuentos aplicables
             Expanded(
               child: Obx(() {
-                print('🔍 DiscountSelectionDialog.build - isLoading: ${discountController.isLoading}');
-                print('🔍 DiscountSelectionDialog.build - applicableDiscounts count: ${discountController.applicableDiscounts.length}');
                 
                 if (discountController.isLoading) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 
                 final applicableDiscounts = discountController.applicableDiscounts;
-                print('🔍 DiscountSelectionDialog.build - Final applicable discounts: $applicableDiscounts');
                 
                 if (applicableDiscounts.isEmpty) {
                   return Center(
@@ -282,15 +273,33 @@ class _DiscountSelectionDialogState extends State<DiscountSelectionDialog> {
       color: isSelected ? Colors.pink[50] : null,
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
-        leading: Radio<Map<String, dynamic>?>(
-          value: discount,
-          groupValue: selectedDiscount,
-          onChanged: (value) {
+        leading: GestureDetector(
+          onTap: () {
             setState(() {
-              selectedDiscount = value;
+              selectedDiscount = discount;
             });
           },
-          activeColor: Colors.pink,
+          child: Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isSelected ? Utils.colorBotones : Colors.grey,
+                width: 2,
+              ),
+              color: isSelected ? Utils.colorBotones : Colors.transparent,
+            ),
+            child: isSelected
+                ? const Center(
+                    child: Icon(
+                      Icons.check,
+                      color: Colors.white,
+                      size: 12,
+                    ),
+                  )
+                : null,
+          ),
         ),
         title: Text(
           title,
@@ -309,9 +318,9 @@ class _DiscountSelectionDialogState extends State<DiscountSelectionDialog> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
+                      color: Colors.green.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.green.withOpacity(0.3)),
+                      border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
                     ),
                     child: Text(
                       _getDisplayValue(discount),

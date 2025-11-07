@@ -1,10 +1,5 @@
 import 'dart:developer';
 import 'dart:io';
-import 'package:bellezapp/controllers/product_controller.dart';
-import 'package:bellezapp/controllers/auth_controller.dart';
-import 'package:bellezapp/pages/add_product_page.dart';
-import 'package:bellezapp/pages/edit_product_page.dart';
-import 'package:bellezapp/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -13,82 +8,158 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
+import '../controllers/product_controller.dart';
+import '../utils/utils.dart';
+import 'edit_product_page.dart';
 
-class ProductListPage extends StatefulWidget {
-  const ProductListPage({super.key});
+class FilteredProductsPage extends StatefulWidget {
+  final String filterType; // 'category', 'supplier', 'location'
+  final String filterId;
+  final String filterName;
+  final String? filterImage;
+
+  const FilteredProductsPage({
+    super.key,
+    required this.filterType,
+    required this.filterId,
+    required this.filterName,
+    this.filterImage,
+  });
 
   @override
-  ProductListPageState createState() => ProductListPageState();
+  State<FilteredProductsPage> createState() => _FilteredProductsPageState();
 }
 
-class ProductListPageState extends State<ProductListPage> {
-  // Usar la misma instancia del controlador que ya existe
+class _FilteredProductsPageState extends State<FilteredProductsPage> {
   late final ProductController productController;
-  final AuthController authController = Get.find<AuthController>();
   final TextEditingController _searchController = TextEditingController();
-  
-  String _activeFilter = 'todos';
+  List<Map<String, dynamic>> _filteredProducts = [];
   final Map<String, bool> _expandedBadges = {}; // Para controlar qué badges están expandidos
 
   @override
   void initState() {
     super.initState();
-    // Intentar obtener una instancia existente, o crear una nueva si no existe
-    try {
-      productController = Get.find<ProductController>();
-    } catch (e) {
-      productController = Get.put(ProductController());
+    // Obtener o crear la instancia del ProductController
+    productController = Get.isRegistered<ProductController>()
+        ? Get.find<ProductController>()
+        : Get.put(ProductController());
+    _initializeAndLoadProducts();
+  }
+
+  Future<void> _initializeAndLoadProducts() async {
+    // Asegurarse de que los productos estén cargados
+    await productController.loadProducts();
+    _loadFilteredProducts();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _loadFilteredProducts() {
+    final allProducts = productController.products;
+    
+    switch (widget.filterType) {
+      case 'category':
+        _filteredProducts = allProducts.where((product) {
+          final categoryId = product['categoryId'];
+          String? actualCategoryId;
+          
+          if (categoryId is String) {
+            actualCategoryId = categoryId;
+          } else if (categoryId is Map<String, dynamic>) {
+            actualCategoryId = categoryId['_id']?.toString();
+          }
+          
+          final categoryObj = product['category'];
+          final categoryObjId = categoryObj != null ? categoryObj['_id']?.toString() : null;
+          
+          bool matches = actualCategoryId == widget.filterId || categoryObjId == widget.filterId;
+          
+          return matches;
+        }).toList();
+        break;
+      case 'supplier':
+        _filteredProducts = allProducts.where((product) {
+          final supplierId = product['supplierId'];
+          String? actualSupplierId;
+          
+          if (supplierId is String) {
+            actualSupplierId = supplierId;
+          } else if (supplierId is Map<String, dynamic>) {
+            actualSupplierId = supplierId['_id']?.toString();
+          }
+          
+          final supplierObj = product['supplier'];
+          final supplierObjId = supplierObj != null ? supplierObj['_id']?.toString() : null;
+          
+          return actualSupplierId == widget.filterId || supplierObjId == widget.filterId;
+        }).toList();
+        break;
+      case 'location':
+        _filteredProducts = allProducts.where((product) {
+          final locationId = product['locationId'];
+          String? actualLocationId;
+          
+          if (locationId is String) {
+            actualLocationId = locationId;
+          } else if (locationId is Map<String, dynamic>) {
+            actualLocationId = locationId['_id']?.toString();
+          }
+          
+          final locationObj = product['location'];
+          final locationObjId = locationObj != null ? locationObj['_id']?.toString() : null;
+          
+          return actualLocationId == widget.filterId || locationObjId == widget.filterId;
+        }).toList();
+        break;
     }
     
-    // Ejecutar después del primer frame para evitar setState durante build
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadProducts();
-    });
+    setState(() {});
   }
 
-  void _loadProducts() {
-    // ⭐ SIEMPRE cargar productos de la tienda actual
-    productController.loadProductsForCurrentStore();
-  }
-
-  List<Map<String, dynamic>> get _filteredProducts {
+  List<Map<String, dynamic>> get _searchFilteredProducts {
     final searchText = _searchController.text.toLowerCase();
-    var products = productController.products;
-
-    // Aplicar búsqueda
-    if (searchText.isNotEmpty) {
-      products = products.where((product) {
-        final name = (product['name'] ?? '').toString().toLowerCase();
-        final description = (product['description'] ?? '').toString().toLowerCase();
-        final category = (product['categoryId']?['name'] ?? '').toString().toLowerCase();
-        final supplier = (product['supplierId']?['name'] ?? '').toString().toLowerCase();
-        final location = (product['locationId']?['name'] ?? '').toString().toLowerCase();
-        return name.contains(searchText) || 
-               description.contains(searchText) ||
-               category.contains(searchText) ||
-               supplier.contains(searchText) ||
-               location.contains(searchText);
-      }).toList();
+    if (searchText.isEmpty) {
+      return _filteredProducts;
     }
+    
+    return _filteredProducts.where((product) {
+      final name = (product['name'] ?? '').toString().toLowerCase();
+      final description = (product['description'] ?? '').toString().toLowerCase();
+      final sku = (product['sku'] ?? '').toString().toLowerCase();
+      return name.contains(searchText) || 
+             description.contains(searchText) || 
+             sku.contains(searchText);
+    }).toList();
+  }
 
-    // Aplicar filtro de stock bajo
-    if (_activeFilter == 'stock') {
-      products = products.where((product) {
-        final stock = product['stock'] ?? 0;
-        return stock < 10;
-      }).toList();
+  String _getFilterTitle() {
+    switch (widget.filterType) {
+      case 'category':
+        return 'Productos en ${widget.filterName}';
+      case 'supplier':
+        return 'Productos de ${widget.filterName}';
+      case 'location':
+        return 'Productos en ${widget.filterName}';
+      default:
+        return 'Productos';
     }
+  }
 
-    // Aplicar filtro de próximo a vencer
-    if (_activeFilter == 'expiry') {
-      products = products.where((product) {
-        final expiryDate = DateTime.tryParse(product['expiryDate']?.toString() ?? '');
-        return expiryDate != null && 
-               expiryDate.difference(DateTime.now()).inDays <= 30;
-      }).toList();
+  IconData _getFilterIcon() {
+    switch (widget.filterType) {
+      case 'category':
+        return Icons.category;
+      case 'supplier':
+        return Icons.business;
+      case 'location':
+        return Icons.location_on;
+      default:
+        return Icons.inventory;
     }
-
-    return products;
   }
 
   String _getImageUrl(Map<String, dynamic> product) {
@@ -290,98 +361,98 @@ class ProductListPageState extends State<ProductListPage> {
                               child: SizedBox(
                                 height: 44,
                                 child: OutlinedButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                },
-                                style: OutlinedButton.styleFrom(
-                                  side: BorderSide(color: Colors.grey[300]!, width: 2),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(color: Colors.grey[300]!, width: 2),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
                                   ),
-                                ),
-                                child: Text(
-                                  'Cancelar',
-                                  style: TextStyle(
-                                    color: Colors.grey[700],
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
+                                  child: Text(
+                                    'Cancelar',
+                                    style: TextStyle(
+                                      color: Colors.grey[700],
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                          SizedBox(width: 12),
-                          
-                          // Botón Añadir
-                          Expanded(
-                            flex: 2,
-                            child: Container(
-                              height: 44,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(14),
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Utils.colorBotones,
-                                    Utils.colorBotones.withValues(alpha: 0.8),
+                            SizedBox(width: 12),
+                            
+                            // Botón Añadir
+                            Expanded(
+                              flex: 2,
+                              child: Container(
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Utils.colorBotones,
+                                      Utils.colorBotones.withValues(alpha: 0.8),
+                                    ],
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Utils.colorBotones.withValues(alpha: 0.4),
+                                      blurRadius: 12,
+                                      offset: Offset(0, 6),
+                                    ),
                                   ],
                                 ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Utils.colorBotones.withValues(alpha: 0.4),
-                                    blurRadius: 12,
-                                    offset: Offset(0, 6),
-                                  ),
-                                ],
-                              ),
-                              child: ElevatedButton.icon(
-                                onPressed: () async {
-                                  if (formKey.currentState!.validate()) {
-                                    final stockToAdd = int.parse(stockController.text);
-                                    Navigator.of(context).pop();
-                                    
-                                    final success = await productController.updateStock(
-                                      id: productId,
-                                      quantity: stockToAdd,
-                                      operation: 'add',
-                                    );
-                                    
-                                    if (success) {
-                                      _loadProducts();
-                                      // Mostrar snackbar de éxito
-                                      Get.snackbar(
-                                        'Stock Actualizado',
-                                        'Se agregaron $stockToAdd unidades correctamente',
-                                        snackPosition: SnackPosition.TOP,
-                                        backgroundColor: Colors.green,
-                                        colorText: Colors.white,
-                                        icon: Icon(Icons.check_circle, color: Colors.white),
-                                        duration: Duration(seconds: 2),
+                                child: ElevatedButton.icon(
+                                  onPressed: () async {
+                                    if (formKey.currentState!.validate()) {
+                                      final stockToAdd = int.parse(stockController.text);
+                                      Navigator.of(context).pop();
+                                      
+                                      final success = await productController.updateStock(
+                                        id: productId,
+                                        quantity: stockToAdd,
+                                        operation: 'add',
                                       );
+                                      
+                                      if (success) {
+                                        _loadFilteredProducts();
+                                        // Mostrar snackbar de éxito
+                                        Get.snackbar(
+                                          'Stock Actualizado',
+                                          'Se agregaron $stockToAdd unidades correctamente',
+                                          snackPosition: SnackPosition.TOP,
+                                          backgroundColor: Colors.green,
+                                          colorText: Colors.white,
+                                          icon: Icon(Icons.check_circle, color: Colors.white),
+                                          duration: Duration(seconds: 2),
+                                        );
+                                      }
                                     }
-                                  }
-                                },
-                                icon: Icon(Icons.add_shopping_cart, size: 20),
-                                label: Text(
-                                  'Añadir Stock',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 0.5,
+                                  },
+                                  icon: Icon(Icons.add_shopping_cart, size: 20),
+                                  label: Text(
+                                    'Añadir Stock',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.5,
+                                    ),
                                   ),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.transparent,
-                                  foregroundColor: Colors.white,
-                                  shadowColor: Colors.transparent,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    foregroundColor: Colors.white,
+                                    shadowColor: Colors.transparent,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -468,7 +539,7 @@ class ProductListPageState extends State<ProductListPage> {
           backgroundColor: Colors.green,
           colorText: Colors.white,
         );
-        _loadProducts();
+        _loadFilteredProducts();
       }
     }
   }
@@ -538,79 +609,99 @@ class ProductListPageState extends State<ProductListPage> {
     );
   }
 
-  Widget _buildImprovedFilterChip(String label, String value, IconData icon, Color color) {
-    final isActive = _activeFilter == value;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _activeFilter = value;
-        });
-      },
-      child: AnimatedContainer(
-        duration: Duration(milliseconds: 200),
-        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isActive ? color : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: color,
-            width: 1.5,
-          ),
-          boxShadow: isActive ? [
-            BoxShadow(
-              color: color.withValues(alpha: 0.3),
-              spreadRadius: 1,
-              blurRadius: 4,
-              offset: Offset(0, 2),
-            ),
-          ] : [],
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Utils.colorFondo,
+      appBar: AppBar(
+        backgroundColor: Utils.colorBotones,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Get.back(),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              icon,
-              size: 14,
-              color: isActive ? Colors.white : color,
-            ),
-            SizedBox(width: 4),
             Text(
-              label,
-              style: TextStyle(
-                color: isActive ? Colors.white : color,
-                fontWeight: FontWeight.w600,
-                fontSize: 11,
+              _getFilterTitle(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              '${_searchFilteredProducts.length} productos encontrados',
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Utils.colorFondo,
       body: Column(
         children: [
-          // Header mejorado con búsqueda prominente
+          // Header con información del filtro
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
                   color: Colors.grey.withValues(alpha: 0.1),
                   blurRadius: 4,
-                  offset: Offset(0, 2),
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Campo de búsqueda prominente
+                // Información del filtro
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Utils.colorBotones.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        _getFilterIcon(),
+                        color: Utils.colorBotones,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.filterName,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[800],
+                            ),
+                          ),
+                          Text(
+                            widget.filterType == 'category' ? 'Categoría' :
+                            widget.filterType == 'supplier' ? 'Proveedor' : 'Ubicación',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                // Campo de búsqueda
                 Container(
                   height: 40,
                   decoration: BoxDecoration(
@@ -621,14 +712,14 @@ class ProductListPageState extends State<ProductListPage> {
                   child: TextField(
                     controller: _searchController,
                     onChanged: (value) => setState(() {}),
-                    style: TextStyle(fontSize: 13),
+                    style: const TextStyle(fontSize: 13),
                     decoration: InputDecoration(
-                      hintText: 'Buscar productos por nombre, categoría, proveedor...',
+                      hintText: 'Buscar productos por nombre, descripción o SKU...',
                       hintStyle: TextStyle(color: Colors.grey[500], fontSize: 12),
                       prefixIcon: Icon(Icons.search, color: Utils.colorBotones, size: 20),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
-                              icon: Icon(Icons.clear, color: Colors.grey, size: 18),
+                              icon: const Icon(Icons.clear, color: Colors.grey, size: 18),
                               onPressed: () {
                                 _searchController.clear();
                                 setState(() {});
@@ -636,114 +727,100 @@ class ProductListPageState extends State<ProductListPage> {
                             )
                           : null,
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
                   ),
                 ),
-                SizedBox(height: 12),
-                // Filtros rápidos con contador
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Filtros rápidos',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                    Obx(() => Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Utils.colorBotones.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '${_filteredProducts.length} productos',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Utils.colorBotones,
-                        ),
-                      ),
-                    )),
-                  ],
-                ),
-                SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildImprovedFilterChip('Todos', 'todos', Icons.inventory_2_outlined, Colors.blue),
-                    _buildImprovedFilterChip('Stock bajo', 'stock', Icons.warning_amber_outlined, Colors.red),
-                    _buildImprovedFilterChip('Prox. vencer', 'expiry', Icons.schedule_outlined, Colors.orange),
-                  ],
-                ),
-                SizedBox(height: 6),
               ],
             ),
           ),
-          
+
           // Lista de productos
           Expanded(
-            child: Obx(() {
-              if (productController.isLoading) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              final products = _filteredProducts;
-
-              if (products.isEmpty) {
-                return _buildEmptyState();
-              }
-
-              return ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: (products.length / 2).ceil(),
-                itemBuilder: (context, rowIndex) {
-                  final leftIndex = rowIndex * 2;
-                  final rightIndex = leftIndex + 1;
-                  
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: IntrinsicHeight(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: _buildProductCard(products[leftIndex]),
-                          ),
-                          if (rightIndex < products.length) ...[
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _buildProductCard(products[rightIndex]),
-                            ),
-                          ] else
-                            const Expanded(child: SizedBox()),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              );
-            }),
+            child: _searchFilteredProducts.isEmpty ? _buildEmptyState() : _buildProductsList(),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Utils.colorBotones,
-        onPressed: () async {
-          final result = await Get.to(() => const AddProductPage());
-          // Si result es true, significa que se creó un producto
-          if (result == true) {
-            _loadProducts();
-          }
-        },
-        child: const Icon(
-          Icons.add,
-          color: Colors.white,
-        ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Utils.colorBotones.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _searchController.text.isEmpty
+                  ? Icons.inventory_2_outlined
+                  : Icons.search_off,
+              size: 80,
+              color: Utils.colorBotones.withValues(alpha: 0.5),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            _searchController.text.isEmpty
+                ? 'No hay productos'
+                : 'No se encontraron productos',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[700],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _searchController.text.isEmpty
+                ? 'No hay productos asociados con este ${widget.filterType == 'category' ? 'categoría' : widget.filterType == 'supplier' ? 'proveedor' : 'ubicación'}'
+                : 'Intenta con otros términos de búsqueda',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[500],
+            ),
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildProductsList() {
+    final products = _searchFilteredProducts;
+    
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: (products.length / 2).ceil(),
+      itemBuilder: (context, rowIndex) {
+        final leftIndex = rowIndex * 2;
+        final rightIndex = leftIndex + 1;
+        
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _buildProductCard(products[leftIndex]),
+                ),
+                if (rightIndex < products.length) ...[
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildProductCard(products[rightIndex]),
+                  ),
+                ] else
+                  const Expanded(child: SizedBox()),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -945,7 +1022,7 @@ class ProductListPageState extends State<ProductListPage> {
                         final result = await Get.to(() => EditProductPage(product: product));
                         // Si result es true, significa que se actualizó el producto
                         if (result == true) {
-                          _loadProducts();
+                          _loadFilteredProducts();
                         }
                       },
                       tooltip: 'Editar',
@@ -1100,78 +1177,5 @@ class ProductListPageState extends State<ProductListPage> {
         ],
       ),
     );
-  }
-
-  Widget _buildEmptyState() {
-    String mensaje;
-    IconData icono = Icons.inventory_2_outlined;
-
-    if (_searchController.text.isNotEmpty) {
-      mensaje = 'No se encontraron productos que coincidan con tu búsqueda.';
-    } else if (_activeFilter == 'stock') {
-      mensaje = 'No hay productos con stock bajo.';
-    } else if (_activeFilter == 'expiry') {
-      mensaje = 'No hay productos próximos a vencer.';
-    } else {
-      mensaje = 'No hay productos registrados. Agrega tu primer producto usando el botón "+".';
-    }
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Utils.colorBotones.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icono,
-              size: 80,
-              color: Utils.colorBotones,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Sin Productos',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Utils.colorTexto,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Text(
-              mensaje,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Utils.colorTexto.withValues(alpha: 0.7),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: _loadProducts,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Actualizar'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Utils.colorBotones,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 }

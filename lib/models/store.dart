@@ -32,7 +32,7 @@ class Store {
 
   // Convertir Store a Map
   Map<String, dynamic> toMap() {
-    return {
+    return <String, dynamic>{
       if (id != null) '_id': id,
       'name': name,
       'address': address,

@@ -11,6 +11,7 @@ import 'package:bellezapp/utils/utils.dart';
 import 'package:bellezapp/widgets/payment_method_dialog.dart';
 import 'package:bellezapp/widgets/discount_selection_dialog.dart';
 import 'package:bellezapp/widgets/customer_selection_dialog.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:get/get.dart';
@@ -31,12 +32,12 @@ class AddOrderPageState extends State<AddOrderPage> {
   );
   final List<Map<String, dynamic>> _products = [];
   final ipc = Get.find<IndexPageController>();
-  
+
   // Variables para cooldown del escáner
   String? _lastScannedCode;
   DateTime? _lastScanTime;
   static const Duration _scanCooldown = Duration(seconds: 3);
-  
+
   late CashController cashController;
   late DiscountController discountController;
   late CustomerController customerController;
@@ -44,7 +45,7 @@ class AddOrderPageState extends State<AddOrderPage> {
   late OrderController orderController;
   late StoreController storeController;
   Customer? selectedCustomer;
-  
+
   @override
   void initState() {
     super.initState();
@@ -52,45 +53,40 @@ class AddOrderPageState extends State<AddOrderPage> {
     try {
       cashController = Get.find<CashController>();
     } catch (e) {
-      print('Error al encontrar CashController en AddOrderPage: $e');
       cashController = Get.put(CashController(), permanent: true);
     }
-    
+
     try {
       discountController = Get.find<DiscountController>();
     } catch (e) {
-      print('Error al encontrar DiscountController en AddOrderPage: $e');
       discountController = Get.put(DiscountController(), permanent: true);
     }
 
     try {
       customerController = Get.find<CustomerController>();
     } catch (e) {
-      print('Error al encontrar CustomerController en AddOrderPage: $e');
       customerController = Get.put(CustomerController(), permanent: true);
     }
 
     try {
       productController = Get.find<ProductController>();
     } catch (e) {
-      print('Error al encontrar ProductController en AddOrderPage: $e');
       productController = Get.put(ProductController(), permanent: true);
     }
 
     try {
       orderController = Get.find<OrderController>();
     } catch (e) {
-      print('Error al encontrar OrderController en AddOrderPage: $e');
       orderController = Get.put(OrderController(), permanent: true);
     }
 
     try {
       storeController = Get.find<StoreController>();
     } catch (e) {
-      print('Error al encontrar StoreController en AddOrderPage: $e');
       storeController = Get.put(StoreController(), permanent: true);
     }
   }
+
   @override
   void dispose() {
     scannerController.dispose();
@@ -105,29 +101,26 @@ class AddOrderPageState extends State<AddOrderPage> {
 
   void _handleBarcodeDetection(BarcodeCapture barcodeCapture) async {
     final List<Barcode> barcodes = barcodeCapture.barcodes;
-    
+
     for (final barcode in barcodes) {
       final String? code = barcode.rawValue;
-      
+
       if (code != null && code.isNotEmpty) {
-        print('🔍 Código escaneado: $code');
-        
         // Verificar cooldown para evitar escaneos repetidos del mismo código
         final now = DateTime.now();
-        if (_lastScannedCode == code && 
-            _lastScanTime != null && 
+        if (_lastScannedCode == code &&
+            _lastScanTime != null &&
             now.difference(_lastScanTime!) < _scanCooldown) {
           // Dentro del período de cooldown, ignorar completamente este escaneo
-          print('⏰ Cooldown activo para código: $code');
           return;
         }
-        
+
         try {
           final product = await productController.searchProduct(code);
-          
+
           if (product != null) {
             final productId = product['_id'] ?? product['id'];
-            
+
             if (!_products.any((p) => p['id'] == productId)) {
               // Producto nuevo - agregarlo
               setState(() {
@@ -138,63 +131,58 @@ class AddOrderPageState extends State<AddOrderPage> {
                   'price': product['salePrice'] ?? product['sale_price'] ?? 0.0,
                 });
               });
-              
-              print('✅ Producto agregado: ${product['name']}');
-              
+
               // Actualizar cooldown solo después de agregar exitosamente
               _lastScannedCode = code;
               _lastScanTime = now;
-              
+
               // Feedback visual y sonoro
-              FlutterRingtonePlayer().play(
-                fromAsset: 'assets/img/beep.mp3',
-              );
-              
+              FlutterRingtonePlayer().play(fromAsset: 'assets/img/beep.mp3');
+
               // Mostrar snackbar de éxito
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('✅ ${product['name']} agregado al carrito'),
-                  backgroundColor: Colors.green,
-                  duration: const Duration(seconds: 2),
-                ),
-              );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('✅ ${product['name']} agregado al carrito'),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
             } else {
-              // Producto ya está en el carrito - solo log, sin snackbar
-              print('⚠️ Producto ya está en el carrito: ${product['name']}');
-              
               // Actualizar cooldown para evitar spam de logs
               _lastScannedCode = code;
               _lastScanTime = now;
             }
           } else {
-            print('❌ Producto no encontrado para código: $code');
-            
             // Actualizar cooldown para evitar spam del mensaje de error
             _lastScannedCode = code;
             _lastScanTime = now;
-            
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('❌ Producto no encontrado: $code'),
+                  backgroundColor: Colors.red,
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            }
+          }
+        } catch (e) {
+          // Actualizar cooldown para evitar spam del mensaje de error
+          _lastScannedCode = code;
+          _lastScanTime = now;
+
+          if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('❌ Producto no encontrado: $code'),
+                content: Text('💥 Error de conexión: ${e.toString()}'),
                 backgroundColor: Colors.red,
                 duration: const Duration(seconds: 3),
               ),
             );
           }
-        } catch (e) {
-          print('💥 Error buscando producto: $e');
-          
-          // Actualizar cooldown para evitar spam del mensaje de error
-          _lastScannedCode = code;
-          _lastScanTime = now;
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('💥 Error de conexión: ${e.toString()}'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 3),
-            ),
-          );
         }
       }
     }
@@ -314,6 +302,9 @@ class AddOrderPageState extends State<AddOrderPage> {
       await customerController.loadCustomers();
     }
 
+    // Verificar que el widget sigue montado antes de mostrar el diálogo
+    if (!mounted) return;
+
     // Mostrar diálogo
     final selectedCustomerId = await showDialog<String?>(
       context: context,
@@ -327,12 +318,12 @@ class AddOrderPageState extends State<AddOrderPage> {
       final customer = customerController.customers.firstWhereOrNull(
         (c) => (c['_id'] ?? c['id']) == selectedCustomerId,
       );
-      
+
       if (customer != null) {
         setState(() {
           selectedCustomer = Customer.fromMap(customer);
         });
-        
+
         // Continuar automáticamente con descuentos después de seleccionar cliente
         await _showDiscountSelectionDialog(subtotal);
       }
@@ -341,24 +332,37 @@ class AddOrderPageState extends State<AddOrderPage> {
   }
 
   Future<void> _showDiscountSelectionDialog(double subtotal) async {
+    // Verificar que el widget sigue montado antes de mostrar el diálogo
+    if (!mounted) return;
+
     final selectedDiscount = await showDiscountSelectionDialog(
       context: context,
       totalAmount: subtotal,
     );
 
     // Calcular total final (con o sin descuento)
-    final discountAmount = selectedDiscount != null ? _calculateDiscountAmount(selectedDiscount, subtotal) : 0.0;
+    final discountAmount = selectedDiscount != null
+        ? _calculateDiscountAmount(selectedDiscount, subtotal)
+        : 0.0;
     final totalOrder = subtotal - discountAmount;
 
     // Mostrar diálogo de método de pago con el total final
-    await _showPaymentMethodDialog(totalOrder, subtotal, discountAmount, selectedDiscount);
+    await _showPaymentMethodDialog(
+      totalOrder,
+      subtotal,
+      discountAmount,
+      selectedDiscount,
+    );
   }
 
-  double _calculateDiscountAmount(Map<String, dynamic> discount, double totalAmount) {
+  double _calculateDiscountAmount(
+    Map<String, dynamic> discount,
+    double totalAmount,
+  ) {
     final type = discount['type']?.toString() ?? 'percentage';
     final value = (discount['value'] as num?)?.toDouble() ?? 0.0;
     final maxDiscount = (discount['maximumDiscount'] as num?)?.toDouble();
-    
+
     if (type == 'percentage') {
       double discountAmount = totalAmount * (value / 100);
       if (maxDiscount != null && discountAmount > maxDiscount) {
@@ -372,23 +376,26 @@ class AddOrderPageState extends State<AddOrderPage> {
   }
 
   Future<void> _showPaymentMethodDialog(
-    double totalOrder, 
-    double subtotal, 
-    double discountAmount, 
-    dynamic selectedDiscount
+    double totalOrder,
+    double subtotal,
+    double discountAmount,
+    dynamic selectedDiscount,
   ) async {
     Get.put(PaymentController());
-    
+
+    // Verificar que el widget sigue montado antes de mostrar el diálogo
+    if (!mounted) return;
+
     await showDialog<void>(
       context: context,
       builder: (BuildContext context) {
         return PaymentMethodDialog(
           totalAmount: totalOrder,
           onPaymentConfirmed: () => _processOrderWithNewPayment(
-            totalOrder, 
-            subtotal, 
-            discountAmount, 
-            selectedDiscount
+            totalOrder,
+            subtotal,
+            discountAmount,
+            selectedDiscount,
           ),
         );
       },
@@ -396,14 +403,14 @@ class AddOrderPageState extends State<AddOrderPage> {
   }
 
   Future<void> _processOrderWithNewPayment(
-    double totalOrder, 
-    double subtotal, 
-    double discountAmount, 
-    dynamic selectedDiscount
+    double totalOrder,
+    double subtotal,
+    double discountAmount,
+    dynamic selectedDiscount,
   ) async {
     final paymentController = Get.find<PaymentController>();
     final paymentInfo = paymentController.getPaymentSummary();
-    
+
     try {
       // Obtener tienda actual
       final currentStore = storeController.currentStore;
@@ -412,12 +419,6 @@ class AddOrderPageState extends State<AddOrderPage> {
       }
 
       final storeId = currentStore['_id'] ?? currentStore['id'];
-      
-      // ✅ LOG: Confirmación de tienda para nueva orden
-      print('🛒 AddOrderPage: Creando nueva orden para tienda: $storeId');
-      print('   Tienda nombre: ${currentStore['name']}');
-      print('   Productos en orden: ${_products.length}');
-
       // Preparar items para la orden
       final List<Map<String, dynamic>> orderItems = _products.map((item) {
         return {
@@ -433,7 +434,7 @@ class AddOrderPageState extends State<AddOrderPage> {
         customerId: selectedCustomer?.id,
         items: orderItems,
         paymentMethod: paymentInfo['payment_method'],
-        cashRegisterId: null, // TODO: Implementar cash register
+        cashRegisterId: null,
         discountId: selectedDiscount?['_id'] ?? selectedDiscount?['id'],
       );
 
@@ -457,7 +458,8 @@ class AddOrderPageState extends State<AddOrderPage> {
         final pointsEarned = Customer.calculatePointsFromPurchase(totalOrder);
         message += '\n👤 Cliente: ${selectedCustomer!.name}';
         if (pointsEarned > 0) {
-          message += '\n⭐ +$pointsEarned ${pointsEarned == 1 ? 'punto' : 'puntos'} ganado${pointsEarned == 1 ? '' : 's'}!';
+          message +=
+              '\n⭐ +$pointsEarned ${pointsEarned == 1 ? 'punto' : 'puntos'} ganado${pointsEarned == 1 ? '' : 's'}!';
         }
       }
       if (discountAmount > 0) {
@@ -468,7 +470,7 @@ class AddOrderPageState extends State<AddOrderPage> {
         }
       }
       message += '\n💰 Total Final: \$${totalOrder.toStringAsFixed(2)}';
-      
+
       final paymentDetails = paymentController.getPaymentDetails(totalOrder);
       message += '\n💳 $paymentDetails';
 
@@ -492,8 +494,9 @@ class AddOrderPageState extends State<AddOrderPage> {
       paymentController.resetPaymentInfo();
 
       // Navegar de regreso a la lista de órdenes con resultado exitoso
-      Navigator.of(context).pop(true);
-
+      if (mounted) {
+        Navigator.of(context).pop(true);
+      }
     } catch (e) {
       Get.snackbar(
         'Error',
@@ -524,7 +527,7 @@ class AddOrderPageState extends State<AddOrderPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: Offset(0, 2),
           ),
@@ -563,10 +566,7 @@ class AddOrderPageState extends State<AddOrderPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Subtotal:',
-                style: TextStyle(fontSize: 13),
-              ),
+              Text('Subtotal:', style: TextStyle(fontSize: 13)),
               Text(
                 '\$${subtotal.toStringAsFixed(2)}',
                 style: TextStyle(fontSize: 13),
@@ -625,15 +625,12 @@ class AddOrderPageState extends State<AddOrderPage> {
                 child: Container(
                   padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     '${_products.length} ${_products.length == 1 ? 'producto' : 'productos'}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ),
               ),
@@ -651,7 +648,6 @@ class AddOrderPageState extends State<AddOrderPage> {
                   controller: scannerController,
                   onDetect: _handleBarcodeDetection,
                   errorBuilder: (context, error, child) {
-                    print('📷 Error de MobileScanner: $error');
                     return Container(
                       color: Colors.black,
                       child: Center(
@@ -697,7 +693,9 @@ class AddOrderPageState extends State<AddOrderPage> {
                                 try {
                                   scannerController.start();
                                 } catch (e) {
-                                  print('Error reiniciando escáner: $e');
+                                  if (kDebugMode) {
+                                    print('Error reiniciando escáner: $e');
+                                  }
                                 }
                               },
                               child: Text('Reintentar'),
@@ -714,9 +712,7 @@ class AddOrderPageState extends State<AddOrderPage> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            CircularProgressIndicator(
-                              color: Colors.white,
-                            ),
+                            CircularProgressIndicator(color: Colors.white),
                             SizedBox(height: 16),
                             Text(
                               'Iniciando cámara...',
@@ -737,10 +733,7 @@ class AddOrderPageState extends State<AddOrderPage> {
                     width: 250,
                     height: 250,
                     decoration: BoxDecoration(
-                      border: Border.all(
-                        color: Colors.white,
-                        width: 3,
-                      ),
+                      border: Border.all(color: Colors.white, width: 3),
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
@@ -753,12 +746,16 @@ class AddOrderPageState extends State<AddOrderPage> {
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
+                      color: Colors.black.withValues(alpha: 0.6),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.qr_code_scanner, color: Colors.white, size: 24),
+                        Icon(
+                          Icons.qr_code_scanner,
+                          color: Colors.white,
+                          size: 24,
+                        ),
                         SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -773,11 +770,12 @@ class AddOrderPageState extends State<AddOrderPage> {
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
-                              if (_lastScannedCode != null && _lastScanTime != null)
+                              if (_lastScannedCode != null &&
+                                  _lastScanTime != null)
                                 Text(
                                   'Último: $_lastScannedCode',
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.7),
+                                    color: Colors.white.withValues(alpha: 0.7),
                                     fontSize: 11,
                                   ),
                                 ),
@@ -794,7 +792,7 @@ class AddOrderPageState extends State<AddOrderPage> {
                   right: 16,
                   child: FloatingActionButton(
                     mini: true,
-                    backgroundColor: Colors.black.withOpacity(0.6),
+                    backgroundColor: Colors.black.withValues(alpha: 0.6),
                     onPressed: () {
                       scannerController.toggleTorch();
                     },
@@ -804,7 +802,7 @@ class AddOrderPageState extends State<AddOrderPage> {
               ],
             ),
           ),
-          
+
           // Lista de productos mejorada
           Expanded(
             flex: 3,
@@ -814,7 +812,7 @@ class AddOrderPageState extends State<AddOrderPage> {
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 10,
                     offset: Offset(0, -2),
                   ),
@@ -832,7 +830,11 @@ class AddOrderPageState extends State<AddOrderPage> {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.shopping_basket, color: Utils.colorBotones, size: 20),
+                        Icon(
+                          Icons.shopping_basket,
+                          color: Utils.colorBotones,
+                          size: 20,
+                        ),
                         SizedBox(width: 8),
                         Text(
                           'Productos en el carrito',
@@ -845,7 +847,7 @@ class AddOrderPageState extends State<AddOrderPage> {
                       ],
                     ),
                   ),
-                  
+
                   // Lista de productos
                   Expanded(
                     child: _products.isEmpty
@@ -872,10 +874,12 @@ class AddOrderPageState extends State<AddOrderPage> {
                         : ListView.separated(
                             padding: EdgeInsets.symmetric(vertical: 8),
                             itemCount: _products.length,
-                            separatorBuilder: (context, index) => Divider(height: 1, indent: 16, endIndent: 16),
+                            separatorBuilder: (context, index) =>
+                                Divider(height: 1, indent: 16, endIndent: 16),
                             itemBuilder: (context, index) {
                               final product = _products[index];
-                              final itemTotal = product['quantity'] * product['price'];
+                              final itemTotal =
+                                  product['quantity'] * product['price'];
                               return Dismissible(
                                 key: Key(product['id'].toString()),
                                 direction: DismissDirection.endToStart,
@@ -883,7 +887,11 @@ class AddOrderPageState extends State<AddOrderPage> {
                                   alignment: Alignment.centerRight,
                                   padding: EdgeInsets.only(right: 20),
                                   color: Colors.red,
-                                  child: Icon(Icons.delete, color: Colors.white, size: 32),
+                                  child: Icon(
+                                    Icons.delete,
+                                    color: Colors.white,
+                                    size: 32,
+                                  ),
                                 ),
                                 onDismissed: (direction) {
                                   setState(() {
@@ -901,9 +909,15 @@ class AddOrderPageState extends State<AddOrderPage> {
                                   );
                                 },
                                 child: ListTile(
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 4,
+                                  ),
                                   leading: IconButton(
-                                    icon: Icon(Icons.delete_outline, color: Colors.red[400]),
+                                    icon: Icon(
+                                      Icons.delete_outline,
+                                      color: Colors.red[400],
+                                    ),
                                     onPressed: () {
                                       setState(() {
                                         _products.removeAt(index);
@@ -938,22 +952,27 @@ class AddOrderPageState extends State<AddOrderPage> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       // Botón decrementar
-                                      Container(
+                                      SizedBox(
                                         width: 32,
                                         height: 32,
                                         child: ElevatedButton(
-                                          onPressed: () => _decrementQuantity(index),
+                                          onPressed: () =>
+                                              _decrementQuantity(index),
                                           style: ElevatedButton.styleFrom(
                                             shape: CircleBorder(),
                                             backgroundColor: Utils.colorBotones,
                                             padding: EdgeInsets.zero,
                                             elevation: 2,
                                           ),
-                                          child: Icon(Icons.remove, color: Colors.white, size: 16),
+                                          child: Icon(
+                                            Icons.remove,
+                                            color: Colors.white,
+                                            size: 16,
+                                          ),
                                         ),
                                       ),
                                       // Cantidad y total
-                                      Container(
+                                      SizedBox(
                                         width: 70,
                                         child: Column(
                                           mainAxisSize: MainAxisSize.min,
@@ -977,18 +996,23 @@ class AddOrderPageState extends State<AddOrderPage> {
                                         ),
                                       ),
                                       // Botón incrementar
-                                      Container(
+                                      SizedBox(
                                         width: 32,
                                         height: 32,
                                         child: ElevatedButton(
-                                          onPressed: () => _incrementQuantity(index),
+                                          onPressed: () =>
+                                              _incrementQuantity(index),
                                           style: ElevatedButton.styleFrom(
                                             shape: CircleBorder(),
                                             backgroundColor: Utils.colorBotones,
                                             padding: EdgeInsets.zero,
                                             elevation: 2,
                                           ),
-                                          child: Icon(Icons.add, color: Colors.white, size: 16),
+                                          child: Icon(
+                                            Icons.add,
+                                            color: Colors.white,
+                                            size: 16,
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -1002,20 +1026,25 @@ class AddOrderPageState extends State<AddOrderPage> {
               ),
             ),
           ),
-          
+
           // Widget de resumen de totales
           _buildOrderSummary(),
-          
+
           // Botón de registrar orden mejorado
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 8.0,
+            ),
+            child: SizedBox(
               width: double.infinity,
               height: 56,
               child: ElevatedButton.icon(
-                onPressed: _products.isEmpty ? null : () {
-                  _registerOrder();
-                },
+                onPressed: _products.isEmpty
+                    ? null
+                    : () {
+                        _registerOrder();
+                      },
                 icon: Icon(Icons.check_circle, size: 24),
                 label: Text(
                   'Procesar Venta',

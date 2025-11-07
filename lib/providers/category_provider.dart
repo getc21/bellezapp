@@ -10,19 +10,19 @@ class CategoryProvider {
 
   CategoryProvider(this.token);
 
-  Map<String, String> get _headers => {
+  Map<String, String> get _headers => <String, String>{
     'Content-Type': 'application/json',
     'Authorization': 'Bearer $token',
   };
 
-  Map<String, String> get _authHeaders => {
+  Map<String, String> get _authHeaders => <String, String>{
     'Authorization': 'Bearer $token',
   };
 
   // Obtener todas las categorías
   Future<Map<String, dynamic>> getCategories() async {
     try {
-      final response = await http.get(
+      final http.Response response = await http.get(
         Uri.parse('$baseUrl/categories'),
         headers: _headers,
       );
@@ -31,40 +31,40 @@ class CategoryProvider {
       if (response.statusCode == 200) {
         final categories = data['data']['categories'];
         if (categories is List) {
-          return {'success': true, 'data': categories};
+          return <String, dynamic>{'success': true, 'data': categories};
         } else {
-          return {'success': false, 'message': 'Formato de respuesta inválido'};
+          return <String, dynamic>{'success': false, 'message': 'Formato de respuesta inválido'};
         }
       } else {
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error obteniendo categorías'
         };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 
   // Obtener categoría por ID
   Future<Map<String, dynamic>> getCategoryById(String id) async {
     try {
-      final response = await http.get(
+      final http.Response response = await http.get(
         Uri.parse('$baseUrl/categories/$id'),
         headers: _headers,
       );
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        return {'success': true, 'data': data['data']['category']};
+        return <String, dynamic>{'success': true, 'data': data['data']['category']};
       } else {
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error obteniendo categoría'
         };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 
@@ -75,7 +75,7 @@ class CategoryProvider {
     File? imageFile,
   }) async {
     try {
-      var request = http.MultipartRequest(
+      final http.MultipartRequest request = http.MultipartRequest(
         'POST',
         Uri.parse('$baseUrl/categories'),
       );
@@ -87,7 +87,7 @@ class CategoryProvider {
       if (imageFile != null) {
         // Determinar el tipo MIME basado en la extensión
         String mimeType = 'image/jpeg'; // Default
-        String extension = imageFile.path.split('.').last.toLowerCase();
+        final String extension = imageFile.path.split('.').last.toLowerCase();
         
         switch (extension) {
           case 'png':
@@ -103,10 +103,7 @@ class CategoryProvider {
           case 'webp':
             mimeType = 'image/webp';
             break;
-        }
-
-        print('� Subiendo imagen: $extension -> $mimeType');
-        
+        }        
         request.files.add(
           await http.MultipartFile.fromPath(
             'foto', 
@@ -116,23 +113,20 @@ class CategoryProvider {
         );
       }
 
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      final http.StreamedResponse streamedResponse = await request.send();
+      final http.Response response = await http.Response.fromStream(streamedResponse);
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 201) {
-        print('✅ Categoría creada exitosamente');
-        return {'success': true, 'data': data['data']};
+        return <String, dynamic>{'success': true, 'data': data['data']};
       } else {
-        print('❌ Error del servidor: ${data['message']}');
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error creando categoría'
         };
       }
     } catch (e) {
-      print('💥 Error de conexión: $e');
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 
@@ -144,7 +138,7 @@ class CategoryProvider {
     File? imageFile,
   }) async {
     try {
-      var request = http.MultipartRequest(
+      final http.MultipartRequest request = http.MultipartRequest(
         'PATCH',
         Uri.parse('$baseUrl/categories/$id'),
       );
@@ -158,42 +152,42 @@ class CategoryProvider {
             await http.MultipartFile.fromPath('foto', imageFile.path));
       }
 
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      final http.StreamedResponse streamedResponse = await request.send();
+      final http.Response response = await http.Response.fromStream(streamedResponse);
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        return {'success': true, 'data': data['data']};
+        return <String, dynamic>{'success': true, 'data': data['data']};
       } else {
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error actualizando categoría'
         };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 
   // Eliminar categoría
   Future<Map<String, dynamic>> deleteCategory(String id) async {
     try {
-      final response = await http.delete(
+      final http.Response response = await http.delete(
         Uri.parse('$baseUrl/categories/$id'),
         headers: _headers,
       );
 
       if (response.statusCode == 204) {
-        return {'success': true};
+        return <String, dynamic>{'success': true};
       } else {
         final data = jsonDecode(response.body);
-        return {
+        return <String, dynamic>{
           'success': false,
           'message': data['message'] ?? 'Error eliminando categoría'
         };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
+      return <String, dynamic>{'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 }

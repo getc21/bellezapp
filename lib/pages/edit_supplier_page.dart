@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:bellezapp/controllers/supplier_controller.dart';
 import 'package:bellezapp/utils/utils.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
@@ -17,7 +18,7 @@ class EditSupplierPage extends StatefulWidget {
 
 class EditSupplierPageState extends State<EditSupplierPage> {
   final SupplierController supplierController = Get.find<SupplierController>();
-  final _formKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _contactNameController;
   late TextEditingController _contactEmailController;
@@ -80,11 +81,8 @@ class EditSupplierPageState extends State<EditSupplierPage> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-
-    print('🔄 Iniciando actualización de proveedor...');
-
-    final supplierId = widget.supplier['_id'].toString();
-    final success = await supplierController.updateSupplier(
+    final String supplierId = widget.supplier['_id'].toString();
+    final bool success = await supplierController.updateSupplier(
       id: supplierId,
       name: _nameController.text,
       contactName: _contactNameController.text.isEmpty ? null : _contactNameController.text,
@@ -93,39 +91,36 @@ class EditSupplierPageState extends State<EditSupplierPage> {
       address: _addressController.text.isEmpty ? null : _addressController.text,
       imageFile: _newImageFile,
     );
-
-    print('📊 Resultado de la actualización: $success');
-
-    if (success) {
-      print('✅ Éxito! Ejecutando Navigator.pop()...');
-      
+    if (success) {      
       // Primero navegar de regreso
       if (mounted) {
         Navigator.of(context).pop();
         
         // Mostrar snackbar después de regresar
-        Future.delayed(Duration(milliseconds: 300), () {
+        Future.delayed(const Duration(milliseconds: 300), () {
           Get.snackbar(
             'Éxito',
             'Proveedor actualizado correctamente',
             snackPosition: SnackPosition.TOP,
-            backgroundColor: Colors.green.withOpacity(0.1),
+            backgroundColor: Colors.green.withValues(alpha: 0.1),
             colorText: Colors.green[800],
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
           );
         });
       }
     } else {
-      print('❌ Error en la actualización, no se ejecuta Navigator.pop()');
+      if (kDebugMode) {
+        print('❌ Error en la actualización, no se ejecuta Navigator.pop()');
+      }
     }
   }
 
   Future<void> _deleteSupplier() async {
-    final confirm = await Get.dialog<bool>(
+    final bool? confirm = await Get.dialog<bool>(
       AlertDialog(
         title: const Text('Confirmar eliminación'),
         content: const Text('¿Estás seguro de que deseas eliminar este proveedor?'),
-        actions: [
+        actions: <Widget>[
           TextButton(
             onPressed: () => Get.back(result: false),
             child: const Text('Cancelar'),
@@ -139,42 +134,37 @@ class EditSupplierPageState extends State<EditSupplierPage> {
       ),
     );
 
-    if (confirm == true) {
-      print('🗑️ Iniciando eliminación de proveedor...');
-      
-      final supplierId = widget.supplier['_id'].toString();
-      final success = await supplierController.deleteSupplier(supplierId);
-      
-      print('📊 Resultado de la eliminación: $success');
-      
-      if (success) {
-        print('✅ Éxito! Ejecutando Navigator.pop()...');
-        
+    if (confirm == true) {      
+      final String supplierId = widget.supplier['_id'].toString();
+      final bool success = await supplierController.deleteSupplier(supplierId);      
+      if (success) {        
         // Primero navegar de regreso
         if (mounted) {
           Navigator.of(context).pop();
           
           // Mostrar snackbar después de regresar
-          Future.delayed(Duration(milliseconds: 300), () {
+          Future.delayed(const Duration(milliseconds: 300), () {
             Get.snackbar(
               'Éxito',
               'Proveedor eliminado correctamente',
               snackPosition: SnackPosition.TOP,
-              backgroundColor: Colors.red.withOpacity(0.1),
+              backgroundColor: Colors.red.withValues(alpha: 0.1),
               colorText: Colors.red[800],
-              duration: Duration(seconds: 2),
+              duration: const Duration(seconds: 2),
             );
           });
         }
       } else {
-        print('❌ Error en la eliminación, no se ejecuta Navigator.pop()');
+        if (kDebugMode) {
+          print('❌ Error en la eliminación, no se ejecuta Navigator.pop()');
+        }
       }
     }
   }
 
   Widget _buildImageSection() {
     final currentImageUrl = widget.supplier['foto'];
-    final hasImage = _newImageFile != null || 
+    final bool hasImage = _newImageFile != null || 
         (currentImageUrl != null && currentImageUrl.toString().isNotEmpty);
     
     return GestureDetector(
@@ -185,13 +175,13 @@ class EditSupplierPageState extends State<EditSupplierPage> {
           color: Colors.grey[100],
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: Utils.colorBotones.withOpacity(0.3),
+            color: Utils.colorBotones.withValues(alpha: 0.3),
             width: 2,
           ),
         ),
         child: hasImage
             ? Stack(
-                children: [
+                children: <Widget>[
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: _newImageFile != null
@@ -206,12 +196,12 @@ class EditSupplierPageState extends State<EditSupplierPage> {
                             width: double.infinity,
                             height: double.infinity,
                             fit: BoxFit.cover,
-                            placeholder: (context, url) => const Center(
+                            placeholder: (BuildContext context, String url) => const Center(
                               child: CircularProgressIndicator(),
                             ),
-                            errorWidget: (context, url, error) => Column(
+                            errorWidget: (BuildContext context, String url, Object error) => Column(
                               mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
+                              children: <Widget>[
                                 Icon(Icons.broken_image, size: 64, color: Colors.grey[400]),
                                 const SizedBox(height: 8),
                                 Text('Error cargando imagen', 
@@ -225,29 +215,29 @@ class EditSupplierPageState extends State<EditSupplierPage> {
                     bottom: 12,
                     right: 12,
                     child: Container(
-                      padding: EdgeInsets.symmetric(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [
+                          colors: <Color>[
                             Utils.colorBotones,
-                            Utils.colorBotones.withOpacity(0.8),
+                            Utils.colorBotones.withValues(alpha: 0.8),
                           ],
                         ),
                         borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
+                        boxShadow: <BoxShadow>[
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
+                            color: Colors.black.withValues(alpha: 0.3),
                             blurRadius: 8,
-                            offset: Offset(0, 2),
+                            offset: const Offset(0, 2),
                           ),
                         ],
                       ),
-                      child: Row(
+                      child: const Row(
                         mainAxisSize: MainAxisSize.min,
-                        children: [
+                        children: <Widget>[
                           Icon(
                             Icons.edit_rounded,
                             color: Colors.white,
@@ -270,11 +260,11 @@ class EditSupplierPageState extends State<EditSupplierPage> {
               )
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: [
+                children: <Widget>[
                   Container(
-                    padding: EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Utils.colorBotones.withOpacity(0.1),
+                      color: Utils.colorBotones.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -311,8 +301,8 @@ class EditSupplierPageState extends State<EditSupplierPage> {
     return Scaffold(
       backgroundColor: Utils.colorFondo,
       appBar: AppBar(
-        title: Row(
-          children: const [
+        title: const Row(
+          children: <Widget>[
             Icon(Icons.business, size: 24),
             SizedBox(width: 8),
             Text('Editar Proveedor'),
@@ -320,7 +310,7 @@ class EditSupplierPageState extends State<EditSupplierPage> {
         ),
         backgroundColor: Utils.colorBotones,
         foregroundColor: Colors.white,
-        actions: [
+        actions: <Widget>[
           IconButton(
             icon: const Icon(Icons.delete),
             onPressed: _deleteSupplier,
@@ -331,7 +321,7 @@ class EditSupplierPageState extends State<EditSupplierPage> {
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
-          children: [
+          children: <Widget>[
             // Imagen
             _buildImageSection(),
             const SizedBox(height: 24),
@@ -340,7 +330,7 @@ class EditSupplierPageState extends State<EditSupplierPage> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: Row(
-                children: [
+                children: <Widget>[
                   Icon(Icons.info_outline, color: Utils.colorBotones, size: 24),
                   const SizedBox(width: 8),
                   Text(
@@ -368,7 +358,7 @@ class EditSupplierPageState extends State<EditSupplierPage> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              validator: (value) {
+              validator: (String? value) {
                 if (value == null || value.isEmpty) {
                   return 'Campo requerido';
                 }
@@ -381,7 +371,7 @@ class EditSupplierPageState extends State<EditSupplierPage> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: Row(
-                children: [
+                children: <Widget>[
                   Icon(Icons.contact_phone, color: Utils.colorBotones, size: 24),
                   const SizedBox(width: 8),
                   Text(
@@ -441,7 +431,7 @@ class EditSupplierPageState extends State<EditSupplierPage> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              validator: (value) {
+              validator: (String? value) {
                 if (value != null && value.isNotEmpty) {
                   if (!GetUtils.isEmail(value)) {
                     return 'Email inválido';

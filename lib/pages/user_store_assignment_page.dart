@@ -82,7 +82,7 @@ class _UserStoreAssignmentPageState extends State<UserStoreAssignmentPage> {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              Utils.colorFondo.withOpacity(0.3),
+              Utils.colorFondo.withValues(alpha: 0.3),
               Colors.white,
             ],
             begin: Alignment.topCenter,
@@ -116,7 +116,7 @@ class _UserStoreAssignmentPageState extends State<UserStoreAssignmentPage> {
           Container(
             padding: EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Utils.colorBotones.withOpacity(0.1),
+              color: Utils.colorBotones.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -139,7 +139,7 @@ class _UserStoreAssignmentPageState extends State<UserStoreAssignmentPage> {
             'Crea usuarios para asignarlos a tiendas',
             style: TextStyle(
               fontSize: 16,
-              color: Utils.colorTexto.withOpacity(0.6),
+              color: Utils.colorTexto.withValues(alpha: 0.6),
             ),
           ),
         ],
@@ -158,7 +158,7 @@ class _UserStoreAssignmentPageState extends State<UserStoreAssignmentPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 10,
             offset: Offset(0, 4),
           ),
@@ -172,8 +172,8 @@ class _UserStoreAssignmentPageState extends State<UserStoreAssignmentPage> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  roleColor.withOpacity(0.1),
-                  roleColor.withOpacity(0.05),
+                  roleColor.withValues(alpha: 0.1),
+                  roleColor.withValues(alpha: 0.05),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -257,7 +257,7 @@ class _UserStoreAssignmentPageState extends State<UserStoreAssignmentPage> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.store, size: 18, color: Utils.colorTexto.withOpacity(0.6)),
+                    Icon(Icons.store, size: 18, color: Utils.colorTexto.withValues(alpha: 0.6)),
                     SizedBox(width: 8),
                     Text(
                       'Tiendas Asignadas (${assignedStores.length})',
@@ -275,9 +275,9 @@ class _UserStoreAssignmentPageState extends State<UserStoreAssignmentPage> {
                   Container(
                     padding: EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.1),
+                      color: Colors.orange.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                      border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       children: [
@@ -303,10 +303,10 @@ class _UserStoreAssignmentPageState extends State<UserStoreAssignmentPage> {
                       return Container(
                         padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Utils.colorGnav.withOpacity(0.1),
+                          color: Utils.colorGnav.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: Utils.colorGnav.withOpacity(0.3),
+                            color: Utils.colorGnav.withValues(alpha: 0.3),
                           ),
                         ),
                         child: Row(
@@ -352,9 +352,9 @@ class _UserStoreAssignmentPageState extends State<UserStoreAssignmentPage> {
                     child: Container(
                       padding: EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.1),
+                        color: Colors.blue.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                        border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         children: [
@@ -429,7 +429,7 @@ class _UserStoreAssignmentPageState extends State<UserStoreAssignmentPage> {
                           '${user.firstName} ${user.lastName}',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Utils.colorTexto.withOpacity(0.6),
+                            color: Utils.colorTexto.withValues(alpha: 0.6),
                           ),
                         ),
                       ],
@@ -443,7 +443,7 @@ class _UserStoreAssignmentPageState extends State<UserStoreAssignmentPage> {
                 'Selecciona las tiendas a las que tendrá acceso:',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Utils.colorTexto.withOpacity(0.8),
+                  color: Utils.colorTexto.withValues(alpha: 0.8),
                 ),
               ),
               SizedBox(height: 12),
@@ -462,13 +462,13 @@ class _UserStoreAssignmentPageState extends State<UserStoreAssignmentPage> {
                         margin: EdgeInsets.only(bottom: 8),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? Utils.colorBotones.withOpacity(0.1)
-                              : Colors.grey.withOpacity(0.05),
+                              ? Utils.colorBotones.withValues(alpha: 0.1)
+                              : Colors.grey.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: isSelected
                                 ? Utils.colorBotones
-                                : Colors.grey.withOpacity(0.3),
+                                : Colors.grey.withValues(alpha: 0.3),
                             width: isSelected ? 2 : 1,
                           ),
                         ),
@@ -495,7 +495,7 @@ class _UserStoreAssignmentPageState extends State<UserStoreAssignmentPage> {
                             decoration: BoxDecoration(
                               color: isSelected
                                   ? Utils.colorBotones
-                                  : Colors.grey.withOpacity(0.2),
+                                  : Colors.grey.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(
@@ -522,7 +522,6 @@ class _UserStoreAssignmentPageState extends State<UserStoreAssignmentPage> {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(context),
-                      child: Text('Cancelar'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Utils.colorTexto,
                         padding: EdgeInsets.symmetric(vertical: 16),
@@ -530,6 +529,7 @@ class _UserStoreAssignmentPageState extends State<UserStoreAssignmentPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
+                      child: Text('Cancelar'),
                     ),
                   ),
                   SizedBox(width: 12),
@@ -537,12 +537,8 @@ class _UserStoreAssignmentPageState extends State<UserStoreAssignmentPage> {
                     child: ElevatedButton(
                       onPressed: () async {
                         await _saveAssignments(user, selectedStores.toList());
-                        Navigator.pop(context);
+                        if (context.mounted) Navigator.pop(context);
                       },
-                      child: Text(
-                        'Guardar',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Utils.colorBotones,
                         foregroundColor: Colors.white,
@@ -550,6 +546,10 @@ class _UserStoreAssignmentPageState extends State<UserStoreAssignmentPage> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
+                      ),
+                      child: Text(
+                        'Guardar',
+                        style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),

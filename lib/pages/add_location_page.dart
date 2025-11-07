@@ -1,5 +1,6 @@
 import 'package:bellezapp/controllers/location_controller.dart';
 import 'package:bellezapp/utils/utils.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -38,10 +39,6 @@ class AddLocationPageState extends State<AddLocationPage> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-
-    print('🔄 Iniciando guardado de ubicación...');
-
-    // TODO: Obtener storeId del contexto de la tienda actual
     final storeId = '000000000000000000000001'; // Temporal
 
     final success = await locationController.createLocation(
@@ -52,11 +49,8 @@ class AddLocationPageState extends State<AddLocationPage> {
           : _descriptionController.text,
     );
 
-    print('📊 Resultado del guardado: $success');
 
-    if (success) {
-      print('✅ Éxito! Ejecutando Navigator.pop()...');
-      
+    if (success) {      
       // Primero navegar de regreso
       if (mounted) {
         Navigator.of(context).pop();
@@ -67,14 +61,16 @@ class AddLocationPageState extends State<AddLocationPage> {
             'Éxito',
             'Ubicación creada correctamente',
             snackPosition: SnackPosition.TOP,
-            backgroundColor: Colors.green.withOpacity(0.1),
+            backgroundColor: Colors.green.withValues(alpha: 0.1),
             colorText: Colors.green[800],
             duration: Duration(seconds: 2),
           );
         });
       }
     } else {
-      print('❌ Error en el guardado, no se ejecuta Navigator.pop()');
+      if (kDebugMode) {
+        print('❌ Error en el guardado, no se ejecuta Navigator.pop()');
+      }
     }
   }
 

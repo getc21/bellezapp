@@ -119,7 +119,7 @@ class CustomerListPage extends StatelessWidget {
       child: Column(
         children: [
           // Barra de búsqueda
-          Container(
+          SizedBox(
             height: 40,
             child: TextField(
               style: TextStyle(fontSize: 13),

@@ -38,7 +38,7 @@ class User {
 
   // Conversión a Map para la base de datos
   Map<String, dynamic> toMap() {
-    return {
+    return <String, dynamic>{
       if (id != null) '_id': id,
       'username': username,
       'email': email,
@@ -65,7 +65,7 @@ class User {
       lastName: map['lastName'] ?? map['last_name'] ?? '',
       passwordHash: map['passwordHash'] ?? map['password_hash'] ?? '',
       role: UserRole.values.firstWhere(
-        (role) => role.name == map['role'],
+        (UserRole role) => role.name == map['role'],
         orElse: () => UserRole.employee,
       ),
       isActive: map['isActive'] ?? map['is_active'] == 1 || map['is_active'] == true,
@@ -163,7 +163,7 @@ enum UserRole {
   Map<String, bool> get defaultPermissions {
     switch (this) {
       case UserRole.admin:
-        return {
+        return <String, bool>{
           'manage_users': true,
           'manage_products': true,
           'manage_orders': true,
@@ -175,7 +175,7 @@ enum UserRole {
           'manage_settings': true,
         };
       case UserRole.manager:
-        return {
+        return <String, bool>{
           'manage_users': false,
           'manage_products': true,
           'manage_orders': true,
@@ -187,7 +187,7 @@ enum UserRole {
           'manage_settings': false,
         };
       case UserRole.employee:
-        return {
+        return <String, bool>{
           'manage_users': false,
           'manage_products': false,
           'manage_orders': true,

@@ -103,7 +103,7 @@ class HomePageState extends State<HomePage> {
     
     return Obx(() => PopScope(
       canPop: false,
-      onPopInvoked: (bool didPop) async {
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
         if (didPop) {
           return;
         }
@@ -134,7 +134,7 @@ class HomePageState extends State<HomePage> {
               Container(
                 padding: EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -186,7 +186,7 @@ class HomePageState extends State<HomePage> {
                 icon: Container(
                   padding: EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -210,7 +210,7 @@ class HomePageState extends State<HomePage> {
                     icon: Container(
                       padding: EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -229,7 +229,7 @@ class HomePageState extends State<HomePage> {
             ),
           ],
         ),
-        endDrawer: Container(
+        endDrawer: SizedBox(
           width: 320,
           child: Drawer(
             child: Container(
@@ -238,7 +238,7 @@ class HomePageState extends State<HomePage> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Utils.colorGnav.withOpacity(0.1),
+                    Utils.colorGnav.withValues(alpha: 0.1),
                     Colors.white,
                   ],
                 ),
@@ -270,7 +270,7 @@ class HomePageState extends State<HomePage> {
                                 Container(
                                   padding: EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
+                                    color: Colors.white.withValues(alpha: 0.2),
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: Icon(
@@ -384,10 +384,10 @@ class HomePageState extends State<HomePage> {
                           margin: EdgeInsets.symmetric(vertical: 8),
                           padding: EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Utils.colorGnav.withOpacity(0.1),
+                            color: Utils.colorGnav.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: Utils.colorGnav.withOpacity(0.2),
+                              color: Utils.colorGnav.withValues(alpha: 0.2),
                               width: 1,
                             ),
                           ),
@@ -422,7 +422,7 @@ class HomePageState extends State<HomePage> {
                                       authController.userRoleDisplay,
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: Utils.colorTexto.withOpacity(0.7),
+                                        color: Utils.colorTexto.withValues(alpha: 0.7),
                                       ),
                                     ),
                                   ],
@@ -469,13 +469,13 @@ class HomePageState extends State<HomePage> {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Utils.colorGnav.withOpacity(0.95),
+                  Utils.colorGnav.withValues(alpha: 0.95),
                   Utils.colorGnav,
                 ],
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 20,
                   offset: Offset(0, -5),
                 ),
@@ -485,18 +485,18 @@ class HomePageState extends State<HomePage> {
               padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
               child: GNav(
                 backgroundColor: Colors.transparent,
-                rippleColor: Colors.white.withOpacity(0.1),
-                hoverColor: Colors.white.withOpacity(0.05),
+                rippleColor: Colors.white.withValues(alpha: 0.1),
+                hoverColor: Colors.white.withValues(alpha: 0.05),
                 haptic: true,
                 tabBorderRadius: 12,
                 tabActiveBorder: Border.all(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   width: 1,
                 ),
                 curve: Curves.easeOutExpo,
                 duration: Duration(milliseconds: 300),
                 gap: 6,
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
                 activeColor: Colors.white,
                 iconSize: 20,
                 textStyle: TextStyle(
@@ -504,7 +504,7 @@ class HomePageState extends State<HomePage> {
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
                 ),
-                tabBackgroundColor: Colors.white.withOpacity(0.15),
+                tabBackgroundColor: Colors.white.withValues(alpha: 0.15),
                 padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 tabs: [
                   GButton(
@@ -549,7 +549,7 @@ class HomePageState extends State<HomePage> {
         style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.bold,
-          color: Utils.colorTexto.withOpacity(0.7),
+          color: Utils.colorTexto.withValues(alpha: 0.7),
           letterSpacing: 0.5,
         ),
       ),
@@ -569,7 +569,7 @@ class HomePageState extends State<HomePage> {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: Utils.colorGnav.withOpacity(0.1),
+                color: Utils.colorGnav.withValues(alpha: 0.1),
                 width: 1,
               ),
             ),
@@ -578,7 +578,7 @@ class HomePageState extends State<HomePage> {
                 Container(
                   padding: EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.1),
+                    color: iconColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -605,7 +605,7 @@ class HomePageState extends State<HomePage> {
                           subtitle,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Utils.colorTexto.withOpacity(0.7),
+                            color: Utils.colorTexto.withValues(alpha: 0.7),
                           ),
                         ),
                     ],
@@ -614,7 +614,7 @@ class HomePageState extends State<HomePage> {
                 Icon(
                   Icons.arrow_forward_ios_rounded,
                   size: 14,
-                  color: Utils.colorTexto.withOpacity(0.5),
+                  color: Utils.colorTexto.withValues(alpha: 0.5),
                 ),
               ],
             ),

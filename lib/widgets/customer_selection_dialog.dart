@@ -320,7 +320,7 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
       await customerController.loadCustomers();
       
       // Seleccionar automáticamente el último cliente agregado y cerrar el diálogo
-      if (customerController.customers.isNotEmpty) {
+      if (customerController.customers.isNotEmpty && mounted) {
         final lastCustomer = customerController.customers.last;
         // Cerrar el diálogo de selección de cliente y devolver el ID del nuevo cliente
         Navigator.of(context).pop(lastCustomer['_id']);

@@ -135,15 +135,27 @@ class ThemeSettingsPage extends StatelessWidget {
           color: Utils.defaultColor.withValues(alpha: 0.7),
         ),
       ),
-      trailing: Radio<ThemeMode>(
-        value: mode,
-        groupValue: themeController.themeMode,
-        onChanged: (ThemeMode? value) {
-          if (value != null) {
-            themeController.changeThemeMode(value);
-          }
-        },
-        activeColor: Utils.colorBotones,
+      trailing: GestureDetector(
+        onTap: () => themeController.changeThemeMode(mode),
+        child: Container(
+          width: 20,
+          height: 20,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: themeController.themeMode == mode 
+                ? Utils.colorBotones 
+                : Colors.transparent,
+            border: Border.all(
+              color: themeController.themeMode == mode 
+                  ? Utils.colorBotones 
+                  : Colors.grey.shade400,
+              width: 2,
+            ),
+          ),
+          child: themeController.themeMode == mode
+              ? Icon(Icons.check, size: 12, color: Colors.white)
+              : null,
+        ),
       ),
       onTap: () => themeController.changeThemeMode(mode),
     );
@@ -206,8 +218,8 @@ class ThemeSettingsPage extends StatelessWidget {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        theme.primaryColor.withOpacity(0.8),
-                        theme.accentColor.withOpacity(0.6),
+                        theme.primaryColor.withValues(alpha: 0.8),
+                        theme.accentColor.withValues(alpha: 0.6),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -231,7 +243,7 @@ class ThemeSettingsPage extends StatelessWidget {
                             width: 60,
                             height: 8,
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.8),
+                              color: Colors.white.withValues(alpha: 0.8),
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
@@ -245,7 +257,7 @@ class ThemeSettingsPage extends StatelessWidget {
                             child: Container(
                               height: 20,
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.9),
+                                color: Colors.white.withValues(alpha: 0.9),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                             ),
@@ -266,7 +278,7 @@ class ThemeSettingsPage extends StatelessWidget {
                       Container(
                         height: 16,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.6),
+                          color: Colors.white.withValues(alpha: 0.6),
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),

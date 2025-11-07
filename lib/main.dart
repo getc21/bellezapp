@@ -23,7 +23,7 @@ void main() async {
   Get.put(LoadingController());
   Get.put(CashController());
   
-  runApp(BeautyStoreApp());
+  runApp(const BeautyStoreApp());
 }
 
 class BeautyStoreApp extends StatefulWidget {
@@ -36,7 +36,7 @@ class BeautyStoreApp extends StatefulWidget {
 class BeautyStoreAppState extends State<BeautyStoreApp> {
   @override
   Widget build(BuildContext context) {
-    final themeController = Get.find<ThemeController>();
+    final ThemeController themeController = Get.find<ThemeController>();
     
     return Obx(() {
       return GetMaterialApp(
@@ -56,23 +56,23 @@ class BeautyStoreAppState extends State<BeautyStoreApp> {
         
         home: _buildInitialScreen(),
           
-        locale: Locale('es', 'ES'), // Establecer el idioma predeterminado
-        localizationsDelegates: [
+        locale: const Locale('es', 'ES'), // Establecer el idioma predeterminado
+        localizationsDelegates: const <LocalizationsDelegate<Object>>[
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        supportedLocales: [
-          const Locale('en', ''), // Inglés
-          const Locale('es', ''), // Español
+        supportedLocales: const <Locale>[
+          Locale('en', ''), // Inglés
+          Locale('es', ''), // Español
         ],
       );
     });
   }
 
   Widget _buildInitialScreen() {
-    final themeController = Get.find<ThemeController>();
-    final authController = Get.find<AuthController>();
+    final ThemeController themeController = Get.find<ThemeController>();
+    final AuthController authController = Get.find<AuthController>();
     
     if (!themeController.isInitialized) {
       return _buildLoadingScreen();
@@ -84,9 +84,9 @@ class BeautyStoreAppState extends State<BeautyStoreApp> {
       }
       
       if (authController.isLoggedIn) {
-        return HomePage();
+        return const HomePage();
       } else {
-        return LoginPage();
+        return const LoginPage();
       }
     });
   }
@@ -97,10 +97,10 @@ class BeautyStoreAppState extends State<BeautyStoreApp> {
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+          children: <Widget>[
             Utils.loadingCustom(),
-            SizedBox(height: 24),
-            Text(
+            const SizedBox(height: 24),
+            const Text(
               'Cargando temas...',
               style: TextStyle(
                 fontSize: 16,

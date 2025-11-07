@@ -97,7 +97,7 @@ class OrderListPageState extends State<OrderListPage> {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
+                  color: Colors.grey.withValues(alpha: 0.1),
                   blurRadius: 4,
                   offset: Offset(0, 2),
                 ),
@@ -112,7 +112,7 @@ class OrderListPageState extends State<OrderListPage> {
                     Container(
                       padding: EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Utils.colorBotones.withOpacity(0.1),
+                        color: Utils.colorBotones.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -172,13 +172,13 @@ class OrderListPageState extends State<OrderListPage> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        Utils.colorBotones.withOpacity(0.1),
-                        Utils.colorBotones.withOpacity(0.05),
+                        Utils.colorBotones.withValues(alpha: 0.1),
+                        Utils.colorBotones.withValues(alpha: 0.05),
                       ],
                     ),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: Utils.colorBotones.withOpacity(0.2),
+                      color: Utils.colorBotones.withValues(alpha: 0.2),
                     ),
                   ),
                   child: Row(
@@ -277,7 +277,7 @@ class OrderListPageState extends State<OrderListPage> {
           Container(
             padding: EdgeInsets.all(32),
             decoration: BoxDecoration(
-              color: Utils.colorBotones.withOpacity(0.1),
+              color: Utils.colorBotones.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -285,7 +285,7 @@ class OrderListPageState extends State<OrderListPage> {
                   ? Icons.receipt_long_outlined
                   : Icons.search_off,
               size: 80,
-              color: Utils.colorBotones.withOpacity(0.5),
+              color: Utils.colorBotones.withValues(alpha: 0.5),
             ),
           ),
           const SizedBox(height: 24),
@@ -336,7 +336,7 @@ class OrderListPageState extends State<OrderListPage> {
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
+            color: Colors.grey.withValues(alpha: 0.08),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -353,13 +353,13 @@ class OrderListPageState extends State<OrderListPage> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Utils.colorBotones.withOpacity(0.15),
-                  Utils.colorBotones.withOpacity(0.05),
+                  Utils.colorBotones.withValues(alpha: 0.15),
+                  Utils.colorBotones.withValues(alpha: 0.05),
                 ],
               ),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: Utils.colorBotones.withOpacity(0.3),
+                color: Utils.colorBotones.withValues(alpha: 0.3),
                 width: 2,
               ),
             ),
@@ -457,10 +457,10 @@ class OrderListPageState extends State<OrderListPage> {
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: _getPaymentColor(paymentMethod).withOpacity(0.15),
+                        color: _getPaymentColor(paymentMethod).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: _getPaymentColor(paymentMethod).withOpacity(0.3),
+                          color: _getPaymentColor(paymentMethod).withValues(alpha: 0.3),
                         ),
                       ),
                       child: Row(
@@ -487,7 +487,7 @@ class OrderListPageState extends State<OrderListPage> {
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.1),
+                        color: Colors.blue.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -561,7 +561,7 @@ class OrderListPageState extends State<OrderListPage> {
                       ],
                     ),
                   );
-                }).toList(),
+                }),
               ],
             ),
           ),

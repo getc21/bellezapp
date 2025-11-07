@@ -62,7 +62,7 @@ class Utils {
         Color baseColor = Theme.of(context).colorScheme.surfaceContainerHighest;
         // En modo oscuro, agregar transparencia para efecto plomo
         if (isDarkMode) {
-          return baseColor.withOpacity(0.6);
+          return baseColor.withValues(alpha: 0.6);
         }
         return baseColor;
       }
@@ -449,9 +449,9 @@ class Utils {
       child: Container(
         padding: EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.3), width: 2),
+          border: Border.all(color: color.withValues(alpha: 0.3), width: 2),
         ),
         child: Column(
           children: [
@@ -476,6 +476,21 @@ class Utils {
         ),
       ),
     );
+  }
+
+  // Método para formatear hora en formato de 12 horas
+  static String formatTime12Hour(DateTime dateTime) {
+    int hour = dateTime.hour;
+    String period = hour >= 12 ? 'PM' : 'AM';
+    
+    // Convertir hora de 24h a 12h
+    if (hour == 0) {
+      hour = 12; // Medianoche
+    } else if (hour > 12) {
+      hour = hour - 12; // Tarde
+    }
+    
+    return '${hour.toString()}:${dateTime.minute.toString().padLeft(2, '0')} $period';
   }
 
   

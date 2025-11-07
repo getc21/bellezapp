@@ -5,9 +5,9 @@ import '../services/theme_service.dart';
 
 class ThemeController extends GetxController {
   // Variables reactivas
-  final _currentThemeId = 'beauty'.obs;
-  final _themeMode = ThemeMode.system.obs;
-  final _isInitialized = false.obs;
+  final RxString _currentThemeId = 'beauty'.obs;
+  final Rx<ThemeMode> _themeMode = ThemeMode.system.obs;
+  final RxBool _isInitialized = false.obs;
 
   // Getters
   String get currentThemeId => _currentThemeId.value;
@@ -29,8 +29,8 @@ class ThemeController extends GetxController {
   // Inicializar el tema desde las preferencias guardadas
   Future<void> _initializeTheme() async {
     try {
-      final savedThemeId = await ThemeService.getSavedTheme();
-      final savedThemeMode = await ThemeService.getSavedThemeMode();
+      final String savedThemeId = await ThemeService.getSavedTheme();
+      final String savedThemeMode = await ThemeService.getSavedThemeMode();
       
       _currentThemeId.value = savedThemeId;
       _themeMode.value = _parseThemeMode(savedThemeMode);
@@ -56,17 +56,17 @@ class ThemeController extends GetxController {
       _applyTheme();
       
       // Pequeño delay para asegurar que el tema se aplique
-      await Future.delayed(Duration(milliseconds: 100));
+      await Future.delayed(const Duration(milliseconds: 100));
       
       // Mostrar snackbar de confirmación
       Get.snackbar(
         'Tema cambiado',
         'Se aplicó el tema ${currentTheme.name}',
         snackPosition: SnackPosition.BOTTOM,
-        duration: Duration(seconds: 2),
-        backgroundColor: currentTheme.primaryColor.withOpacity(0.8),
+        duration: const Duration(seconds: 2),
+        backgroundColor: currentTheme.primaryColor.withValues(alpha: 0.8),
         colorText: Colors.white,
-        margin: EdgeInsets.all(16),
+        margin: const EdgeInsets.all(16),
         borderRadius: 8,
       );
     } catch (e) {
@@ -75,7 +75,7 @@ class ThemeController extends GetxController {
         'Error',
         'No se pudo cambiar el tema',
         snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red.withOpacity(0.8),
+        backgroundColor: Colors.red.withValues(alpha: 0.8),
         colorText: Colors.white,
       );
     }
@@ -107,10 +107,10 @@ class ThemeController extends GetxController {
         'Modo cambiado',
         'Se aplicó el modo $modeName',
         snackPosition: SnackPosition.BOTTOM,
-        duration: Duration(seconds: 2),
-        backgroundColor: currentTheme.primaryColor.withOpacity(0.8),
+        duration: const Duration(seconds: 2),
+        backgroundColor: currentTheme.primaryColor.withValues(alpha: 0.8),
         colorText: Colors.white,
-        margin: EdgeInsets.all(16),
+        margin: const EdgeInsets.all(16),
         borderRadius: 8,
       );
     } catch (e) {
@@ -135,7 +135,7 @@ class ThemeController extends GetxController {
 
   // Obtener colores actuales basados en el contexto
   ColorScheme getCurrentColors(BuildContext context) {
-    final brightness = Theme.of(context).brightness;
+    final Brightness brightness = Theme.of(context).brightness;
     if (brightness == Brightness.dark) {
       return currentTheme.darkTheme.colorScheme;
     }
@@ -163,9 +163,9 @@ class ThemeController extends GetxController {
         'Tema restablecido',
         'Se aplicó el tema por defecto',
         snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: currentTheme.primaryColor.withOpacity(0.8),
+        backgroundColor: currentTheme.primaryColor.withValues(alpha: 0.8),
         colorText: Colors.white,
-        margin: EdgeInsets.all(16),
+        margin: const EdgeInsets.all(16),
         borderRadius: 8,
       );
     } catch (e) {

@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:flutter/material.dart';
 import 'dart:io';
 import '../providers/supplier_provider.dart';
 import 'auth_controller.dart';
@@ -40,6 +41,8 @@ class SupplierController extends GetxController {
           'Error',
           _errorMessage.value,
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
       }
     } catch (e) {
@@ -48,6 +51,8 @@ class SupplierController extends GetxController {
         'Error',
         _errorMessage.value,
         snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
     } finally {
       _isLoading.value = false;
@@ -68,6 +73,8 @@ class SupplierController extends GetxController {
           'Error',
           result['message'] ?? 'Error obteniendo proveedor',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
         return null;
       }
@@ -76,6 +83,8 @@ class SupplierController extends GetxController {
         'Error',
         'Error de conexión: $e',
         snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
       return null;
     } finally {

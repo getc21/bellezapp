@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../providers/cash_register_provider.dart';
 import 'auth_controller.dart';
-import 'store_controller.dart';
 
 class CashController extends GetxController {
   final AuthController _authController = Get.find<AuthController>();
@@ -241,34 +240,30 @@ class CashController extends GetxController {
   }
   
   // Refrescar datos
+  @override
   Future<void> refresh() async {
     await checkCurrentCashRegisterStatus();
   }
 
   // Refrescar datos para la tienda específica
   Future<void> refreshForStore() async {
-    print('🔄 CashController: Refrescando datos para nueva tienda');
     await checkCurrentCashRegisterStatus();
   }
 
   // Verificar estado de la caja actual de la tienda
   Future<void> checkCurrentCashRegisterStatus() async {
     try {
-      print('🔍 Verificando estado de caja...');
       final result = await _cashProvider.getCurrentCashRegisterStatus();
-      print('📊 Resultado del estado: $result');
+      
       
       if (result['success'] && result['data'] != null) {
         _currentRegister.value = result['data'];
-        print('✅ Caja cargada: ${_currentRegister.value}');
-        print('📊 ¿Caja abierta después de cargar?: $isCashRegisterOpen');
+
         await loadCashMovements(); // Cargar movimientos si hay caja activa
       } else {
-        print('❌ No hay caja abierta o error: ${result['message']}');
         _currentRegister.value = null;
       }
     } catch (e) {
-      print('💥 Error verificando estado de caja: $e');
       _currentRegister.value = null;
     }
   }
@@ -319,9 +314,7 @@ class CashController extends GetxController {
   Future<bool> openCashRegisterSimple(double openingBalance) async {
     _isLoading.value = true;
     
-    try {
-      print('🔓 Intentando abrir caja con monto: \$${openingBalance.toStringAsFixed(2)}');
-      
+    try {      
       // Para una tienda, no necesitamos cashRegisterId - el backend lo maneja automáticamente por storeId
       final result = await _cashProvider.openCashRegister(
         cashRegisterId: 'store-cash-register', // Un valor dummy ya que se usa storeId internamente
@@ -329,14 +322,10 @@ class CashController extends GetxController {
       );
 
       if (result['success']) {
-        print('✅ Caja abierta exitosamente');
         
         // El backend devuelve { data: { cashRegister: {...} } }
         final cashRegisterData = result['data']['cashRegister'] ?? result['data'];
         _currentRegister.value = cashRegisterData;
-        
-        print('📊 Estado de caja actualizado: ${_currentRegister.value}');
-        print('📊 ¿Caja abierta?: $isCashRegisterOpen');
         
         Get.snackbar('Éxito', 'Caja abierta correctamente', snackPosition: SnackPosition.TOP);
         
@@ -344,16 +333,13 @@ class CashController extends GetxController {
         await loadCashMovements();
         return true;
       } else if (result['isAlreadyOpen'] == true) {
-        print('⚠️ Ya hay una caja abierta - mostrando información');
         _showCashAlreadyOpenDialog();
         return false;
       } else {
-        print('❌ Error abriendo caja: ${result['message']}');
         Get.snackbar('Error', result['message'] ?? 'Error abriendo caja', snackPosition: SnackPosition.TOP);
         return false;
       }
     } catch (e) {
-      print('💥 Excepción al abrir caja: $e');
       Get.snackbar('Error', 'Error de conexión: $e', snackPosition: SnackPosition.TOP);
       return false;
     } finally {
@@ -426,8 +412,6 @@ class CashController extends GetxController {
       final result = await _cashProvider.getCurrentCashRegisterStatus();
       if (result['success']) {
         _currentRegister.value = result['data'];
-        print('📊 Información de caja cargada: ${_currentRegister.value}');
-        print('📊 ¿Caja abierta?: $isCashRegisterOpen');
         Get.snackbar(
           'Información',
           'Caja cargada correctamente',

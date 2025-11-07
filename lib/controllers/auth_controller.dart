@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -90,22 +91,26 @@ class AuthController extends GetxController {
           try {
             final userData = jsonDecode(savedUserData);
             _currentUser.value = userData;
-            print('✅ Sesión cargada desde cache para: ${userFullName}');
             
             // ⭐ CARGAR LAS TIENDAS DESPUÉS DE CARGAR EL USUARIO DESDE CACHE
             try {
               final storeController = Get.find<StoreController>();
               await storeController.loadStores();
-              print('✅ Tiendas cargadas después de restaurar sesión');
             } catch (e) {
-              print('Error al cargar tiendas después de restaurar sesión: $e');
+              if (kDebugMode) {
+                print('Error cargando tiendas desde cache: $e');
+              }
+              // Error silencioso - usuario puede continuar sin tiendas cargadas
             }
             
             // Verificar token en segundo plano
             _verifyTokenInBackground();
             return;
           } catch (e) {
-            print('Error parsando datos de usuario guardados: $e');
+            if (kDebugMode) {
+              print('Error decodificando userData: $e');
+            }
+            // Error al parsear datos guardados - continúa con carga desde API
           }
         }
         
@@ -113,7 +118,10 @@ class AuthController extends GetxController {
         await _loadUserFromAPI();
       }
     } catch (e) {
-      print('Error cargando sesión: $e');
+      if (kDebugMode) {
+        print('Error cargando sesión guardada: $e');
+      }
+      // Error recuperando sesión - limpia estado de autenticación
       await logout();
     } finally {
       _isLoading.value = false;
@@ -127,23 +135,26 @@ class AuthController extends GetxController {
       if (result['success']) {
         _currentUser.value = result['data'];
         await _saveUserData(result['data']);
-        print('✅ Sesión cargada desde API para: ${userFullName}');
         
         // ⭐ CARGAR LAS TIENDAS DESPUÉS DE CARGAR EL USUARIO DESDE API
         try {
           final storeController = Get.find<StoreController>();
           await storeController.loadStores();
-          print('✅ Tiendas cargadas después de cargar usuario desde API');
         } catch (e) {
-          print('Error al cargar tiendas después de cargar usuario desde API: $e');
+          if (kDebugMode) {
+            print('Error cargando tiendas desde API: $e');
+          }
+          // Error silencioso - usuario puede continuar sin tiendas cargadas
         }
       } else {
         // Token inválido, limpiar sesión
-        print('❌ Token inválido, limpiando sesión');
         await logout();
       }
     } catch (e) {
-      print('Error cargando usuario desde API: $e');
+      if (kDebugMode) {
+        print('Error cargando usuario desde API: $e');
+      }
+      // Error de red o token inválido - limpia sesión
       await logout();
     }
   }
@@ -153,11 +164,9 @@ class AuthController extends GetxController {
     try {
       final result = await _authProvider.getProfile();
       if (!result['success']) {
-        print('❌ Token expirado, cerrando sesión');
         await logout();
       }
     } catch (e) {
-      print('Error verificando token: $e');
       // No hacer logout aquí para evitar interrumpir al usuario si es solo un error de red
     }
   }
@@ -168,7 +177,10 @@ class AuthController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_data', jsonEncode(userData));
     } catch (e) {
-      print('Error guardando datos de usuario: $e');
+      if (kDebugMode) {
+        print('Error guardando datos de usuario: $e');
+      }
+      // Error silencioso - no afecta funcionalidad principal
     }
   }
 
@@ -178,7 +190,10 @@ class AuthController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('user_data');
     } catch (e) {
-      print('Error limpiando datos de usuario: $e');
+      if (kDebugMode) {
+        print('Error limpiando datos de usuario: $e');
+      }
+      // Error silencioso - no afecta funcionalidad principal
     }
   }
 
@@ -189,14 +204,11 @@ class AuthController extends GetxController {
       
       if (result['success']) {
         _currentUser.value = result['data'];
-        print('✅ Perfil cargado para: ${userFullName}');
       } else {
         // Token inválido, limpiar sesión
-        print('❌ Token inválido al cargar perfil, limpiando sesión');
         await logout();
       }
     } catch (e) {
-      print('Error cargando perfil: $e');
       await logout();
     }
   }
@@ -223,11 +235,10 @@ class AuthController extends GetxController {
           
           // Si es admin y no hay tiendas, mostrar modal para crear la primera tienda
           if (isAdmin && storeController.stores.isEmpty) {
-            print('🏪 Admin sin tiendas - mostrando modal de creación');
             _showFirstStoreDialog();
           }
         } catch (e) {
-          print('Error al cargar tiendas después del login: $e');
+          debugPrint('Error cargando tiendas después del login: $e');
         }
         
         Get.snackbar(
@@ -235,6 +246,8 @@ class AuthController extends GetxController {
           'Bienvenido, ${_currentUser.value?['firstName'] ?? 'Usuario'}',
           snackPosition: SnackPosition.TOP,
           duration: const Duration(seconds: 2),
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
         );
         return true;
       } else {
@@ -244,6 +257,8 @@ class AuthController extends GetxController {
           _errorMessage.value,
           snackPosition: SnackPosition.TOP,
           duration: const Duration(seconds: 3),
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
         return false;
       }
@@ -283,7 +298,7 @@ class AuthController extends GetxController {
         final storeController = Get.find<StoreController>();
         storeController.clearStores();
       } catch (e) {
-        print('Error limpiando datos de tienda: $e');
+        debugPrint('Error limpiando datos de logout: $e');
       }
       
       Get.snackbar(
@@ -291,6 +306,8 @@ class AuthController extends GetxController {
         'Has cerrado sesión correctamente',
         snackPosition: SnackPosition.TOP,
         duration: const Duration(seconds: 2),
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
       );
     } catch (e) {
       Get.snackbar(
@@ -324,10 +341,9 @@ class AuthController extends GetxController {
         final currentStore = storeController.currentStore;
         if (currentStore != null && currentStore['_id'] != null) {
           storesToAssign = [currentStore['_id']];
-          print('🏪 Asignando usuario a tienda: ${currentStore['name']}');
         }
       } catch (e) {
-        print('⚠️ No se pudo obtener tienda actual: $e');
+        debugPrint('Error obteniendo tienda actual para asignar: $e');
       }
 
       final result = await _authProvider.register(
@@ -382,13 +398,8 @@ class AuthController extends GetxController {
     try {
       final result = await _authProvider.getAllUsers();
       
-      print('AuthController.getAllUsers - Result type: ${result.runtimeType}');
-      print('AuthController.getAllUsers - Result: $result');
-      
       if (result['success']) {
         final data = result['data'];
-        print('AuthController.getAllUsers - Data type: ${data.runtimeType}');
-        print('AuthController.getAllUsers - Data: $data');
         
         // Manejo robusto del tipo de respuesta
         if (data is List) {
@@ -397,14 +408,10 @@ class AuthController extends GetxController {
             if (item is Map<String, dynamic>) {
               return item;
             } else {
-              print('AuthController.getAllUsers - Converting item: ${item.runtimeType}');
               return Map<String, dynamic>.from(item as Map);
             }
           }).toList();
         } else if (data is Map) {
-          // Si es un Map, podría tener una estructura anidada
-          print('AuthController.getAllUsers - Data is Map, keys: ${data.keys}');
-          
           // Buscar arrays comunes en la respuesta
           if (data.containsKey('users') && data['users'] is List) {
             return List<Map<String, dynamic>>.from(data['users']);
@@ -417,7 +424,6 @@ class AuthController extends GetxController {
             return [Map<String, dynamic>.from(data)];
           }
         } else {
-          print('AuthController.getAllUsers - Unexpected data type: ${data.runtimeType}');
           return [];
         }
       } else {
@@ -430,9 +436,6 @@ class AuthController extends GetxController {
         return [];
       }
     } catch (e) {
-      print('AuthController.getAllUsers - Exception: $e');
-      print('AuthController.getAllUsers - Exception type: ${e.runtimeType}');
-      
       Get.snackbar(
         'Error',
         'Error de conexión: $e',
@@ -454,7 +457,6 @@ class AuthController extends GetxController {
         return [];
       }
     } catch (e) {
-      print('Error obteniendo tiendas del usuario: $e');
       return [];
     }
   }
@@ -520,16 +522,13 @@ class AuthController extends GetxController {
 
   // Eliminar usuario
   Future<bool> deleteUser(String userId) async {
-    print('AuthController.deleteUser - Starting deletion for user: $userId');
     _isLoading.value = true;
     _errorMessage.value = '';
 
     try {
       final result = await _authProvider.deleteUser(userId);
-      print('AuthController.deleteUser - Provider result: $result');
 
       if (result['success']) {
-        print('AuthController.deleteUser - Deletion successful');
         Get.snackbar(
           'Éxito',
           result['message'] ?? 'Usuario eliminado correctamente',
@@ -538,7 +537,6 @@ class AuthController extends GetxController {
         );
         return true;
       } else {
-        print('AuthController.deleteUser - Deletion failed: ${result['message']}');
         _errorMessage.value = result['message'] ?? 'Error eliminando usuario';
         Get.snackbar(
           'Error',
@@ -549,7 +547,6 @@ class AuthController extends GetxController {
         return false;
       }
     } catch (e) {
-      print('AuthController.deleteUser - Exception: $e');
       _errorMessage.value = 'Error de conexión: $e';
       Get.snackbar(
         'Error',
@@ -560,7 +557,6 @@ class AuthController extends GetxController {
       return false;
     } finally {
       _isLoading.value = false;
-      print('AuthController.deleteUser - Operation completed');
     }
   }
 

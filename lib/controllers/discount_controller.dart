@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:flutter/material.dart';
 import '../providers/discount_provider.dart';
 import 'auth_controller.dart';
 import 'store_controller.dart';
@@ -28,28 +29,19 @@ class DiscountController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    print('DiscountController.onInit - Initializing controller');
-    print('DiscountController.onInit - StoreController available: ${Get.isRegistered<StoreController>()}');
     
     if (Get.isRegistered<StoreController>()) {
-      final storeController = Get.find<StoreController>();
-      print('DiscountController.onInit - Current store: ${storeController.currentStore}');
     }
     
     loadDiscounts();
     ever(_searchQuery, (_) => filterDiscounts());
-    print('DiscountController.onInit - Controller initialized');
   }
 
   // Filtrar descuentos
   void filterDiscounts() {
-    print('DiscountController.filterDiscounts - Filtering discounts');
-    print('DiscountController.filterDiscounts - Search query: "${_searchQuery.value}"');
-    print('DiscountController.filterDiscounts - Total discounts: ${_discounts.length}');
     
     if (_searchQuery.value.isEmpty) {
       _filteredDiscounts.value = _discounts;
-      print('DiscountController.filterDiscounts - No search query, showing all ${_discounts.length} discounts');
     } else {
       final query = _searchQuery.value.toLowerCase();
       _filteredDiscounts.value = _discounts.where((discount) {
@@ -57,10 +49,7 @@ class DiscountController extends GetxController {
         final description = discount['description']?.toString().toLowerCase() ?? '';
         return name.contains(query) || description.contains(query);
       }).toList();
-      print('DiscountController.filterDiscounts - Filtered to ${_filteredDiscounts.length} discounts');
     }
-    
-    print('DiscountController.filterDiscounts - Filtered discounts: $_filteredDiscounts');
   }
 
   // Buscar descuentos
@@ -85,6 +74,7 @@ class DiscountController extends GetxController {
   }
 
   // Refrescar lista
+  @override
   Future<void> refresh() async {
     await loadDiscounts();
   }
@@ -96,7 +86,6 @@ class DiscountController extends GetxController {
 
   // ⭐ MÉTODO DE PRUEBA: Cargar TODOS los descuentos sin filtro de tienda
   Future<void> loadAllDiscountsForTesting() async {
-    print('DiscountController.loadAllDiscountsForTesting - Loading ALL discounts without store filter');
     _isLoading.value = true;
     _errorMessage.value = '';
 
@@ -106,49 +95,49 @@ class DiscountController extends GetxController {
         storeId: null, // ⭐ SIN FILTRO DE TIENDA
       );
 
-      print('DiscountController.loadAllDiscountsForTesting - API result: $result');
 
       if (result['success']) {
         final discountsData = List<Map<String, dynamic>>.from(result['data']);
         _discounts.value = discountsData;
-        print('DiscountController.loadAllDiscountsForTesting - Loaded ${discountsData.length} discounts');
-        print('DiscountController.loadAllDiscountsForTesting - Discounts: $discountsData');
         filterDiscounts();
       } else {
-        print('DiscountController.loadAllDiscountsForTesting - API error: ${result['message']}');
         _errorMessage.value = result['message'] ?? 'Error cargando descuentos';
-        Get.snackbar('Error', _errorMessage.value, snackPosition: SnackPosition.TOP);
+        Get.snackbar(
+          'Error', 
+          _errorMessage.value, 
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
       }
     } catch (e) {
-      print('DiscountController.loadAllDiscountsForTesting - Exception: $e');
       _errorMessage.value = 'Error de conexión: $e';
-      Get.snackbar('Error', _errorMessage.value, snackPosition: SnackPosition.TOP);
+      Get.snackbar(
+        'Error', 
+        _errorMessage.value, 
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     } finally {
       _isLoading.value = false;
-      print('DiscountController.loadAllDiscountsForTesting - Finished');
     }
   }
 
   // Actualizar descuentos aplicables según monto total
   void updateApplicableDiscounts(double totalAmount) {
-    print('DiscountController.updateApplicableDiscounts - Total amount: $totalAmount');
-    print('DiscountController.updateApplicableDiscounts - Available discounts count: ${_discounts.length}');
-    print('DiscountController.updateApplicableDiscounts - All discounts: $_discounts');
     
     final now = DateTime.now();
     final applicableList = _discounts.where((discount) {
-      print('DiscountController.updateApplicableDiscounts - Checking discount: ${discount['name']}');
       
       // Verificar si está activo
       if (discount['isActive'] != true) {
-        print('  → Rejected: not active (${discount['isActive']})');
         return false;
       }
       
       // Verificar monto mínimo
       final minAmount = discount['minimumAmount'];
       if (minAmount != null && totalAmount < minAmount) {
-        print('  → Rejected: total amount $totalAmount < minimum $minAmount');
         return false;
       }
       
@@ -157,7 +146,6 @@ class DiscountController extends GetxController {
       if (startDateStr != null) {
         final startDate = DateTime.parse(startDateStr);
         if (now.isBefore(startDate)) {
-          print('  → Rejected: current date $now < start date $startDate');
           return false;
         }
       }
@@ -167,59 +155,57 @@ class DiscountController extends GetxController {
       if (endDateStr != null) {
         final endDate = DateTime.parse(endDateStr);
         if (now.isAfter(endDate)) {
-          print('  → Rejected: current date $now > end date $endDate');
           return false;
         }
       }
       
-      print('  → Accepted: discount passes all filters');
       return true;
     }).toList();
     
     _applicableDiscounts.value = applicableList;
-    print('DiscountController.updateApplicableDiscounts - Final applicable discounts: ${_applicableDiscounts.length}');
-    print('DiscountController.updateApplicableDiscounts - Applicable discounts: $applicableList');
   }
 
   // Cargar descuentos
   Future<void> loadDiscounts({bool? active}) async {
-    print('DiscountController.loadDiscounts - Starting, active filter: $active');
     _isLoading.value = true;
     _errorMessage.value = '';
 
     try {
       // ⭐ OBTENER EL STORE ID ACTUAL (opcional)
       final currentStoreId = _storeController.currentStore?['_id'];
-      print('DiscountController.loadDiscounts - Current store: ${_storeController.currentStore}');
-      print('DiscountController.loadDiscounts - Current store ID: $currentStoreId');
       
       // ⭐ PERMITIR CARGAR DESCUENTOS INCLUSO SIN TIENDA SELECCIONADA
-      print('DiscountController.loadDiscounts - Making API call with storeId: $currentStoreId');
       final result = await _discountProvider.getDiscounts(
         active: active,
         storeId: currentStoreId, // Puede ser null
       );
 
-      print('DiscountController.loadDiscounts - API result: $result');
 
       if (result['success']) {
         final discountsData = List<Map<String, dynamic>>.from(result['data']);
         _discounts.value = discountsData;
-        print('DiscountController.loadDiscounts - Loaded ${discountsData.length} discounts');
-        print('DiscountController.loadDiscounts - Discounts: $discountsData');
         filterDiscounts();
       } else {
-        print('DiscountController.loadDiscounts - API error: ${result['message']}');
         _errorMessage.value = result['message'] ?? 'Error cargando descuentos';
-        Get.snackbar('Error', _errorMessage.value, snackPosition: SnackPosition.TOP);
+        Get.snackbar(
+          'Error', 
+          _errorMessage.value, 
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
       }
     } catch (e) {
-      print('DiscountController.loadDiscounts - Exception: $e');
       _errorMessage.value = 'Error de conexión: $e';
-      Get.snackbar('Error', _errorMessage.value, snackPosition: SnackPosition.TOP);
+      Get.snackbar(
+        'Error', 
+        _errorMessage.value, 
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     } finally {
       _isLoading.value = false;
-      print('DiscountController.loadDiscounts - Finished');
     }
   }
 
@@ -235,13 +221,11 @@ class DiscountController extends GetxController {
     DateTime? endDate,
     bool? active,
   }) async {
-    print('DiscountController.createDiscount - Starting creation');
     _isLoading.value = true;
 
     try {
       // ⭐ OBTENER EL STORE ID ACTUAL PARA ASIGNAR AL DESCUENTO
       final currentStoreId = _storeController.currentStore?['_id'];
-      print('DiscountController.createDiscount - Current store ID: $currentStoreId');
       
       final result = await _discountProvider.createDiscount(
         name: name,
@@ -256,19 +240,35 @@ class DiscountController extends GetxController {
         storeId: currentStoreId, // ⭐ AGREGAR STORE ID
       );
 
-      print('DiscountController.createDiscount - API result: $result');
 
       if (result['success']) {
-        Get.snackbar('Éxito', 'Descuento creado correctamente', snackPosition: SnackPosition.TOP);
+        Get.snackbar(
+          'Éxito', 
+          'Descuento creado correctamente', 
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
         await loadDiscounts();
         return true;
       } else {
-        Get.snackbar('Error', result['message'] ?? 'Error creando descuento', snackPosition: SnackPosition.TOP);
+        Get.snackbar(
+          'Error', 
+          result['message'] ?? 'Error creando descuento', 
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
         return false;
       }
     } catch (e) {
-      print('DiscountController.createDiscount - Exception: $e');
-      Get.snackbar('Error', 'Error de conexión: $e', snackPosition: SnackPosition.TOP);
+      Get.snackbar(
+        'Error', 
+        'Error de conexión: $e', 
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
       return false;
     } finally {
       _isLoading.value = false;
@@ -287,17 +287,13 @@ class DiscountController extends GetxController {
     DateTime? endDate,
     required bool isActive,
   }) async {
-    print('DiscountController.addDiscount - Starting creation');
     
     // Convert DiscountType enum to string if necessary
     final typeStr = type.toString().contains('.') 
         ? type.toString().split('.').last 
         : type.toString();
     
-    // ⭐ OBTENER EL STORE ID ACTUAL
-    final currentStoreId = _storeController.currentStore?['_id'];
-    print('DiscountController.addDiscount - Current store ID: $currentStoreId');
-    
+    // ⭐ OBTENER EL STORE ID ACTUAL   
     return createDiscount(
       name: name,
       description: description,
@@ -324,7 +320,6 @@ class DiscountController extends GetxController {
     DateTime? endDate,
     bool? isActive,
   }) async {
-    print('DiscountController.updateDiscount - Starting update for ID: $id');
     _isLoading.value = true;
 
     try {
@@ -336,7 +331,6 @@ class DiscountController extends GetxController {
             : type.toString();
       }
 
-      print('DiscountController.updateDiscount - Update data: name=$name, type=$typeStr, value=$value');
 
       final result = await _discountProvider.updateDiscount(
         id: id,
@@ -351,64 +345,82 @@ class DiscountController extends GetxController {
         active: isActive,
       );
 
-      print('DiscountController.updateDiscount - Provider result: $result');
 
       if (result['success']) {
-        print('DiscountController.updateDiscount - Update successful, reloading discounts');
-        Get.snackbar('Éxito', 'Descuento actualizado correctamente', snackPosition: SnackPosition.TOP);
+        Get.snackbar(
+          'Éxito', 
+          'Descuento actualizado correctamente', 
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
         await loadDiscounts();
         return true;
       } else {
-        print('DiscountController.updateDiscount - Update failed: ${result['message']}');
-        Get.snackbar('Error', result['message'] ?? 'Error actualizando descuento', snackPosition: SnackPosition.TOP);
+        Get.snackbar(
+          'Error', 
+          result['message'] ?? 'Error actualizando descuento', 
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
         return false;
       }
     } catch (e) {
-      print('DiscountController.updateDiscount - Exception: $e');
-      Get.snackbar('Error', 'Error de conexión: $e', snackPosition: SnackPosition.TOP);
+      Get.snackbar(
+        'Error', 
+        'Error de conexión: $e', 
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
       return false;
     } finally {
       _isLoading.value = false;
-      print('DiscountController.updateDiscount - Finished');
     }
   }
 
   // Eliminar descuento
   Future<bool> deleteDiscount(String id) async {
-    print('DiscountController.deleteDiscount - Starting deletion for ID: $id');
     _isLoading.value = true;
 
     try {
       final result = await _discountProvider.deleteDiscount(id);
-      print('DiscountController.deleteDiscount - Provider result: $result');
 
       if (result['success']) {
-        print('DiscountController.deleteDiscount - Deletion successful, updating list');
-        
-        // Remover de la lista local
-        final beforeCount = _discounts.length;
         _discounts.removeWhere((d) => d['_id'] == id);
-        final afterCount = _discounts.length;
-        
-        print('DiscountController.deleteDiscount - Discounts before: $beforeCount, after: $afterCount');
-        
         // Forzar actualización de filtros
         filterDiscounts();
         
-        Get.snackbar('Éxito', 'Descuento eliminado correctamente', snackPosition: SnackPosition.TOP);
+        Get.snackbar(
+          'Éxito', 
+          'Descuento eliminado correctamente', 
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
         return true;
       } else {
-        print('DiscountController.deleteDiscount - Deletion failed: ${result['message']}');
-        Get.snackbar('Error', result['message'] ?? 'Error eliminando descuento', snackPosition: SnackPosition.TOP);
+        Get.snackbar(
+          'Error', 
+          result['message'] ?? 'Error eliminando descuento', 
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
         return false;
       }
     } catch (e) {
-      print('DiscountController.deleteDiscount - Exception: $e');
-      Get.snackbar('Error', 'Error de conexión: $e', snackPosition: SnackPosition.TOP);
+      Get.snackbar(
+        'Error', 
+        'Error de conexión: $e', 
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
       return false;
     } finally {
       _isLoading.value = false;
-      print('DiscountController.deleteDiscount - Finished');
     }
   }
 

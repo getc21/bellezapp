@@ -213,7 +213,7 @@ class _InventoryRotationPageState extends State<InventoryRotationPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -379,13 +379,13 @@ class _InventoryRotationPageState extends State<InventoryRotationPage> {
           end: Alignment.bottomRight,
           colors: [
             Utils.colorBotones,
-            Utils.colorBotones.withOpacity(0.8),
+            Utils.colorBotones.withValues(alpha: 0.8),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Utils.colorBotones.withOpacity(0.3),
+            color: Utils.colorBotones.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -399,7 +399,7 @@ class _InventoryRotationPageState extends State<InventoryRotationPage> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -453,7 +453,7 @@ class _InventoryRotationPageState extends State<InventoryRotationPage> {
               Expanded(
                 child: _buildSummaryItem(
                   'Rotación Promedio',
-                  '${_toDouble(summary['averageRotationRate']).toStringAsFixed(2)}',
+                  _toDouble(summary['averageRotationRate']).toStringAsFixed(2),
                   Icons.rotate_right,
                 ),
               ),
@@ -469,7 +469,7 @@ class _InventoryRotationPageState extends State<InventoryRotationPage> {
       padding: const EdgeInsets.all(12),
       margin: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -487,7 +487,7 @@ class _InventoryRotationPageState extends State<InventoryRotationPage> {
           Text(
             title,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
               fontSize: 10,
             ),
             textAlign: TextAlign.center,
@@ -527,7 +527,7 @@ class _InventoryRotationPageState extends State<InventoryRotationPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -600,7 +600,7 @@ class _InventoryRotationPageState extends State<InventoryRotationPage> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -635,9 +635,9 @@ class _InventoryRotationPageState extends State<InventoryRotationPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: statusColor.withOpacity(0.3)),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.3)),
                 ),
                 child: Text(
                   status.toUpperCase(),
@@ -702,9 +702,9 @@ class _InventoryRotationPageState extends State<InventoryRotationPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(
           children: [

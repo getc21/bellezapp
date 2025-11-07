@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:flutter/material.dart';
 import '../providers/customer_provider.dart';
 import 'auth_controller.dart';
 import 'store_controller.dart';
@@ -92,6 +93,7 @@ class CustomerController extends GetxController {
   }
 
   // Refrescar lista
+  @override
   Future<void> refresh() async {
     await loadCustomers();
   }
@@ -118,28 +120,20 @@ class CustomerController extends GetxController {
 
       final result = await _customerProvider.getCustomers(storeId: currentStoreId);
 
-      print('🔍 CustomerController: Resultado del provider: $result');
-
       if (result['success'] == true) {
         final customersData = result['data'];
-        print('🔍 CustomerController: Tipo de customersData: ${customersData.runtimeType}');
         
         try {
           if (customersData is List) {
             _customers.value = List<Map<String, dynamic>>.from(customersData);
-            print('✅ CustomerController: ${_customers.length} clientes cargados correctamente');
           } else if (customersData is Map && customersData['customers'] is List) {
             // Manejar caso donde la data viene anidada
             _customers.value = List<Map<String, dynamic>>.from(customersData['customers']);
-            print('✅ CustomerController: ${_customers.length} clientes cargados desde estructura anidada');
           } else {
-            print('❌ CustomerController: customersData no es ni lista ni contiene customers');
-            print('Estructura recibida: $customersData');
             _customers.clear();
             _errorMessage.value = 'Formato de datos inválido del servidor';
           }
         } catch (e) {
-          print('❌ CustomerController: Error procesando datos: $e');
           _customers.clear();
           _errorMessage.value = 'Error procesando datos de clientes: $e';
         }
@@ -151,6 +145,8 @@ class CustomerController extends GetxController {
           'Error',
           _errorMessage.value,
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
       }
     } catch (e) {
@@ -159,6 +155,8 @@ class CustomerController extends GetxController {
         'Error',
         _errorMessage.value,
         snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
     } finally {
       _isLoading.value = false;
@@ -179,6 +177,8 @@ class CustomerController extends GetxController {
           'Error',
           result['message'] ?? 'Error obteniendo cliente',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
         return null;
       }
@@ -187,6 +187,8 @@ class CustomerController extends GetxController {
         'Error',
         'Error de conexión: $e',
         snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
       return null;
     } finally {
@@ -212,6 +214,8 @@ class CustomerController extends GetxController {
           'Error',
           'No hay tienda seleccionada',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
         return false;
       }
@@ -230,6 +234,8 @@ class CustomerController extends GetxController {
           'Éxito',
           'Cliente creado correctamente',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
         );
         await loadCustomers();
         return true;
@@ -238,6 +244,8 @@ class CustomerController extends GetxController {
           'Error',
           result['message'] ?? 'Error creando cliente',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
         return false;
       }
@@ -246,6 +254,8 @@ class CustomerController extends GetxController {
         'Error',
         'Error de conexión: $e',
         snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
       return false;
     } finally {
@@ -296,6 +306,8 @@ class CustomerController extends GetxController {
           'Éxito',
           'Cliente actualizado correctamente',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
         );
         await loadCustomers();
         return true;
@@ -304,6 +316,8 @@ class CustomerController extends GetxController {
           'Error',
           result['message'] ?? 'Error actualizando cliente',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
         return false;
       }
@@ -312,6 +326,8 @@ class CustomerController extends GetxController {
         'Error',
         'Error de conexión: $e',
         snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
       return false;
     } finally {
@@ -331,6 +347,8 @@ class CustomerController extends GetxController {
           'Éxito',
           'Cliente eliminado correctamente',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
         );
         _customers.removeWhere((c) => c['_id'] == id);
         filterCustomers();
@@ -340,6 +358,8 @@ class CustomerController extends GetxController {
           'Error',
           result['message'] ?? 'Error eliminando cliente',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
         return false;
       }
@@ -348,6 +368,8 @@ class CustomerController extends GetxController {
         'Error',
         'Error de conexión: $e',
         snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
       return false;
     } finally {

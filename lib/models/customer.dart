@@ -26,7 +26,7 @@ class Customer {
   }) : createdAt = createdAt ?? DateTime.now();
 
   Map<String, dynamic> toMap() {
-    return {
+    return <String, dynamic>{
       if (id != null) '_id': id,
       'name': name,
       'phone': phone,
@@ -71,16 +71,16 @@ class Customer {
   }
 
   String get customerSince {
-    final now = DateTime.now();
-    final difference = now.difference(createdAt);
+    final DateTime now = DateTime.now();
+    final Duration difference = now.difference(createdAt);
     
     if (difference.inDays < 30) {
       return 'Cliente desde hace ${difference.inDays} días';
     } else if (difference.inDays < 365) {
-      final months = (difference.inDays / 30).floor();
+      final int months = (difference.inDays / 30).floor();
       return 'Cliente desde hace $months ${months == 1 ? 'mes' : 'meses'}';
     } else {
-      final years = (difference.inDays / 365).floor();
+      final int years = (difference.inDays / 365).floor();
       return 'Cliente desde hace $years ${years == 1 ? 'año' : 'años'}';
     }
   }
@@ -88,8 +88,8 @@ class Customer {
   String get lastPurchaseFormatted {
     if (lastPurchase == null) return 'Sin compras';
     
-    final now = DateTime.now();
-    final difference = now.difference(lastPurchase!);
+    final DateTime now = DateTime.now();
+    final Duration difference = now.difference(lastPurchase!);
     
     if (difference.inDays == 0) {
       return 'Hoy';
@@ -98,10 +98,10 @@ class Customer {
     } else if (difference.inDays < 7) {
       return 'Hace ${difference.inDays} días';
     } else if (difference.inDays < 30) {
-      final weeks = (difference.inDays / 7).floor();
+      final int weeks = (difference.inDays / 7).floor();
       return 'Hace $weeks ${weeks == 1 ? 'semana' : 'semanas'}';
     } else {
-      final months = (difference.inDays / 30).floor();
+      final int months = (difference.inDays / 30).floor();
       return 'Hace $months ${months == 1 ? 'mes' : 'meses'}';
     }
   }

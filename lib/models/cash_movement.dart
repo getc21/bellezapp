@@ -18,7 +18,7 @@ class CashMovement {
   });
 
   Map<String, dynamic> toMap() {
-    return {
+    return <String, dynamic>{
       'id': id,
       'date': date,
       'type': type,
@@ -109,7 +109,7 @@ class CashMovement {
   }
   
   String get formattedAmount {
-    final sign = isOutcome ? '-' : '+';
+    final String sign = isOutcome ? '-' : '+';
     return '$sign\$${amount.toStringAsFixed(2)}';
   }
 

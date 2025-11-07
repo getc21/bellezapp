@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:io';
 import '../providers/product_provider.dart';
@@ -59,11 +61,7 @@ class ProductController extends GetxController {
         _errorMessage.value = 'No hay tienda seleccionada';
         _products.clear();
         return;
-      }
-
-      print('🔍 ProductController: Cargando productos para tienda: $currentStoreId');
-      print('📄 Filtros adicionales: categoryId=$categoryId, supplierId=$supplierId, locationId=$locationId');
-      
+      }      
       final result = await _productProvider.getProducts(
         storeId: currentStoreId,
         categoryId: categoryId,
@@ -77,7 +75,6 @@ class ProductController extends GetxController {
         if (data is List) {
           final newProducts = List<Map<String, dynamic>>.from(data);
           _products.value = newProducts;
-          print('✅ ProductController: ${newProducts.length} productos cargados para tienda $currentStoreId');
           
           // Verificar que todos los productos pertenezcan a la tienda correcta
           final wrongStoreProducts = newProducts.where((p) => 
@@ -85,9 +82,10 @@ class ProductController extends GetxController {
           ).toList();
           
           if (wrongStoreProducts.isNotEmpty) {
-            print('⚠️ ADVERTENCIA: ${wrongStoreProducts.length} productos pertenecen a otra tienda!');
             for (var product in wrongStoreProducts) {
-              print('   - ${product['name']} pertenece a ${product['storeId']?['_id']}');
+              if (kDebugMode) {
+                print('   - ${product['name']} pertenece a ${product['storeId']?['_id']}');
+              }
             }
           }
         } else {
@@ -100,6 +98,8 @@ class ProductController extends GetxController {
           'Error',
           _errorMessage.value,
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
       }
     } catch (e) {
@@ -108,6 +108,8 @@ class ProductController extends GetxController {
         'Error',
         _errorMessage.value,
         snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
     } finally {
       _isLoading.value = false;
@@ -118,7 +120,6 @@ class ProductController extends GetxController {
   void clearProducts() {
     _products.clear();
     _errorMessage.value = '';
-    print('🧹 ProductController: Productos limpiados');
   }
 
   // Obtener producto por ID
@@ -135,6 +136,8 @@ class ProductController extends GetxController {
           'Error',
           result['message'] ?? 'Error obteniendo producto',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
         return null;
       }
@@ -143,6 +146,8 @@ class ProductController extends GetxController {
         'Error',
         'Error de conexión: $e',
         snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
       return null;
     } finally {
@@ -168,7 +173,6 @@ class ProductController extends GetxController {
     _isLoading.value = true;
 
     try {
-      print('DEBUG ProductController.createProduct - Llamando al provider...');
       final result = await _productProvider.createProduct(
         name: name,
         categoryId: categoryId,
@@ -184,31 +188,34 @@ class ProductController extends GetxController {
         imageFile: imageFile,
       );
 
-      print('DEBUG ProductController.createProduct - Resultado: $result');
 
       if (result['success']) {
         Get.snackbar(
           'Éxito',
           'Producto creado correctamente',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
         );
         await loadProducts(storeId: storeId);
         return true;
       } else {
-        print('DEBUG ProductController.createProduct - Error en resultado: ${result['message']}');
         Get.snackbar(
           'Error',
           result['message'] ?? 'Error creando producto',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
         return false;
       }
     } catch (e) {
-      print('DEBUG ProductController.createProduct - Excepción capturada: $e');
       Get.snackbar(
         'Error',
         'Error de conexión: $e',
         snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
       return false;
     } finally {
@@ -252,6 +259,8 @@ class ProductController extends GetxController {
           'Éxito',
           'Producto actualizado correctamente',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
         );
         await loadProducts();
         return true;
@@ -260,6 +269,8 @@ class ProductController extends GetxController {
           'Error',
           result['message'] ?? 'Error actualizando producto',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
         return false;
       }
@@ -268,6 +279,8 @@ class ProductController extends GetxController {
         'Error',
         'Error de conexión: $e',
         snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
       return false;
     } finally {
@@ -285,6 +298,8 @@ class ProductController extends GetxController {
           'Éxito',
           'Producto eliminado correctamente',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
         );
         _products.removeWhere((p) => p['_id'] == id);
         return true;
@@ -293,6 +308,8 @@ class ProductController extends GetxController {
           'Error',
           result['message'] ?? 'Error eliminando producto',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
         return false;
       }
@@ -301,6 +318,8 @@ class ProductController extends GetxController {
         'Error',
         'Error de conexión: $e',
         snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
       return false;
     } finally {
@@ -328,6 +347,8 @@ class ProductController extends GetxController {
           'Éxito',
           'Stock actualizado correctamente',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
         );
         await loadProducts();
         return true;
@@ -336,6 +357,8 @@ class ProductController extends GetxController {
           'Error',
           result['message'] ?? 'Error actualizando stock',
           snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
         );
         return false;
       }
@@ -344,6 +367,8 @@ class ProductController extends GetxController {
         'Error',
         'Error de conexión: $e',
         snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
       return false;
     } finally {
@@ -362,7 +387,6 @@ class ProductController extends GetxController {
         return null;
       }
     } catch (e) {
-      print('Error buscando producto: $e');
       return null;
     }
   }

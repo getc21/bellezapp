@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:bellezapp/controllers/supplier_controller.dart';
 import 'package:bellezapp/utils/utils.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
@@ -14,12 +15,12 @@ class AddSupplierPage extends StatefulWidget {
 
 class AddSupplierPageState extends State<AddSupplierPage> {
   final SupplierController supplierController = Get.find<SupplierController>();
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _contactNameController = TextEditingController();
-  final _contactEmailController = TextEditingController();
-  final _contactPhoneController = TextEditingController();
-  final _addressController = TextEditingController();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _contactNameController = TextEditingController();
+  final TextEditingController _contactEmailController = TextEditingController();
+  final TextEditingController _contactPhoneController = TextEditingController();
+  final TextEditingController _addressController = TextEditingController();
   File? _imageFile;
 
   @override
@@ -59,10 +60,7 @@ class AddSupplierPageState extends State<AddSupplierPage> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-
-    print('🔄 Iniciando guardado de proveedor...');
-
-    final success = await supplierController.createSupplier(
+    final bool success = await supplierController.createSupplier(
       name: _nameController.text,
       contactName: _contactNameController.text.isEmpty ? null : _contactNameController.text,
       contactEmail: _contactEmailController.text.isEmpty ? null : _contactEmailController.text,
@@ -70,30 +68,27 @@ class AddSupplierPageState extends State<AddSupplierPage> {
       address: _addressController.text.isEmpty ? null : _addressController.text,
       imageFile: _imageFile,
     );
-
-    print('📊 Resultado del guardado: $success');
-
-    if (success) {
-      print('✅ Éxito! Ejecutando Navigator.pop()...');
-      
+    if (success) {      
       // Primero navegar de regreso
       if (mounted) {
         Navigator.of(context).pop();
         
         // Mostrar snackbar después de regresar
-        Future.delayed(Duration(milliseconds: 300), () {
+        Future.delayed(const Duration(milliseconds: 300), () {
           Get.snackbar(
             'Éxito',
             'Proveedor creado correctamente',
             snackPosition: SnackPosition.TOP,
-            backgroundColor: Colors.green.withOpacity(0.1),
+            backgroundColor: Colors.green.withValues(alpha: 0.1),
             colorText: Colors.green[800],
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
           );
         });
       }
     } else {
-      print('❌ Error en el guardado, no se ejecuta Navigator.pop()');
+      if (kDebugMode) {
+        print('❌ Error en el guardado, no se ejecuta Navigator.pop()');
+      }
     }
   }
 
@@ -102,8 +97,8 @@ class AddSupplierPageState extends State<AddSupplierPage> {
     return Scaffold(
       backgroundColor: Utils.colorFondo,
       appBar: AppBar(
-        title: Row(
-          children: const [
+        title: const Row(
+          children: <Widget>[
             Icon(Icons.business, size: 24),
             SizedBox(width: 8),
             Text('Nuevo Proveedor'),
@@ -116,7 +111,7 @@ class AddSupplierPageState extends State<AddSupplierPage> {
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
-          children: [
+          children: <Widget>[
             // Imagen
             GestureDetector(
               onTap: _showImageSourceDialog,
@@ -126,13 +121,13 @@ class AddSupplierPageState extends State<AddSupplierPage> {
                   color: Colors.grey[100],
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: Utils.colorBotones.withOpacity(0.3),
+                    color: Utils.colorBotones.withValues(alpha: 0.3),
                     width: 2,
                   ),
                 ),
                 child: _imageFile != null
                     ? Stack(
-                        children: [
+                        children: <Widget>[
                           ClipRRect(
                             borderRadius: BorderRadius.circular(10),
                             child: Image.file(
@@ -147,29 +142,29 @@ class AddSupplierPageState extends State<AddSupplierPage> {
                             bottom: 12,
                             right: 12,
                             child: Container(
-                              padding: EdgeInsets.symmetric(
+                              padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
                                 vertical: 8,
                               ),
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
-                                  colors: [
+                                  colors: <Color>[
                                     Utils.colorBotones,
-                                    Utils.colorBotones.withOpacity(0.8),
+                                    Utils.colorBotones.withValues(alpha: 0.8),
                                   ],
                                 ),
                                 borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
+                                boxShadow: <BoxShadow>[
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.3),
+                                    color: Colors.black.withValues(alpha: 0.3),
                                     blurRadius: 8,
-                                    offset: Offset(0, 2),
+                                    offset: const Offset(0, 2),
                                   ),
                                 ],
                               ),
-                              child: Row(
+                              child: const Row(
                                 mainAxisSize: MainAxisSize.min,
-                                children: [
+                                children: <Widget>[
                                   Icon(
                                     Icons.edit_rounded,
                                     color: Colors.white,
@@ -192,11 +187,11 @@ class AddSupplierPageState extends State<AddSupplierPage> {
                       )
                     : Column(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
+                        children: <Widget>[
                           Container(
-                            padding: EdgeInsets.all(20),
+                            padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: Utils.colorBotones.withOpacity(0.1),
+                              color: Utils.colorBotones.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
@@ -232,7 +227,7 @@ class AddSupplierPageState extends State<AddSupplierPage> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: Row(
-                children: [
+                children: <Widget>[
                   Icon(Icons.info_outline, color: Utils.colorBotones, size: 24),
                   const SizedBox(width: 8),
                   Text(
@@ -260,7 +255,7 @@ class AddSupplierPageState extends State<AddSupplierPage> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              validator: (value) {
+              validator: (String? value) {
                 if (value == null || value.isEmpty) {
                   return 'Campo requerido';
                 }
@@ -273,7 +268,7 @@ class AddSupplierPageState extends State<AddSupplierPage> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: Row(
-                children: [
+                children: <Widget>[
                   Icon(Icons.contact_phone, color: Utils.colorBotones, size: 24),
                   const SizedBox(width: 8),
                   Text(
@@ -333,7 +328,7 @@ class AddSupplierPageState extends State<AddSupplierPage> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              validator: (value) {
+              validator: (String? value) {
                 if (value != null && value.isNotEmpty) {
                   if (!GetUtils.isEmail(value)) {
                     return 'Email inválido';

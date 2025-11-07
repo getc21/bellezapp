@@ -360,7 +360,7 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
       margin: const EdgeInsets.symmetric(horizontal: 4),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -432,23 +432,29 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
         _addressController.clear();
         _notesController.clear();
         
-        // Usar Navigator.pop en lugar de Get.back para compatibilidad
-        Navigator.of(context).pop(true);
+        // Verificar que el widget sigue montado antes de navegar
+        if (mounted) {
+          Navigator.of(context).pop(true);
+        }
       } else {
+        if (mounted) {
+          Get.snackbar(
+            'Error',
+            'No se pudo ${isEditing ? 'actualizar' : 'registrar'} el cliente',
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
         Get.snackbar(
           'Error',
-          'No se pudo ${isEditing ? 'actualizar' : 'registrar'} el cliente',
+          'Ocurrió un error inesperado: $e',
           backgroundColor: Colors.red,
           colorText: Colors.white,
         );
       }
-    } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Ocurrió un error inesperado: $e',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
     } finally {
       _isLoading.value = false;
     }

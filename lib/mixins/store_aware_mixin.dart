@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/store_controller.dart';
@@ -17,17 +18,18 @@ mixin StoreAwareMixin<T extends StatefulWidget> on State<T> {
   
   void _setupStoreListener() {
     try {
-      final storeController = Get.find<StoreController>();
+      final StoreController storeController = Get.find<StoreController>();
       
       // Escuchar cambios en la tienda actual
       _storeWorker = ever(storeController.currentStoreRx, (_) {
         if (mounted) {
-          print('🔄 ${T.toString()} detectó cambio de tienda, recargando datos...');
           reloadData();
         }
       });
     } catch (e) {
-      print('⚠️ StoreController no disponible en ${T.toString()}: $e');
+      if (kDebugMode) {
+        print('⚠️ StoreController no disponible en ${T.toString()}: $e');
+      }
     }
   }
   
