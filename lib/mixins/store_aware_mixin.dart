@@ -28,7 +28,6 @@ mixin StoreAwareMixin<T extends StatefulWidget> on State<T> {
       });
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ StoreController no disponible en ${T.toString()}: $e');
       }
     }
   }

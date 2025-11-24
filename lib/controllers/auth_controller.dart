@@ -98,7 +98,7 @@ class AuthController extends GetxController {
               await storeController.loadStores();
             } catch (e) {
               if (kDebugMode) {
-                print('Error cargando tiendas desde cache: $e');
+
               }
               // Error silencioso - usuario puede continuar sin tiendas cargadas
             }
@@ -108,7 +108,7 @@ class AuthController extends GetxController {
             return;
           } catch (e) {
             if (kDebugMode) {
-              print('Error decodificando userData: $e');
+
             }
             // Error al parsear datos guardados - continúa con carga desde API
           }
@@ -119,7 +119,7 @@ class AuthController extends GetxController {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error cargando sesión guardada: $e');
+
       }
       // Error recuperando sesión - limpia estado de autenticación
       await logout();
@@ -142,7 +142,7 @@ class AuthController extends GetxController {
           await storeController.loadStores();
         } catch (e) {
           if (kDebugMode) {
-            print('Error cargando tiendas desde API: $e');
+
           }
           // Error silencioso - usuario puede continuar sin tiendas cargadas
         }
@@ -152,7 +152,7 @@ class AuthController extends GetxController {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error cargando usuario desde API: $e');
+
       }
       // Error de red o token inválido - limpia sesión
       await logout();
@@ -178,7 +178,7 @@ class AuthController extends GetxController {
       await prefs.setString('user_data', jsonEncode(userData));
     } catch (e) {
       if (kDebugMode) {
-        print('Error guardando datos de usuario: $e');
+
       }
       // Error silencioso - no afecta funcionalidad principal
     }
@@ -191,7 +191,7 @@ class AuthController extends GetxController {
       await prefs.remove('user_data');
     } catch (e) {
       if (kDebugMode) {
-        print('Error limpiando datos de usuario: $e');
+
       }
       // Error silencioso - no afecta funcionalidad principal
     }
@@ -238,7 +238,7 @@ class AuthController extends GetxController {
             _showFirstStoreDialog();
           }
         } catch (e) {
-          debugPrint('Error cargando tiendas después del login: $e');
+
         }
         
         Get.snackbar(
@@ -298,7 +298,7 @@ class AuthController extends GetxController {
         final storeController = Get.find<StoreController>();
         storeController.clearStores();
       } catch (e) {
-        debugPrint('Error limpiando datos de logout: $e');
+
       }
       
       Get.snackbar(
@@ -343,7 +343,7 @@ class AuthController extends GetxController {
           storesToAssign = [currentStore['_id']];
         }
       } catch (e) {
-        debugPrint('Error obteniendo tienda actual para asignar: $e');
+
       }
 
       final result = await _authProvider.register(

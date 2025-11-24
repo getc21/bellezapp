@@ -110,7 +110,6 @@ class EditSupplierPageState extends State<EditSupplierPage> {
       }
     } else {
       if (kDebugMode) {
-        print('❌ Error en la actualización, no se ejecuta Navigator.pop()');
       }
     }
   }
@@ -156,7 +155,6 @@ class EditSupplierPageState extends State<EditSupplierPage> {
         }
       } else {
         if (kDebugMode) {
-          print('❌ Error en la eliminación, no se ejecuta Navigator.pop()');
         }
       }
     }

@@ -87,7 +87,6 @@ class AddSupplierPageState extends State<AddSupplierPage> {
       }
     } else {
       if (kDebugMode) {
-        print('❌ Error en el guardado, no se ejecuta Navigator.pop()');
       }
     }
   }

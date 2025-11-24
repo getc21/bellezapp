@@ -76,7 +76,6 @@ class AddCategoryPageState extends State<AddCategoryPage> {
       }
     } else {
       if (kDebugMode) {
-        print('❌ Error en el guardado, no se ejecuta Get.back()');
       }
     }
   }

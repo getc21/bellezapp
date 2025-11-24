@@ -72,7 +72,6 @@ class EditLocationPageState extends State<EditLocationPage> {
       }
     } else {
       if (kDebugMode) {
-        print('❌ Error en la actualización, no se ejecuta Navigator.pop()');
       }
     }
   }
@@ -118,7 +117,6 @@ class EditLocationPageState extends State<EditLocationPage> {
         }
       } else {
         if (kDebugMode) {
-          print('❌ Error en la eliminación, no se ejecuta Navigator.pop()');
         }
       }
     }

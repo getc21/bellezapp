@@ -508,7 +508,7 @@ class AddProductPageState extends State<AddProductPage> {
       });
     } else {
       if (kDebugMode) {
-        print('DEBUG _saveProduct - Error al crear producto');
+
       }
     }
   }

@@ -694,7 +694,7 @@ class AddOrderPageState extends State<AddOrderPage> {
                                   scannerController.start();
                                 } catch (e) {
                                   if (kDebugMode) {
-                                    print('Error reiniciando escáner: $e');
+
                                   }
                                 }
                               },

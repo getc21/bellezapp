@@ -28,7 +28,7 @@ class CashMovementsPageState extends State<CashMovementsPage> {
       cashController = Get.find<CashController>();
     } catch (e) {
       if (kDebugMode) {
-        print('Error al encontrar CashController: $e');
+
       }
       cashController = Get.put(CashController(), permanent: true);
     }

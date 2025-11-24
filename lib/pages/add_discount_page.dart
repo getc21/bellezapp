@@ -717,7 +717,7 @@ class _AddDiscountPageState extends State<AddDiscountPage> {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error al guardar descuento: $e');
+
       }
       
       // Cerrar loading dialog si está abierto

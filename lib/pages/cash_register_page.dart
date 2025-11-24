@@ -1083,7 +1083,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error formateando hora de apertura: $e');
+
       }
       // Error silencioso - continúa con valor por defecto
     }
@@ -1104,7 +1104,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error formateando monto de apertura: $e');
+
       }
       // Error silencioso - continúa con valor por defecto
     }

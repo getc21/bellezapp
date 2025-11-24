@@ -49,7 +49,7 @@ class LocationController extends GetxController {
         if (wrongStoreLocations.isNotEmpty) {
           for (var location in wrongStoreLocations) {
             if (kDebugMode) {
-              print('   - ${location['name']} pertenece a ${location['storeId']?['_id']}');
+
             }
           }
         }

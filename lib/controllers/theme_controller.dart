@@ -39,7 +39,7 @@ class ThemeController extends GetxController {
       // Aplicar el tema inmediatamente
       _applyTheme();
     } catch (e) {
-      debugPrint('Error initializing theme: $e');
+
       _isInitialized.value = true;
     }
   }
@@ -70,7 +70,7 @@ class ThemeController extends GetxController {
         borderRadius: 8,
       );
     } catch (e) {
-      debugPrint('Error changing theme: $e');
+
       Get.snackbar(
         'Error',
         'No se pudo cambiar el tema',
@@ -114,7 +114,7 @@ class ThemeController extends GetxController {
         borderRadius: 8,
       );
     } catch (e) {
-      debugPrint('Error changing theme mode: $e');
+
     }
   }
 
@@ -169,7 +169,7 @@ class ThemeController extends GetxController {
         borderRadius: 8,
       );
     } catch (e) {
-      debugPrint('Error resetting theme: $e');
+
     }
   }
 

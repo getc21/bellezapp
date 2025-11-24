@@ -11,10 +11,10 @@ class DiscountListPage extends StatelessWidget {
 
   DiscountListPage({super.key}) {
     if (kDebugMode) {
-      print('DiscountListPage - Constructor called');
+
     }
     if (kDebugMode) {
-      print('DiscountListPage - DiscountController instance: $discountController');
+
     }
   }
 
@@ -437,7 +437,7 @@ class DiscountListPage extends StatelessWidget {
               if (success) {
               } else {
                 if (kDebugMode) {
-                  print('DiscountListPage - Failed to delete discount');
+
                 }
               }
             },

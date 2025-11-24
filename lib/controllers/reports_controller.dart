@@ -36,9 +36,6 @@ class ReportsController extends GetxController {
     if (Get.isRegistered<StoreController>()) {
       final storeController = Get.find<StoreController>();
       if (kDebugMode) {
-        print(
-          'ReportsController.onInit - Current store: ${storeController.currentStore}',
-        );
       }
     }
   }

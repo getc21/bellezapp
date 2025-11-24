@@ -124,7 +124,7 @@ class StoreController extends GetxController {
       await prefs.setString('selected_store_id', store['_id'].toString());
     } catch (e) {
       if (kDebugMode) {
-        print('Error guardando tienda seleccionada: $e');
+
       }
     }
   }
@@ -191,7 +191,7 @@ class StoreController extends GetxController {
       
     } catch (e) {
       if (kDebugMode) {
-        print('Error refrescando datos para nueva tienda: $e');
+
       }
     }
   }

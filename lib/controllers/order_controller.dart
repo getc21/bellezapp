@@ -168,7 +168,7 @@ class OrderController extends GetxController {
           await customerController.loadCustomers();
         } catch (e) {
           if (kDebugMode) {
-            print('ℹ️ OrderController: CustomerController no está instanciado');
+
           }
         }
         

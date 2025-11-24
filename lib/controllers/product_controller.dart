@@ -84,7 +84,7 @@ class ProductController extends GetxController {
           if (wrongStoreProducts.isNotEmpty) {
             for (var product in wrongStoreProducts) {
               if (kDebugMode) {
-                print('   - ${product['name']} pertenece a ${product['storeId']?['_id']}');
+
               }
             }
           }

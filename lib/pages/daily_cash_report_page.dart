@@ -65,9 +65,6 @@ class DailyCashReportPageState extends State<DailyCashReportPage> {
     // Mostrar todos los movimientos para depuración
     for (var movement in _dailyMovements) {
       if (kDebugMode) {
-        print(
-          '📝 Movimiento: ${movement.type} - \$${movement.amount} - ${movement.description}',
-        );
       }
     }
 

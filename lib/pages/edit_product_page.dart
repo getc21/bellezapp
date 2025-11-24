@@ -69,7 +69,7 @@ class EditProductPageState extends State<EditProductPage> {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ EditProductPage: Error cargando datos: $e');
+
       }
     }
   }
@@ -192,7 +192,7 @@ class EditProductPageState extends State<EditProductPage> {
   Future<void> _updateProduct() async {    
     if (!_formKey.currentState!.validate()) {
       if (kDebugMode) {
-        print('DEBUG EditProductPage - Validación del formulario falló');
+
       }
       return;
     }
@@ -242,7 +242,7 @@ class EditProductPageState extends State<EditProductPage> {
       });
     } else {
       if (kDebugMode) {
-        print('DEBUG EditProductPage - Error al actualizar producto');
+
       }
     }
   }
