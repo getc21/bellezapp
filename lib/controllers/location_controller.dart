@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../providers/location_provider.dart';
@@ -8,8 +7,9 @@ import 'store_controller.dart';
 class LocationController extends GetxController {
   final AuthController _authController = Get.find<AuthController>();
   final StoreController _storeController = Get.find<StoreController>();
-  
-  LocationProvider get _locationProvider => LocationProvider(_authController.token);
+
+  LocationProvider get _locationProvider =>
+      LocationProvider(_authController.token);
 
   // Estados observables
   final RxList<Map<String, dynamic>> _locations = <Map<String, dynamic>>[].obs;
@@ -29,35 +29,37 @@ class LocationController extends GetxController {
     try {
       // ⭐ ASEGURAR QUE SIEMPRE SE USE EL STORE ID ACTUAL
       final currentStoreId = storeId ?? _storeController.currentStore?['_id'];
-      
+
       if (currentStoreId == null) {
         _errorMessage.value = 'No hay tienda seleccionada';
         _locations.clear();
         return;
-      }      
-      final result = await _locationProvider.getLocations(storeId: currentStoreId);
+      }
+      final result = await _locationProvider.getLocations(
+        storeId: currentStoreId,
+      );
 
       if (result['success']) {
         final newLocations = List<Map<String, dynamic>>.from(result['data']);
         _locations.value = newLocations;
-        
-        // Verificar que todas las ubicaciones pertenezcan a la tienda correcta
-        final wrongStoreLocations = newLocations.where((l) => 
-          l['storeId']?['_id'] != null && l['storeId']['_id'] != currentStoreId
-        ).toList();
-        
-        if (wrongStoreLocations.isNotEmpty) {
-          for (var location in wrongStoreLocations) {
-            if (kDebugMode) {
 
-            }
-          }
+        // Verificar que todas las ubicaciones pertenezcan a la tienda correcta
+        final wrongStoreLocations = newLocations
+            .where(
+              (l) =>
+                  l['storeId']?['_id'] != null &&
+                  l['storeId']['_id'] != currentStoreId,
+            )
+            .toList();
+
+        if (wrongStoreLocations.isNotEmpty) {
+          // All wrongStoreLocations found, but not used
         }
       } else {
         _errorMessage.value = result['message'] ?? 'Error cargando ubicaciones';
         Get.snackbar(
-          'Error', 
-          _errorMessage.value, 
+          'Error',
+          _errorMessage.value,
           snackPosition: SnackPosition.TOP,
           backgroundColor: Colors.red,
           colorText: Colors.white,
@@ -66,8 +68,8 @@ class LocationController extends GetxController {
     } catch (e) {
       _errorMessage.value = 'Error de conexión: $e';
       Get.snackbar(
-        'Error', 
-        _errorMessage.value, 
+        'Error',
+        _errorMessage.value,
         snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.red,
         colorText: Colors.white,

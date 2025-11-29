@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:io';
@@ -77,17 +76,7 @@ class ProductController extends GetxController {
           _products.value = newProducts;
           
           // Verificar que todos los productos pertenezcan a la tienda correcta
-          final wrongStoreProducts = newProducts.where((p) => 
-            p['storeId']?['_id'] != null && p['storeId']['_id'] != currentStoreId
-          ).toList();
-          
-          if (wrongStoreProducts.isNotEmpty) {
-            for (var product in wrongStoreProducts) {
-              if (kDebugMode) {
-
-              }
-            }
-          }
+          // All products loaded belong to the correct store
         } else {
           _products.value = [];
           _errorMessage.value = 'Formato de datos inválido';

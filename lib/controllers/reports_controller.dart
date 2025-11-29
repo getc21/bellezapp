@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import '../providers/reports_provider.dart';
 import 'auth_controller.dart';
@@ -28,17 +27,6 @@ class ReportsController extends GetxController {
   Map<String, dynamic> get profitabilityData => _profitabilityData;
   Map<String, dynamic> get salesTrendsData => _salesTrendsData;
   Map<String, dynamic> get periodsComparisonData => _periodsComparisonData;
-
-  @override
-  void onInit() {
-    super.onInit();
-
-    if (Get.isRegistered<StoreController>()) {
-      final storeController = Get.find<StoreController>();
-      if (kDebugMode) {
-      }
-    }
-  }
 
   // Obtener ID de tienda actual
   String? get _currentStoreId {
