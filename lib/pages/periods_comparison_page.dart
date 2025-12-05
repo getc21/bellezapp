@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/reports_controller.dart';
 import '../controllers/store_controller.dart';
+import '../services/pdf_service.dart';
 import '../utils/utils.dart';
 import '../widgets/store_aware_app_bar.dart';
 
@@ -38,22 +39,18 @@ class _PeriodsComparisonPageState extends State<PeriodsComparisonPage> {
       storeController = Get.put(StoreController());
     }
 
-    // Configurar fechas por defecto (último mes vs mes anterior)
+    // Configurar fechas por defecto (últimos 30 días para período actual, 60-30 días anteriores para período anterior)
     final now = DateTime.now();
+    final thirtyDaysAgo = now.subtract(const Duration(days: 30));
+    final sixtyDaysAgo = now.subtract(const Duration(days: 60));
     
-    // Período actual (último mes)
-    final currentMonth = DateTime(now.year, now.month, 1);
-    final currentMonthEnd = DateTime(now.year, now.month + 1, 0);
+    // Período actual (últimos 30 días)
+    currentStartDate = '${thirtyDaysAgo.year}-${thirtyDaysAgo.month.toString().padLeft(2, '0')}-${thirtyDaysAgo.day.toString().padLeft(2, '0')}';
+    currentEndDate = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     
-    // Período anterior (mes anterior)
-    final previousMonth = DateTime(now.year, now.month - 1, 1);
-    final previousMonthEnd = DateTime(now.year, now.month, 0);
-    
-    currentStartDate = '${currentMonth.year}-${currentMonth.month.toString().padLeft(2, '0')}-${currentMonth.day.toString().padLeft(2, '0')}';
-    currentEndDate = '${currentMonthEnd.year}-${currentMonthEnd.month.toString().padLeft(2, '0')}-${currentMonthEnd.day.toString().padLeft(2, '0')}';
-    
-    previousStartDate = '${previousMonth.year}-${previousMonth.month.toString().padLeft(2, '0')}-${previousMonth.day.toString().padLeft(2, '0')}';
-    previousEndDate = '${previousMonthEnd.year}-${previousMonthEnd.month.toString().padLeft(2, '0')}-${previousMonthEnd.day.toString().padLeft(2, '0')}';
+    // Período anterior (60-30 días atrás)
+    previousStartDate = '${sixtyDaysAgo.year}-${sixtyDaysAgo.month.toString().padLeft(2, '0')}-${sixtyDaysAgo.day.toString().padLeft(2, '0')}';
+    previousEndDate = '${thirtyDaysAgo.year}-${thirtyDaysAgo.month.toString().padLeft(2, '0')}-${thirtyDaysAgo.day.toString().padLeft(2, '0')}';
 
     // Cargar datos iniciales
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -275,7 +272,34 @@ class _PeriodsComparisonPageState extends State<PeriodsComparisonPage> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _generatePDF,
+        backgroundColor: Utils.colorBotones,
+        child: const Icon(Icons.picture_as_pdf, color: Colors.white),
+        tooltip: 'Generar PDF de comparación',
+      ),
     );
+  }
+
+  Future<void> _generatePDF() async {
+    try {
+      final data = reportsController.periodsComparisonData;
+      if (data.isEmpty) {
+        Get.snackbar('Información', 'No hay datos para generar PDF',
+          backgroundColor: Colors.orange);
+        return;
+      }
+      await PdfService.generateComparisonPdf(
+        data: data,
+        startDate: DateTime.parse(currentStartDate),
+        endDate: DateTime.parse(currentEndDate),
+      );
+      Get.snackbar('Éxito', 'PDF de comparación generado correctamente',
+        backgroundColor: Colors.green);
+    } catch (e) {
+      Get.snackbar('Error', 'Error al generar PDF: $e',
+        backgroundColor: Colors.red);
+    }
   }
 
   Widget _buildPeriodControls() {

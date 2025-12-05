@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../config/api_config.dart';
 
 class ReportsProvider {
-  final String baseUrl = 'http://192.168.0.48:3000/api';
   final String token;
 
   ReportsProvider(this.token);
+
+  String get baseUrl => ApiConfig.baseUrl;
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',

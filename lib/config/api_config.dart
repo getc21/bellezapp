@@ -1,68 +1,63 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 class ApiConfig {
-  // IP de tu computadora en la red local
-  static const String _localIP = '192.168.0.48';
-  
-  // IP para emulador Android
-  static const String _emulatorIP = '10.0.2.2';
-  
-  // Puerto del backend
-  static const String _port = '3000';
-  
-  // Detecta automáticamente si estamos en emulador o dispositivo físico
+  // URL DE PRODUCCION - Render
+  static const String _productionUrl = 'https://naturalmarket.onrender.com/api';
+
+  // Desarrollo Local (descomentar para usar en desarrollo)
+  // static const String _localIP = '192.168.0.48';
+  // static const String _emulatorIP = '10.0.2.2';
+  // static const String _port = '3000';
+
   static String get baseUrl {
-    if (_isEmulator()) {
-      return 'http://$_emulatorIP:$_port/api';
-    } else {
-      return 'http://$_localIP:$_port/api';
-    }
+    // EN PRODUCCION: Usar URL de Render
+    return _productionUrl;
+    
+    // PARA DESARROLLO LOCAL (descomentar lo siguiente y comentar linea anterior):
+    // if (_isEmulator()) {
+    //   return 'http://$_emulatorIP:$_port/api';
+    // } else {
+    //   return 'http://$_localIP:$_port/api';
+    // }
   }
-  
+
   // Detecta si estamos en un emulador
   static bool _isEmulator() {
-    // En Android, podemos detectar el emulador por varias características
     if (Platform.isAndroid) {
-      // Verificar variables de entorno específicas del emulador
       final String? androidHome = Platform.environment['ANDROID_HOME'];
       final String? isEmulator = Platform.environment['ANDROID_EMULATOR'];
-      
-      // Los emuladores tienen este directorio específico
       final bool isGenymotion = Platform.environment['USER']?.contains('genymotion') ?? false;
-      
+
       return isEmulator == 'true' || 
              androidHome != null || 
              isGenymotion;
     }
-    
-    // Para iOS simulator (si lo usas en el futuro)
+
     if (Platform.isIOS) {
       return Platform.environment['SIMULATOR_DEVICE_NAME'] != null ||
              Platform.environment['SIMULATOR_ROOT'] != null;
     }
-    
-    // Por defecto, asumir dispositivo físico para mayor compatibilidad
+
     return false;
   }
-  
-  // Método para cambiar manualmente la configuración (útil para debugging)
-  static String getUrlForMode({required bool useEmulator}) {
-    if (useEmulator) {
-      return 'http://$_emulatorIP:$_port/api';
+
+  // Metodo para cambiar manualmente la configuracion
+  static String getUrlForMode({required bool useProduction}) {
+    if (useProduction) {
+      return _productionUrl;
     } else {
-      return 'http://$_localIP:$_port/api';
+      // Para desarrollo local
+      return 'http://192.168.0.48:3000/api';
     }
   }
-  
-  // Información de debug
+
+  // Informacion de debug
   static Map<String, dynamic> getDebugInfo() {
     return <String, dynamic>{
-      'isEmulator': _isEmulator(),
-      'platform': Platform.operatingSystem,
       'baseUrl': baseUrl,
-      'localIP': _localIP,
-      'emulatorIP': _emulatorIP,
-      'environment': Platform.environment,
+      'isProduction': baseUrl == _productionUrl,
+      'productionUrl': _productionUrl,
+      'platform': Platform.operatingSystem,
     };
   }
 }

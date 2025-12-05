@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/reports_controller.dart';
 import '../controllers/store_controller.dart';
+import '../services/pdf_service.dart';
 import '../utils/utils.dart';
 import '../widgets/store_aware_app_bar.dart';
 
@@ -37,12 +38,12 @@ class _InventoryRotationPageState extends State<InventoryRotationPage> {
       storeController = Get.put(StoreController());
     }
 
-    // Configurar fechas por defecto (octubre 2025 - donde están los datos)
-    final firstDayOfMonth = DateTime(2025, 10, 1); // Octubre 2025
-    final lastDayOfMonth = DateTime(2025, 10, 31); // Último día de octubre
+    // Configurar fechas por defecto (últimos 30 días)
+    final now = DateTime.now();
+    final thirtyDaysAgo = now.subtract(const Duration(days: 30));
     
-    startDate = '${firstDayOfMonth.year}-${firstDayOfMonth.month.toString().padLeft(2, '0')}-${firstDayOfMonth.day.toString().padLeft(2, '0')}';
-    endDate = '${lastDayOfMonth.year}-${lastDayOfMonth.month.toString().padLeft(2, '0')}-${lastDayOfMonth.day.toString().padLeft(2, '0')}';
+    startDate = '${thirtyDaysAgo.year}-${thirtyDaysAgo.month.toString().padLeft(2, '0')}-${thirtyDaysAgo.day.toString().padLeft(2, '0')}';
+    endDate = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
     // Cargar datos iniciales
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -201,7 +202,34 @@ class _InventoryRotationPageState extends State<InventoryRotationPage> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _generatePDF,
+        backgroundColor: Utils.colorBotones,
+        child: const Icon(Icons.picture_as_pdf, color: Colors.white),
+        tooltip: 'Generar PDF de rotación',
+      ),
     );
+  }
+
+  Future<void> _generatePDF() async {
+    try {
+      final data = reportsController.inventoryRotationData;
+      if (data.isEmpty) {
+        Get.snackbar('Información', 'No hay datos para generar PDF',
+          backgroundColor: Colors.orange);
+        return;
+      }
+      await PdfService.generateInventoryRotationPdf(
+        data: data,
+        startDate: DateTime.parse(startDate),
+        endDate: DateTime.parse(endDate),
+      );
+      Get.snackbar('Éxito', 'PDF de rotación generado correctamente',
+        backgroundColor: Colors.green);
+    } catch (e) {
+      Get.snackbar('Error', 'Error al generar PDF: $e',
+        backgroundColor: Colors.red);
+    }
   }
 
   Widget _buildDateControls() {

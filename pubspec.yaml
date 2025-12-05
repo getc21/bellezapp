@@ -56,10 +56,12 @@ dependencies:
   url_launcher: ^6.3.2
   crypto: ^3.0.3
   mime: ^2.0.0
+  web: any
 
   path: any
   image: any
   intl: any
+  printing: ^5.14.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
