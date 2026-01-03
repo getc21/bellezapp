@@ -186,7 +186,8 @@ class ProductController extends GetxController {
           backgroundColor: Colors.green,
           colorText: Colors.white,
         );
-        await loadProducts(storeId: storeId);
+        // Recargar productos de la tienda actual después de crear
+        await loadProductsForCurrentStore();
         return true;
       } else {
         Get.snackbar(
@@ -229,6 +230,9 @@ class ProductController extends GetxController {
     _isLoading.value = true;
 
     try {
+      // Obtener el storeId actual para actualizar ProductStore
+      final currentStoreId = _storeController.currentStore?['_id'];
+
       final result = await _productProvider.updateProduct(
         id: id,
         name: name,
@@ -241,6 +245,7 @@ class ProductController extends GetxController {
         weight: weight,
         expiryDate: expiryDate,
         imageFile: imageFile,
+        storeId: currentStoreId,
       );
 
       if (result['success']) {
@@ -251,7 +256,8 @@ class ProductController extends GetxController {
           backgroundColor: Colors.green,
           colorText: Colors.white,
         );
-        await loadProducts();
+        // Recargar productos de la tienda actual
+        await loadProductsForCurrentStore();
         return true;
       } else {
         Get.snackbar(
@@ -339,7 +345,8 @@ class ProductController extends GetxController {
           backgroundColor: Colors.green,
           colorText: Colors.white,
         );
-        await loadProducts();
+        // Recargar productos de la tienda actual para reflejar cambios
+        await loadProductsForCurrentStore();
         return true;
       } else {
         Get.snackbar(
@@ -377,6 +384,21 @@ class ProductController extends GetxController {
       }
     } catch (e) {
       return null;
+    }
+  }
+
+  // Obtener stock del producto en todas las tiendas
+  Future<Map<String, dynamic>?> getProductStocks(String productId) async {
+    try {
+      final result = await _productProvider.getProductStocks(productId);
+
+      if (result['success']) {
+        return {'success': true, 'data': result['data']};
+      } else {
+        return {'success': false, 'message': result['message']};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión: $e'};
     }
   }
 

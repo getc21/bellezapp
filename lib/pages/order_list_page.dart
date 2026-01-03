@@ -29,7 +29,7 @@ class OrderListPageState extends State<OrderListPage> {
   }
 
   void _loadOrders() {
-    // Cargar órdenes para la tienda actual
+    // Cargar ventas para la tienda actual
     orderController.loadOrders();
   }
 
@@ -123,7 +123,7 @@ class OrderListPageState extends State<OrderListPage> {
                     ),
                     SizedBox(width: 12),
                     Text(
-                      'Órdenes',
+                      'Ventas',
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -147,7 +147,7 @@ class OrderListPageState extends State<OrderListPage> {
                     onChanged: (value) => setState(() {}),
                     style: TextStyle(fontSize: 13),
                     decoration: InputDecoration(
-                      hintText: 'Buscar por orden, cliente, monto o método...',
+                      hintText: 'Buscar por venta, cliente, monto o método...',
                       hintStyle: TextStyle(color: Colors.grey[500], fontSize: 12),
                       prefixIcon: Icon(Icons.search, color: Utils.colorBotones, size: 20),
                       suffixIcon: _searchController.text.isNotEmpty
@@ -204,7 +204,7 @@ class OrderListPageState extends State<OrderListPage> {
                                 ),
                               ),
                               Obx(() => Text(
-                                '${_filteredOrders.length} órdenes',
+                                '${_filteredOrders.length} ventas',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Utils.colorBotones,
@@ -291,8 +291,8 @@ class OrderListPageState extends State<OrderListPage> {
           const SizedBox(height: 24),
           Text(
             _searchController.text.isEmpty
-                ? 'No hay órdenes'
-                : 'No se encontraron órdenes',
+                ? 'No hay ventas'
+                : 'No se encontraron ventas',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -302,7 +302,7 @@ class OrderListPageState extends State<OrderListPage> {
           const SizedBox(height: 8),
           Text(
             _searchController.text.isEmpty
-                ? 'Las órdenes aparecerán aquí'
+                ? 'Las ventas aparecerán aquí'
                 : 'Intenta con otros términos de búsqueda',
             style: TextStyle(
               fontSize: 14,
@@ -381,7 +381,7 @@ class OrderListPageState extends State<OrderListPage> {
                   ),
                   SizedBox(width: 4),
                   Text(
-                    'Orden #$orderNumber',
+                    'Venta #$orderNumber',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,

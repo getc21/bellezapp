@@ -71,20 +71,20 @@ class ProductListPageState extends State<ProductListPage> {
       }).toList();
     }
 
-    // Aplicar filtro de stock bajo
+    // Aplicar filtro de stock bajo (≤3 unidades, como en web)
     if (_activeFilter == 'stock') {
       products = products.where((product) {
         final stock = product['stock'] ?? 0;
-        return stock < 10;
+        return stock <= 3;
       }).toList();
     }
 
-    // Aplicar filtro de próximo a vencer
+    // Aplicar filtro de próximo a vencer (<60 días, como en web)
     if (_activeFilter == 'expiry') {
       products = products.where((product) {
         final expiryDate = DateTime.tryParse(product['expiryDate']?.toString() ?? '');
         return expiryDate != null && 
-               expiryDate.difference(DateTime.now()).inDays <= 30;
+               expiryDate.difference(DateTime.now()).inDays < 60;
       }).toList();
     }
 
@@ -675,8 +675,8 @@ class ProductListPageState extends State<ProductListPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _buildImprovedFilterChip('Todos', 'todos', Icons.inventory_2_outlined, Colors.blue),
-                    _buildImprovedFilterChip('Stock bajo', 'stock', Icons.warning_amber_outlined, Colors.red),
-                    _buildImprovedFilterChip('Prox. vencer', 'expiry', Icons.schedule_outlined, Colors.orange),
+                    _buildImprovedFilterChip('Stock crítico', 'stock', Icons.warning_amber_outlined, Colors.red),
+                    _buildImprovedFilterChip('Vence pronto', 'expiry', Icons.schedule_outlined, Colors.orange),
                   ],
                 ),
                 SizedBox(height: 6),
@@ -711,12 +711,12 @@ class ProductListPageState extends State<ProductListPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
-                            child: _buildProductCard(products[leftIndex]),
+                            child: _buildProductCard(products[leftIndex], authController),
                           ),
                           if (rightIndex < products.length) ...[
                             const SizedBox(width: 12),
                             Expanded(
-                              child: _buildProductCard(products[rightIndex]),
+                              child: _buildProductCard(products[rightIndex], authController),
                             ),
                           ] else
                             const Expanded(child: SizedBox()),
@@ -747,7 +747,7 @@ class ProductListPageState extends State<ProductListPage> {
     );
   }
 
-  Widget _buildProductCard(Map<String, dynamic> product) {
+  Widget _buildProductCard(Map<String, dynamic> product, AuthController authController) {
     final productId = product['_id'] ?? '';
     final name = product['name'] ?? 'Sin nombre';
     final description = product['description'] ?? '';
@@ -756,17 +756,22 @@ class ProductListPageState extends State<ProductListPage> {
     final purchasePrice = product['purchasePrice'] ?? 0.0;
     final weight = product['weight'] ?? '';
     final imageUrl = _getImageUrl(product);
-    final isLowStock = stock < 10;
+    
+    // Stock levels (matching web logic: ≤3 is critical)
+    final isOutOfStock = stock <= 3;
+    final isLowStock = stock > 3 && stock < 10;
     
     // Extraer nombres de relaciones
     final locationName = product['locationId'] is Map 
         ? product['locationId']['name'] ?? 'Sin ubicación'
         : 'Sin ubicación';
     
-    // Verificar fecha de vencimiento
+    // Verificar fecha de vencimiento (matching web logic: <60 días es crítico)
     final expiryDate = DateTime.tryParse(product['expiryDate']?.toString() ?? '');
-    final isNearExpiry = expiryDate != null && 
-        expiryDate.difference(DateTime.now()).inDays <= 30;
+    final daysToExpiry = expiryDate != null 
+        ? expiryDate.difference(DateTime.now()).inDays
+        : null;
+    final isNearExpiry = daysToExpiry != null && daysToExpiry < 60;
 
     return Container(
       decoration: BoxDecoration(
@@ -829,7 +834,8 @@ class ProductListPageState extends State<ProductListPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    if (isLowStock)
+                    // Badge de stock crítico (≤3)
+                    if (isOutOfStock)
                       GestureDetector(
                         onTap: () {
                           setState(() {
@@ -854,6 +860,44 @@ class ProductListPageState extends State<ProductListPage> {
                               if (_expandedBadges['${productId}_stock'] ?? false) ...[
                                 SizedBox(width: 3),
                                 Text(
+                                  'Stock crítico',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    // Badge de stock bajo (3-10)
+                    if (isLowStock)
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            final key = '${productId}_lowstock';
+                            _expandedBadges[key] = !(_expandedBadges[key] ?? false);
+                          });
+                        },
+                        child: AnimatedContainer(
+                          duration: Duration(milliseconds: 200),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.info, color: Colors.white, size: 10),
+                              if (_expandedBadges['${productId}_lowstock'] ?? false) ...[
+                                SizedBox(width: 3),
+                                Text(
                                   'Stock bajo',
                                   style: TextStyle(
                                     color: Colors.white,
@@ -866,7 +910,8 @@ class ProductListPageState extends State<ProductListPage> {
                           ),
                         ),
                       ),
-                    if (isLowStock && isNearExpiry) SizedBox(height: 3),
+                    if ((isOutOfStock || isLowStock) && isNearExpiry) SizedBox(height: 3),
+                    // Badge de caducidad próxima (<60 días)
                     if (isNearExpiry)
                       GestureDetector(
                         onTap: () {
@@ -882,7 +927,9 @@ class ProductListPageState extends State<ProductListPage> {
                             vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.orange,
+                            color: daysToExpiry != null && daysToExpiry < 60 && daysToExpiry >= 0
+                                ? (daysToExpiry < 30 ? Colors.red : Colors.orange)
+                                : Colors.grey,
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Row(
@@ -1011,22 +1058,38 @@ class ProductListPageState extends State<ProductListPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          _buildInfoItem('Stock', '$stock', 
-                              isLowStock ? Colors.red : Colors.green, Icons.inventory),
-                          _buildInfoItem('Ubicación', locationName, Colors.blue, Icons.location_on),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => _showMultiStoreStockDialog(product),
+                              child: MouseRegion(
+                                cursor: SystemMouseCursors.click,
+                                child: _buildInfoItem('Stock', '$stock', 
+                                    isOutOfStock ? Colors.red : 
+                                    isLowStock ? Colors.orange : 
+                                    Colors.green, Icons.inventory),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: _buildInfoItem('Ubicación', locationName, Colors.blue, Icons.location_on),
+                          ),
                         ],
                       ),
                       SizedBox(height: 4),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          _buildInfoItem('Vencimiento', 
-                              expiryDate != null
-                                  ? expiryDate.toLocal().toString().split(' ')[0]
-                                  : 'Sin fecha',
-                              isNearExpiry ? Colors.orange : Colors.grey, Icons.schedule),
-                          _buildInfoItem('Tamaño', 
-                              weight.isNotEmpty ? weight : 'Sin especificar', Colors.purple, Icons.straighten),
+                          Expanded(
+                            child: _buildInfoItem('Vencimiento', 
+                                expiryDate != null
+                                    ? expiryDate.toLocal().toString().split(' ')[0]
+                                    : 'Sin fecha',
+                                _getExpirationColor(daysToExpiry), Icons.schedule),
+                          ),
+                          Expanded(
+                            child: _buildInfoItem('Tamaño', 
+                                weight.isNotEmpty ? weight : 'Sin especificar', Colors.purple, Icons.straighten),
+                          ),
                         ],
                       ),
                     ],
@@ -1047,27 +1110,32 @@ class ProductListPageState extends State<ProductListPage> {
                   ),
                   child: Column(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Precio compra:',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey[600],
+                      if (authController.isAdmin || authController.isManager)
+                        Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Precio compra:',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                Text(
+                                  '${purchasePrice.toStringAsFixed(2)} Bs.',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          Text(
-                            '${purchasePrice.toStringAsFixed(2)} Bs.',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey[700],
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 2),
+                            SizedBox(height: 2),
+                          ],
+                        ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -1167,6 +1235,205 @@ class ProductListPageState extends State<ProductListPage> {
         ],
       ),
     );
+  }
+
+  /// Mostrar diálogo con stock en todas las tiendas
+  void _showMultiStoreStockDialog(Map<String, dynamic> product) {
+    final productName = product['name'] ?? 'Producto';
+    final productId = product['_id'];
+    bool isLoading = true;
+    List<Map<String, dynamic>> stocks = [];
+    String? errorMessage;
+    
+    // Verificar si el usuario es empleado (solo ve sucursal y stock)
+    final userRole = authController.userRole;
+    final isEmployee = userRole == 'employee' || userRole == 'empleado';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          // Cargar datos solo una vez
+          if (isLoading && stocks.isEmpty && errorMessage == null) {
+            _loadMultiStoreStocks(
+              productId,
+              () {},
+              (newStocks, error) {
+                setState(() {
+                  isLoading = false;
+                  if (error != null) {
+                    errorMessage = error;
+                  } else {
+                    stocks = newStocks;
+                  }
+                });
+              },
+            );
+          }
+
+          return AlertDialog(
+            title: Text('Stock en Todas las Tiendas - $productName'),
+            content: SizedBox(
+              width: 400,
+              child: isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(),
+                    )
+                  : errorMessage != null
+                      ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              color: Colors.red,
+                              size: 48,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              errorMessage!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ],
+                        )
+                      : stocks.isEmpty
+                          ? const Center(
+                              child: Text('Sin datos de stock'),
+                            )
+                          : SingleChildScrollView(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: stocks.map((stock) {
+                                  final storeName = stock['storeName'] ?? 'Sin tienda';
+                                  final stockQty = stock['stock'] ?? 0;
+                                  final salePrice = stock['salePrice'] ?? 0.0;
+                                  final purchasePrice = stock['purchasePrice'] ?? 0.0;
+
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[50],
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.grey[300]!),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          storeName,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            const Text(
+                                              'Stock:',
+                                              style: TextStyle(fontSize: 13),
+                                            ),
+                                            Text(
+                                              '$stockQty',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: stockQty <= 0 
+                                                    ? Colors.red 
+                                                    : Colors.green,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        // Solo mostrar precios si NO es empleado
+                                        if (!isEmployee) ...[
+                                          const SizedBox(height: 6),
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              const Text(
+                                                'Precio Venta:',
+                                                style: TextStyle(fontSize: 13),
+                                              ),
+                                              Text(
+                                                '${salePrice.toStringAsFixed(2)} Bs.',
+                                                style: const TextStyle(fontSize: 13),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              const Text(
+                                                'Precio Compra:',
+                                                style: TextStyle(fontSize: 13),
+                                              ),
+                                              Text(
+                                                '${purchasePrice.toStringAsFixed(2)} Bs.',
+                                                style: const TextStyle(fontSize: 13),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cerrar'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// Cargar stock de múltiples tiendas
+  Future<void> _loadMultiStoreStocks(
+    String productId,
+    VoidCallback onLoadComplete,
+    Function(List<Map<String, dynamic>>, String?) callback,
+  ) async {
+    try {
+      final result = await productController.getProductStocks(productId);
+      
+      if (result != null && result['success']) {
+        final stocks = (result['data'] as List).cast<Map<String, dynamic>>();
+        callback(stocks, null);
+      } else {
+        callback([], result?['message'] ?? 'Error cargando stock');
+      }
+    } catch (e) {
+      callback([], 'Error de conexión: $e');
+    } finally {
+      onLoadComplete();
+    }
+  }
+
+  /// Get expiration color based on days until expiry (matching web logic)
+  /// <60 días = rojo (crítico)
+  /// <90 días = naranja (atención)
+  /// resto = gris
+  Color _getExpirationColor(int? daysToExpiry) {
+    if (daysToExpiry == null) return Colors.grey;
+    
+    if (daysToExpiry < 60) {
+      return Colors.red;
+    } else if (daysToExpiry < 90) {
+      return Colors.orange;
+    } else {
+      return Colors.grey;
+    }
   }
 
   @override

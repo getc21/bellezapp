@@ -4,21 +4,21 @@ class ApiConfig {
   // URL DE PRODUCCION - Render
   static const String _productionUrl = 'https://naturalmarket.onrender.com/api';
 
-  // Desarrollo Local (descomentar para usar en desarrollo)
-  // static const String _localIP = '192.168.0.48';
-  // static const String _emulatorIP = '10.0.2.2';
-  // static const String _port = '3000';
+  // Desarrollo Local
+  static const String _localIP = '192.168.0.48';
+  static const String _emulatorIP = '10.0.2.2';
+  static const String _port = '3000';
 
   static String get baseUrl {
-    // EN PRODUCCION: Usar URL de Render
-    return _productionUrl;
+    // EN DESARROLLO: Usar IP local
+    if (_isEmulator()) {
+      return 'http://$_emulatorIP:$_port/api';
+    } else {
+      return 'http://$_localIP:$_port/api';
+    }
     
-    // PARA DESARROLLO LOCAL (descomentar lo siguiente y comentar linea anterior):
-    // if (_isEmulator()) {
-    //   return 'http://$_emulatorIP:$_port/api';
-    // } else {
-    //   return 'http://$_localIP:$_port/api';
-    // }
+    // PARA PRODUCCION (comentar lo anterior y descomentar):
+    // return _productionUrl;
   }
 
   // Detecta si estamos en un emulador

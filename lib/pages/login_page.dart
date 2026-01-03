@@ -80,25 +80,28 @@ class _LoginPageState extends State<LoginPage> {
                           width: 80,
                           height: 80,
                           decoration: BoxDecoration(
-                            color: colorScheme.primary,
-                            shape: BoxShape.circle,
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Icon(
-                            Icons.store,
-                            size: 40,
-                            color: colorScheme.onPrimary,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.asset(
+                              'assets/img/logo.png',
+                              fit: BoxFit.cover,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 24),
                         
-                        // Título
-                        Text(
-                          'BellezApp',
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            color: colorScheme.primary,
-                            fontWeight: FontWeight.bold,
+                        // Nombre de la app
+                        SizedBox(
+                          width: 200,
+                          height: 50,
+                          child: Image.asset(
+                            'assets/img/NOMBRE.png',
+                            fit: BoxFit.contain,
                           ),
                         ),
+                        const SizedBox(height: 8),
                         const SizedBox(height: 8),
                         Text(
                           'Iniciar Sesión',
@@ -106,7 +109,7 @@ class _LoginPageState extends State<LoginPage> {
                             color: colorScheme.onSurfaceVariant,
                           ),
                         ),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 24),
                         
                         // Campo de usuario/email
                         TextFormField(
@@ -229,41 +232,6 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                               )
                             : const SizedBox.shrink()),
-                        const SizedBox(height: 24),
-                        
-                        // Información de usuario por defecto
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(
-                                'Usuario por defecto:',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Usuario: admin',
-                                style: TextStyle(
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                              Text(
-                                'Contraseña: admin123',
-                                style: TextStyle(
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                       ],
                     ),
                   ),

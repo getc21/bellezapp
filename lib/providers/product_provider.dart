@@ -169,6 +169,7 @@ class ProductProvider {
     String? categoryId,
     String? supplierId,
     String? locationId,
+    String? storeId,
     DateTime? expiryDate,
     File? imageFile,
   }) async {
@@ -194,6 +195,8 @@ class ProductProvider {
       if (expiryDate != null) {
         request.fields['expiryDate'] = expiryDate.toIso8601String();
       }
+      // Incluir el storeId para actualizar ProductStore
+      if (storeId != null) request.fields['storeId'] = storeId;
 
       if (imageFile != null) {
         // Detectar el tipo MIME del archivo
@@ -301,6 +304,28 @@ class ProductProvider {
         return {
           'success': false,
           'message': data['message'] ?? 'Producto no encontrado'
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión: $e'};
+    }
+  }
+
+  // Obtener stock del producto en todas las tiendas
+  Future<Map<String, dynamic>> getProductStocks(String productId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/products/$productId/stocks'),
+        headers: _headers,
+      );
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'data': data['data']['stocks']};
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Error obteniendo stocks'
         };
       }
     } catch (e) {

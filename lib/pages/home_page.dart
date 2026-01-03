@@ -93,10 +93,12 @@ class HomePageState extends State<HomePage> {
   
   @override
   Widget build(BuildContext context) {
+    final canSeeSuppliersTab = authController.isAdmin || authController.isManager;
+    
     List<Widget> widgetOptions = <Widget>[
       ProductListPage(),
       CategoryListPage(),
-      SupplierListPage(),
+      if (canSeeSuppliersTab) SupplierListPage(),
       LocationListPage(),
       OrderListPage()
     ];
@@ -515,17 +517,18 @@ class HomePageState extends State<HomePage> {
                     icon: Icons.category_outlined,
                     text: 'Categorías',
                   ),
-                  GButton(
-                    icon: Icons.business_outlined,
-                    text: 'Proveedores',
-                  ),
+                  if (canSeeSuppliersTab)
+                    GButton(
+                      icon: Icons.business_outlined,
+                      text: 'Proveedores',
+                    ),
                   GButton(
                     icon: Icons.location_on_outlined,
                     text: 'Ubicaciones',
                   ),
                   GButton(
                     icon: Icons.receipt_long_outlined,
-                    text: 'Órdenes',
+                    text: 'Ventas',
                   ),
                 ],
                 selectedIndex: ipc.getIndexPage,

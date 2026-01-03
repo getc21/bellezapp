@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/auth_provider.dart';
 import '../pages/store_management_page.dart';
+import '../pages/login_page.dart';
 import '../utils/utils.dart';
 import 'store_controller.dart';
 
@@ -308,6 +309,14 @@ class AuthController extends GetxController {
         duration: const Duration(seconds: 2),
         backgroundColor: Colors.green,
         colorText: Colors.white,
+      );
+      
+      // ⭐ NAVEGAR AL LOGIN DESPUÉS DE CERRAR SESIÓN
+      // Usar Get.offAll() en lugar de Get.offAllNamed() porque no estamos usando named routes
+      await Future.delayed(const Duration(milliseconds: 500));
+      Get.offAll(
+        () => const LoginPage(),
+        transition: Transition.fadeIn,
       );
     } catch (e) {
       Get.snackbar(
