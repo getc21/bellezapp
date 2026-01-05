@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../../../bellezapp-frontend"
+		},
+		{
+			"path": "../../../bellezapp-backend"
+		},
+		{
+			"path": "../.."
+		}
+	],
+	"settings": {}
+}

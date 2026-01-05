@@ -1,0 +1,20 @@
+flutter_native_splash:
+  # Esta es una configuración para flutter_native_splash
+  color: "#FFFFFF"
+  color_dark: "#FFFFFF"
+  image: assets/img/logo.png
+  image_dark: assets/img/logo.png
+  
+  # Si quieres usar una imagen que abarca toda la pantalla
+  # fullscreen: true
+  
+  # Tiempo que dura el splash (en milisegundos)
+  # duration_ms: 3000
+  
+  # Configuración de Android
+  android: true
+  android_gravity: center
+  android_logo_gravity: center
+  
+  # Configuración de iOS
+  ios: true

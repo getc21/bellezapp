@@ -41,8 +41,11 @@ class ProductListPageState extends State<ProductListPage> {
     }
     
     // Ejecutar después del primer frame para evitar setState durante build
+    // Solo cargar si la lista está vacía
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadProducts();
+      if (productController.products.isEmpty) {
+        _loadProducts();
+      }
     });
   }
 
@@ -109,13 +112,12 @@ class ProductListPageState extends State<ProductListPage> {
       barrierDismissible: false,
       builder: (context) {
         return Dialog(
+          insetPadding: EdgeInsets.symmetric(horizontal: MediaQuery.of(context).size.width * 0.05),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
           elevation: 8,
-          child: Container(
-            width: MediaQuery.of(context).size.width * 0.9,
-            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.9),
+          child: Container(  
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -281,54 +283,53 @@ class ProductListPageState extends State<ProductListPage> {
                       SizedBox(height: 32),
                       
                       // Botones con diseño moderno
-                      Padding(
-                        padding: EdgeInsets.zero,
-                        child: Row(
-                          children: [
-                            // Botón Cancelar
-                            Expanded(
-                              child: SizedBox(
-                                height: 44,
-                                child: OutlinedButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                },
-                                style: OutlinedButton.styleFrom(
-                                  side: BorderSide(color: Colors.grey[300]!, width: 2),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
+                      Row(
+                        children: [
+                          // Botón Cancelar
+                          Expanded(
+                            child: SizedBox(
+                              height: 44,
+                              child: OutlinedButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                              },
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: Colors.grey[300]!, width: 2),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
                                 ),
-                                child: Text(
-                                  'Cancelar',
-                                  style: TextStyle(
-                                    color: Colors.grey[700],
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                padding: EdgeInsets.symmetric(horizontal: 8),
+                              ),
+                              child: Text(
+                                'Cancelar',
+                                style: TextStyle(
+                                  color: Colors.grey[700],
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
                           ),
-                          SizedBox(width: 12),
-                          
-                          // Botón Añadir
-                          Expanded(
-                            flex: 2,
-                            child: Container(
-                              height: 44,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(14),
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Utils.colorBotones,
-                                    Utils.colorBotones.withValues(alpha: 0.8),
-                                  ],
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Utils.colorBotones.withValues(alpha: 0.4),
-                                    blurRadius: 12,
+                        ),
+                        SizedBox(width: 12),
+                        
+                        // Botón Añadir
+                        Expanded(
+                          flex: 2,
+                          child: Container(
+                            height: 44,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              gradient: LinearGradient(
+                                colors: [
+                                  Utils.colorBotones,
+                                  Utils.colorBotones.withValues(alpha: 0.8),
+                                ],
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Utils.colorBotones.withValues(alpha: 0.4),
+                                  blurRadius: 12,
                                     offset: Offset(0, 6),
                                   ),
                                 ],
@@ -373,6 +374,7 @@ class ProductListPageState extends State<ProductListPage> {
                                   backgroundColor: Colors.transparent,
                                   foregroundColor: Colors.white,
                                   shadowColor: Colors.transparent,
+                                  padding: EdgeInsets.symmetric(horizontal: 8),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(14),
                                   ),
@@ -381,7 +383,6 @@ class ProductListPageState extends State<ProductListPage> {
                             ),
                           ),
                         ],
-                      ),
                       ),
                     ],
                   ),
@@ -653,33 +654,76 @@ class ProductListPageState extends State<ProductListPage> {
                         color: Colors.grey[700],
                       ),
                     ),
-                    Obx(() => Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Utils.colorBotones.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '${_filteredProducts.length} productos',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Utils.colorBotones,
+                    Row(
+                      children: [
+                        Obx(() => Container(
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Utils.colorBotones.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '${_filteredProducts.length} productos',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Utils.colorBotones,
+                            ),
+                          ),
+                        )),
+                        SizedBox(width: 8),
+                        // Botón Stock crítico
+                        Tooltip(
+                          message: _activeFilter == 'stock' ? 'Ver todos' : 'Stock crítico',
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _activeFilter = _activeFilter == 'stock' ? 'todos' : 'stock';
+                              });
+                            },
+                            child: Container(
+                              padding: EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: _activeFilter == 'stock' ? Colors.red : Colors.grey[200],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.warning_amber_outlined,
+                                color: _activeFilter == 'stock' ? Colors.white : Colors.red,
+                                size: 18,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                    )),
+                        SizedBox(width: 6),
+                        // Botón Vence pronto
+                        Tooltip(
+                          message: _activeFilter == 'expiry' ? 'Ver todos' : 'Vence pronto',
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _activeFilter = _activeFilter == 'expiry' ? 'todos' : 'expiry';
+                              });
+                            },
+                            child: Container(
+                              padding: EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: _activeFilter == 'expiry' ? Colors.orange : Colors.grey[200],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.schedule_outlined,
+                                color: _activeFilter == 'expiry' ? Colors.white : Colors.orange,
+                                size: 18,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
-                SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildImprovedFilterChip('Todos', 'todos', Icons.inventory_2_outlined, Colors.blue),
-                    _buildImprovedFilterChip('Stock crítico', 'stock', Icons.warning_amber_outlined, Colors.red),
-                    _buildImprovedFilterChip('Vence pronto', 'expiry', Icons.schedule_outlined, Colors.orange),
-                  ],
-                ),
-                SizedBox(height: 6),
+                SizedBox(height: 12),
               ],
             ),
           ),
@@ -799,32 +843,29 @@ class ProductListPageState extends State<ProductListPage> {
                     top: Radius.circular(16),
                   ),
                 ),
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
-                  child: imageUrl.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: imageUrl,
-                          height: 120,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => const Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                          errorWidget: (context, url, error) => Image.asset(
+                child: AspectRatio(
+                  aspectRatio: 1.0,
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
+                    child: imageUrl.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: imageUrl,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                            errorWidget: (context, url, error) => Image.asset(
+                              'assets/img/perfume.webp',
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : Image.asset(
                             'assets/img/perfume.webp',
                             fit: BoxFit.cover,
-                            height: 120,
-                            width: double.infinity,
                           ),
-                        )
-                      : Image.asset(
-                          'assets/img/perfume.webp',
-                          fit: BoxFit.cover,
-                          height: 120,
-                          width: double.infinity,
-                        ),
+                  ),
                 ),
               ),
               // Badges de estado en la esquina superior derecha
@@ -978,40 +1019,81 @@ class ProductListPageState extends State<ProductListPage> {
                   ),
                 ),
               ),
-              // Botones de acción en la parte inferior derecha (horizontal)
+              // Botón de acciones en la parte inferior derecha
               Positioned(
                 bottom: 8,
                 right: 8,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildCompactActionButton(
-                      icon: Icons.edit,
-                      color: Utils.edit,
-                      onTap: () async {
-                        final result = await Get.to(() => EditProductPage(product: product));
-                        // Si result es true, significa que se actualizó el producto
-                        if (result == true) {
-                          _loadProducts();
-                        }
-                      },
-                      tooltip: 'Editar',
+                child: PopupMenuButton<String>(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 8,
+                  itemBuilder: (context) => [
+                    PopupMenuItem<String>(
+                      value: 'edit',
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.edit, color: Utils.edit, size: 18),
+                          SizedBox(width: 12),
+                          Text('Editar'),
+                        ],
+                      ),
                     ),
-                    SizedBox(width: 4),
-                    _buildCompactActionButton(
-                      icon: Icons.add,
-                      color: Utils.add,
-                      onTap: () => _showAddStockDialog(productId, name),
-                      tooltip: 'Añadir stock',
+                    PopupMenuItem<String>(
+                      value: 'add_stock',
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.add, color: Utils.add, size: 18),
+                          SizedBox(width: 12),
+                          Text('Añadir Stock'),
+                        ],
+                      ),
                     ),
-                    SizedBox(width: 4),
-                    _buildCompactActionButton(
-                      icon: Icons.delete,
-                      color: Utils.delete,
-                      onTap: () => _deleteProduct(productId, name),
-                      tooltip: 'Eliminar',
+                    PopupMenuItem<String>(
+                      value: 'delete',
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.delete, color: Utils.delete, size: 18),
+                          SizedBox(width: 12),
+                          Text('Eliminar'),
+                        ],
+                      ),
                     ),
                   ],
+                  onSelected: (value) async {
+                    if (value == 'edit') {
+                      final result = await Get.to(() => EditProductPage(product: product));
+                      if (result == true) {
+                        _loadProducts();
+                      }
+                    } else if (value == 'add_stock') {
+                      _showAddStockDialog(productId, name);
+                    } else if (value == 'delete') {
+                      _deleteProduct(productId, name);
+                    }
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Utils.colorBotones.withValues(alpha: 0.9),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Utils.colorBotones.withValues(alpha: 0.4),
+                          blurRadius: 6,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    padding: EdgeInsets.all(8),
+                    child: Icon(
+                      Icons.more_vert,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -1271,127 +1353,170 @@ class ProductListPageState extends State<ProductListPage> {
             );
           }
 
-          return AlertDialog(
-            title: Text('Stock en Todas las Tiendas - $productName'),
-            content: SizedBox(
-              width: 400,
-              child: isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(),
-                    )
-                  : errorMessage != null
-                      ? Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.error_outline,
-                              color: Colors.red,
-                              size: 48,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              errorMessage!,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                          ],
-                        )
-                      : stocks.isEmpty
-                          ? const Center(
-                              child: Text('Sin datos de stock'),
-                            )
-                          : SingleChildScrollView(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: stocks.map((stock) {
-                                  final storeName = stock['storeName'] ?? 'Sin tienda';
-                                  final stockQty = stock['stock'] ?? 0;
-                                  final salePrice = stock['salePrice'] ?? 0.0;
-                                  final purchasePrice = stock['purchasePrice'] ?? 0.0;
-
-                                  return Container(
-                                    margin: const EdgeInsets.only(bottom: 12),
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[50],
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: Colors.grey[300]!),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          storeName,
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            const Text(
-                                              'Stock:',
-                                              style: TextStyle(fontSize: 13),
-                                            ),
-                                            Text(
-                                              '$stockQty',
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.bold,
-                                                color: stockQty <= 0 
-                                                    ? Colors.red 
-                                                    : Colors.green,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        // Solo mostrar precios si NO es empleado
-                                        if (!isEmployee) ...[
-                                          const SizedBox(height: 6),
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              const Text(
-                                                'Precio Venta:',
-                                                style: TextStyle(fontSize: 13),
-                                              ),
-                                              Text(
-                                                '${salePrice.toStringAsFixed(2)} Bs.',
-                                                style: const TextStyle(fontSize: 13),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 6),
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              const Text(
-                                                'Precio Compra:',
-                                                style: TextStyle(fontSize: 13),
-                                              ),
-                                              Text(
-                                                '${purchasePrice.toStringAsFixed(2)} Bs.',
-                                                style: const TextStyle(fontSize: 13),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cerrar'),
+          return Dialog(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minWidth: 320,
+                maxWidth: 500,
+                minHeight: 200,
+                maxHeight: 600,
               ),
-            ],
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Utils.colorBotones,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(8),
+                        topRight: Radius.circular(8),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Stock en Todas las Tiendas',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white),
+                          onPressed: () => Navigator.of(context).pop(),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Contenido
+                  Expanded(
+                    child: isLoading
+                        ? const Center(
+                            child: CircularProgressIndicator(),
+                          )
+                        : errorMessage != null
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.error_outline,
+                                      color: Colors.red,
+                                      size: 48,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      child: Text(
+                                        errorMessage!,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : stocks.isEmpty
+                                ? const Center(
+                                    child: Text('Sin datos de stock'),
+                                  )
+                                : SingleChildScrollView(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: stocks.map((stock) {
+                                        final storeName = stock['storeName'] ?? 'Sin tienda';
+                                        final stockQty = stock['stock'] ?? 0;
+                                        final salePrice = stock['salePrice'] ?? 0.0;
+                                        final purchasePrice = stock['purchasePrice'] ?? 0.0;
+
+                                        return Container(
+                                          margin: const EdgeInsets.only(bottom: 12),
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey[50],
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: Colors.grey[300]!),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                storeName,
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Row(
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                children: [
+                                                  const Text(
+                                                    'Stock:',
+                                                    style: TextStyle(fontSize: 13),
+                                                  ),
+                                                  Text(
+                                                    '$stockQty',
+                                                    style: TextStyle(
+                                                      fontSize: 13,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: stockQty <= 0 
+                                                          ? Colors.red 
+                                                          : Colors.green,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              // Solo mostrar precios si NO es empleado
+                                              if (!isEmployee) ...[
+                                                const SizedBox(height: 6),
+                                                Row(
+                                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                  children: [
+                                                    const Text(
+                                                      'Precio Venta:',
+                                                      style: TextStyle(fontSize: 13),
+                                                    ),
+                                                    Text(
+                                                      '${salePrice.toStringAsFixed(2)} Bs.',
+                                                      style: const TextStyle(fontSize: 13),
+                                                    ),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 6),
+                                                Row(
+                                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                  children: [
+                                                    const Text(
+                                                      'Precio Compra:',
+                                                      style: TextStyle(fontSize: 13),
+                                                    ),
+                                                    Text(
+                                                      '${purchasePrice.toStringAsFixed(2)} Bs.',
+                                                      style: const TextStyle(fontSize: 13),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ),
+                  ),
+                ],
+              ),
+            ),
           );
         },
       ),

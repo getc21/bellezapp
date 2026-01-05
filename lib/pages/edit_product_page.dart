@@ -255,7 +255,7 @@ class EditProductPageState extends State<EditProductPage> {
           children: [
             Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
             SizedBox(width: 12),
-            Text('Confirmar eliminación'),
+            Text('Confirmar eliminación', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           ],
         ),
         content: Column(

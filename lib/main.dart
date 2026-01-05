@@ -6,6 +6,7 @@ import 'package:bellezapp/controllers/cash_controller.dart';
 import 'package:bellezapp/controllers/auth_controller.dart';
 import 'package:bellezapp/pages/home_page.dart';
 import 'package:bellezapp/pages/login_page.dart';
+import 'package:bellezapp/pages/splash_screen.dart';
 import 'package:bellezapp/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -41,7 +42,7 @@ class BeautyStoreAppState extends State<BeautyStoreApp> {
     return Obx(() {
       return GetMaterialApp(
         debugShowCheckedModeBanner: false,
-        title: 'Control de Almacenes - Belleza',
+        title: 'NaturalMarket',
         
         // Configuración de temas dinámicos
         theme: themeController.isInitialized 
@@ -52,65 +53,46 @@ class BeautyStoreAppState extends State<BeautyStoreApp> {
           : ThemeData.dark(),
         themeMode: themeController.isInitialized 
           ? themeController.themeMode 
-          : ThemeMode.system,
+          : ThemeMode.light,
         
-        home: _buildInitialScreen(),
+        home: const AuthInitializer(),
           
-        locale: const Locale('es', 'ES'), // Establecer el idioma predeterminado
+        locale: const Locale('es', 'ES'),
         localizationsDelegates: const <LocalizationsDelegate<Object>>[
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
         supportedLocales: const <Locale>[
-          Locale('en', ''), // Inglés
-          Locale('es', ''), // Español
+          Locale('en', ''),
+          Locale('es', ''),
         ],
       );
     });
   }
+}
 
-  Widget _buildInitialScreen() {
-    final ThemeController themeController = Get.find<ThemeController>();
+/// 🔐 Auth Initializer - Verifica si el usuario está autenticado
+class AuthInitializer extends StatelessWidget {
+  const AuthInitializer({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
     final AuthController authController = Get.find<AuthController>();
-    
-    if (!themeController.isInitialized) {
-      return _buildLoadingScreen();
-    }
-    
-    return Obx(() {
-      if (authController.isLoading) {
-        return _buildLoadingScreen();
+    final ThemeController themeController = Get.find<ThemeController>();
+
+    return Obx(() {   
+      // Mostrar splash mientras carga
+      if (!themeController.isInitialized || authController.isLoading) {
+        return const SplashScreen();
       }
-      
+
+      // Si está autenticado, mostrar home
       if (authController.isLoggedIn) {
         return const HomePage();
       } else {
         return const LoginPage();
       }
     });
-  }
-
-  Widget _buildLoadingScreen() {
-    return Scaffold(
-      backgroundColor: Utils.colorFondo, // Color de fondo por defecto
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Utils.loadingCustom(),
-            const SizedBox(height: 24),
-            const Text(
-              'Cargando temas...',
-              style: TextStyle(
-                fontSize: 16,
-                color: Color(0xFF616161),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
