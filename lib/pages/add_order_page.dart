@@ -116,10 +116,15 @@ class AddOrderPageState extends State<AddOrderPage> {
         }
 
         try {
+          print('[SCAN] QR escaneado: $code');
+          print('[SCAN] StoreId actual: ${storeController.currentStore?['_id']}');
+          print('[SCAN] Store name: ${storeController.currentStore?['name']}');
+          
           final product = await productController.searchProduct(code);
 
           if (product != null) {
             final productId = product['_id'] ?? product['id'];
+            print('[SCAN] ✅ Producto encontrado: ${product['name']} (ID: $productId)');
 
             if (!_products.any((p) => p['id'] == productId)) {
               // Producto nuevo - agregarlo
@@ -158,6 +163,7 @@ class AddOrderPageState extends State<AddOrderPage> {
             // Actualizar cooldown para evitar spam del mensaje de error
             _lastScannedCode = code;
             _lastScanTime = now;
+            print('[SCAN] ❌ Producto no encontrado para: $code');
 
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(

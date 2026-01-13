@@ -1,18 +1,18 @@
 import 'dart:developer';
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:bellezapp/controllers/product_controller.dart';
 import 'package:bellezapp/controllers/auth_controller.dart';
 import 'package:bellezapp/pages/add_product_page.dart';
 import 'package:bellezapp/pages/edit_product_page.dart';
 import 'package:bellezapp/utils/utils.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:barcode_widget/barcode_widget.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class ProductListPage extends StatefulWidget {
   const ProductListPage({super.key});
@@ -26,6 +26,7 @@ class ProductListPageState extends State<ProductListPage> {
   late final ProductController productController;
   final AuthController authController = Get.find<AuthController>();
   final TextEditingController _searchController = TextEditingController();
+  late FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
   
   String _activeFilter = 'todos';
   final Map<String, bool> _expandedBadges = {}; // Para controlar qué badges están expandidos
@@ -33,6 +34,9 @@ class ProductListPageState extends State<ProductListPage> {
   @override
   void initState() {
     super.initState();
+    // Inicializar notificaciones
+    _initializeNotifications();
+    
     // Intentar obtener una instancia existente, o crear una nueva si no existe
     try {
       productController = Get.find<ProductController>();
@@ -397,59 +401,210 @@ class ProductListPageState extends State<ProductListPage> {
 
   Future<void> _generateAndShowPdf(BuildContext context, String productName) async {
     try {
-      final pdf = pw.Document();
-
-      pdf.addPage(
-        pw.Page(
-          pageFormat: PdfPageFormat(80 * PdfPageFormat.mm, 100 * PdfPageFormat.mm),
-          build: (pw.Context context) {
-            return pw.GridView(
-              crossAxisCount: 4,
-              childAspectRatio: 1,
-              children: List.generate(12, (index) {
-                return pw.Container(
-                  alignment: pw.Alignment.center,
-                  padding: const pw.EdgeInsets.all(4),
-                  child: pw.Column(
-                    mainAxisAlignment: pw.MainAxisAlignment.center,
-                    children: [
-                      pw.BarcodeWidget(
-                        barcode: pw.Barcode.qrCode(),
-                        data: productName,
-                        width: 40,
-                        height: 40,
-                      ),
-                      pw.SizedBox(height: 5),
-                      pw.Text(
-                        productName,
-                        style: pw.TextStyle(fontSize: 8),
-                        textAlign: pw.TextAlign.center,
-                      ),
-                    ],
-                  ),
-                );
-              }),
-            );
-          },
+      // Crear un widget con el QR
+      final qrKey = GlobalKey<State<StatefulWidget>>();
+      
+      // Mostrar diálogo con el QR mientras se genera
+      if (!mounted) return;
+      
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('Generando código QR...'),
+          content: SizedBox(
+            width: 250,
+            height: 250,
+            child: Center(
+              child: _QRCodeWidget(
+                key: qrKey,
+                data: productName,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _saveQRAsImage(qrKey, productName);
+              },
+              icon: const Icon(Icons.download),
+              label: const Text('Guardar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Utils.colorBotones,
+              ),
+            ),
+          ],
         ),
       );
-
-      final directory = await getTemporaryDirectory();
-      final filePath = '${directory.path}/$productName.pdf';
-      final file = File(filePath);
-      await file.writeAsBytes(await pdf.save());
-
-      // Abre el archivo PDF con un visor externo
-      await OpenFilex.open(filePath);
     } catch (e) {
-      log('Error generating PDF: $e');
+      log('Error generating QR: $e');
       Get.snackbar(
         'Error',
-        'No se pudo generar el PDF',
+        'No se pudo generar el código QR',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
+    }
+  }
+
+  Future<void> _saveQRAsImage(GlobalKey key, String productName) async {
+    try {
+      // Obtener el RenderRepaintBoundary
+      final boundary = key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) {
+        Get.snackbar(
+          'Error',
+          'No se pudo obtener la imagen del QR',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+        return;
+      }
+
+      // Renderizar la imagen
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      
+      if (byteData == null) {
+        throw Exception('No se pudo convertir a bytes');
+      }
+
+      // Obtener directorio de Descargas pública
+      // /storage/emulated/0/Download o /storage/emulated/0/Downloads
+      final externalDir = await getExternalStorageDirectory();
+      if (externalDir == null) {
+        throw Exception('No se pudo acceder al almacenamiento externo');
+      }
+      
+      // Construir ruta a carpeta Downloads pública
+      final downloadsPath = externalDir.path.replaceAll('/Android/data/com.example.bellezapp/files', '');
+      final downloadDir = Directory('$downloadsPath/Download');
+      
+      // Crear carpeta si no existe
+      if (!await downloadDir.exists()) {
+        await downloadDir.create(recursive: true);
+      }
+      
+      // Crear nombre de archivo con timestamp para evitar conflictos
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final fileName = '${productName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}_$timestamp.png';
+      final filePath = '${downloadDir.path}/$fileName';
+
+      // Guardar archivo
+      final file = File(filePath);
+      await file.writeAsBytes(byteData.buffer.asUint8List());
+
+      log('QR guardado en: $filePath');
+
+      // Mostrar notificación de Android
+      await _showQRNotification(fileName);
+
+      // Mostrar mensaje de éxito
+      Get.snackbar(
+        '✅ Éxito',
+        'QR guardado en Descargas\n$fileName',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+      );
+    } catch (e) {
+      log('Error saving QR: $e');
+      Get.snackbar(
+        'Error',
+        'No se pudo guardar el QR: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  Future<void> _initializeNotifications() async {
+    try {
+      log('[NOTIF] Iniciando inicialización de notificaciones...');
+      
+      flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+      const AndroidInitializationSettings androidInitSettings =
+          AndroidInitializationSettings('@mipmap/launcher_icon');
+      const InitializationSettings initSettings =
+          InitializationSettings(android: androidInitSettings);
+
+      log('[NOTIF] Inicializando plugin de notificaciones...');
+      await flutterLocalNotificationsPlugin.initialize(initSettings);
+      log('[NOTIF] Plugin inicializado correctamente');
+
+      // Crear canal para Android 8.0+
+      log('[NOTIF] Creando canal Android para QR...');
+      const AndroidNotificationChannel channel = AndroidNotificationChannel(
+        'qr_downloads',
+        'Descargas de QR',
+        description: 'Notificaciones cuando se guarda un QR',
+        importance: Importance.high,
+        enableLights: true,
+        enableVibration: true,
+        playSound: true,
+      );
+
+      final android =
+          flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      
+      if (android != null) {
+        log('[NOTIF] Creando canal: qr_downloads');
+        await android.createNotificationChannel(channel);
+        log('[NOTIF] Canal creado exitosamente');
+      } else {
+        log('[NOTIF] ERROR: No se pudo resolver implementación Android');
+      }
+      
+      log('[NOTIF] ✅ Notificaciones inicializadas correctamente');
+    } catch (e, stack) {
+      log('[NOTIF] ❌ Error inicializando notificaciones: $e');
+      log('[NOTIF] Stack trace: $stack');
+    }
+  }
+
+  Future<void> _showQRNotification(String fileName) async {
+    try {
+      log('[NOTIF] Intentando mostrar notificación para: $fileName');
+      
+      const AndroidNotificationDetails androidDetails =
+          AndroidNotificationDetails(
+        'qr_downloads',
+        'Descargas de QR',
+        channelDescription: 'Notificaciones cuando se guarda un QR',
+        importance: Importance.high,
+        priority: Priority.high,
+        showWhen: true,
+        enableLights: true,
+        enableVibration: true,
+        playSound: true,
+        autoCancel: true,
+      );
+
+      const NotificationDetails notificationDetails =
+          NotificationDetails(android: androidDetails);
+
+      log('[NOTIF] Llamando a flutterLocalNotificationsPlugin.show()...');
+      await flutterLocalNotificationsPlugin.show(
+        DateTime.now().millisecond,
+        '📥 QR Descargado',
+        'Archivo: $fileName',
+        notificationDetails,
+        payload: fileName,
+      );
+      log('[NOTIF] ✅ Notificación mostrada exitosamente');
+    } catch (e, stack) {
+      log('[NOTIF] ❌ Error mostrando notificación: $e');
+      log('[NOTIF] Stack trace: $stack');
     }
   }
 
@@ -1565,5 +1720,54 @@ class ProductListPageState extends State<ProductListPage> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+}
+
+// Widget para mostrar el QR con borde para facilitar el renderizado
+class _QRCodeWidget extends StatefulWidget {
+  final String data;
+
+  const _QRCodeWidget({
+    Key? key,
+    required this.data,
+  }) : super(key: key);
+
+  @override
+  State<_QRCodeWidget> createState() => _QRCodeWidgetState();
+}
+
+class _QRCodeWidgetState extends State<_QRCodeWidget> {
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: Container(
+        color: Colors.white,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            BarcodeWidget(
+              barcode: Barcode.qrCode(),
+              data: widget.data,
+              width: 180,
+              height: 180,
+              drawText: false,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              widget.data,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

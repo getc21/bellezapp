@@ -4,6 +4,7 @@ import 'package:bellezapp/controllers/store_controller.dart';
 import 'package:bellezapp/controllers/theme_controller.dart';
 import 'package:bellezapp/controllers/cash_controller.dart';
 import 'package:bellezapp/controllers/auth_controller.dart';
+import 'package:bellezapp/controllers/expense_controller.dart';
 import 'package:bellezapp/pages/home_page.dart';
 import 'package:bellezapp/pages/login_page.dart';
 import 'package:bellezapp/pages/splash_screen.dart';
@@ -23,6 +24,7 @@ void main() async {
   Get.put(IndexPageController());
   Get.put(LoadingController());
   Get.put(CashController());
+  Get.put(ExpenseController());
   
   runApp(const BeautyStoreApp());
 }

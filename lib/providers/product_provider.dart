@@ -264,6 +264,7 @@ class ProductProvider {
     required String id,
     required int quantity,
     required String operation, // 'add' o 'subtract'
+    required String storeId,
   }) async {
     try {
       final response = await http.patch(
@@ -272,6 +273,7 @@ class ProductProvider {
         body: jsonEncode({
           'quantity': quantity,
           'operation': operation,
+          'storeId': storeId,
         }),
       );
       final data = jsonDecode(response.body);
@@ -290,12 +292,25 @@ class ProductProvider {
   }
 
   // Buscar producto por nombre o código de barras
-  Future<Map<String, dynamic>> searchProduct(String query) async {
+  Future<Map<String, dynamic>> searchProduct(String query, {String? storeId}) async {
     try {
+      // URL-encode el query para manejar espacios y caracteres especiales
+      final encodedQuery = Uri.encodeComponent(query);
+      String url = '$baseUrl/products/search/$encodedQuery';
+      if (storeId != null) {
+        url += '?storeId=$storeId';
+      }
+      
+      print('[PROVIDER] GET: $url');
+      
       final response = await http.get(
-        Uri.parse('$baseUrl/products/search/$query'),
+        Uri.parse(url),
         headers: _headers,
       );
+      
+      print('[PROVIDER] Status: ${response.statusCode}');
+      print('[PROVIDER] Response body: ${response.body}');
+      
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
@@ -307,6 +322,7 @@ class ProductProvider {
         };
       }
     } catch (e) {
+      print('[PROVIDER] Exception: $e');
       return {'success': false, 'message': 'Error de conexión: $e'};
     }
   }

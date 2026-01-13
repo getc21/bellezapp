@@ -3,6 +3,7 @@ import 'package:bellezapp/controllers/loading_controller.dart';
 import 'package:bellezapp/controllers/theme_controller.dart';
 import 'package:bellezapp/controllers/auth_controller.dart';
 import 'package:bellezapp/controllers/store_controller.dart';
+import 'package:bellezapp/controllers/expense_controller.dart';
 import 'package:bellezapp/pages/cash_register_page.dart';
 import 'package:bellezapp/pages/category_list_page.dart';
 import 'package:bellezapp/pages/customer_list_page.dart';
@@ -14,6 +15,7 @@ import 'package:bellezapp/pages/supplier_list_page.dart';
 import 'package:bellezapp/pages/theme_settings_page.dart';
 import 'package:bellezapp/pages/user_management_page.dart';
 import 'package:bellezapp/pages/advanced_reports_page.dart';
+import 'package:bellezapp/pages/expense_report_page.dart';
 import 'package:bellezapp/utils/utils.dart';
 import 'package:bellezapp/widgets/store_selector.dart';
 import 'package:flutter/material.dart';
@@ -367,6 +369,16 @@ class HomePageState extends State<HomePage> {
                         
                         // Sección de Reportes
                         _buildSectionHeader('Reportes y Análisis'),
+                        _buildModernDrawerTile(
+                          'Sistema de Gastos',
+                          'Control de gastos e ingresos',
+                          Icons.receipt_outlined,
+                          Colors.amber,
+                          () {
+                            Navigator.pop(context);
+                            Get.to(() => ExpenseReportPage());
+                          },
+                        ),
                         _buildModernDrawerTile(
                           'Reportes Avanzados',
                           'Análisis financiero detallado',

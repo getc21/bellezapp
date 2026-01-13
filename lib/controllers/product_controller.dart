@@ -331,10 +331,25 @@ class ProductController extends GetxController {
     _isLoading.value = true;
 
     try {
+      // Obtener el storeId actual
+      final currentStoreId = _storeController.currentStore?['_id'];
+      
+      if (currentStoreId == null) {
+        Get.snackbar(
+          'Error',
+          'No hay tienda seleccionada',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+        return false;
+      }
+
       final result = await _productProvider.updateStock(
         id: id,
         quantity: quantity,
         operation: operation,
+        storeId: currentStoreId,
       );
 
       if (result['success']) {
@@ -375,14 +390,28 @@ class ProductController extends GetxController {
   // Buscar producto por nombre o código de barras
   Future<Map<String, dynamic>?> searchProduct(String query) async {
     try {
-      final result = await _productProvider.searchProduct(query);
+      // Obtener el storeId actual
+      final currentStoreId = _storeController.currentStore?['_id'];
+      
+      print('[SEARCH] Buscando producto: $query');
+      print('[SEARCH] StoreId: $currentStoreId');
+      
+      final result = await _productProvider.searchProduct(
+        query,
+        storeId: currentStoreId,
+      );
+
+      print('[SEARCH] Resultado: ${result['success']} - ${result['message']}');
 
       if (result['success']) {
+        print('[SEARCH] ✅ Producto encontrado: ${result['data']['name']}');
         return result['data'];
       } else {
+        print('[SEARCH] ❌ Error: ${result['message']}');
         return null;
       }
     } catch (e) {
+      print('[SEARCH] ❌ Exception: $e');
       return null;
     }
   }

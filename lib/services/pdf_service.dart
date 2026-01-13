@@ -4,7 +4,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode, debugPrint;
 import 'dart:io' as io;
 
 class PdfService {
@@ -447,7 +447,7 @@ class PdfService {
         return await _downloadFileNative(pdf, filename);
       }
     } catch (e) {
-      print('Error saving PDF: $e');
+      if (kDebugMode) debugPrint('Error saving PDF: $e');
       rethrow;
     }
   }
@@ -468,7 +468,7 @@ class PdfService {
 
       return file.path;
     } catch (e) {
-      print('Error en descarga nativa: $e');
+      if (kDebugMode) debugPrint('Error en descarga nativa: $e');
       rethrow;
     }
   }
@@ -480,10 +480,10 @@ class PdfService {
       
       // En web, el archivo se descarga automáticamente mediante JS
       // Esta es una implementación simplificada
-      print('PDF generado en web: $filename');
+      if (kDebugMode) debugPrint('PDF generado en web: $filename');
       return 'PDF descargado exitosamente';
     } catch (e) {
-      print('Error en descarga web: $e');
+      if (kDebugMode) debugPrint('Error en descarga web: $e');
       rethrow;
     }
   }
