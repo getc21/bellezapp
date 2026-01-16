@@ -129,8 +129,6 @@ class AddExpensePageState extends State<AddExpensePage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Registrar Gasto'),
@@ -169,7 +167,7 @@ class AddExpensePageState extends State<AddExpensePage> {
             _isLoadingCategories
                 ? const Center(child: CircularProgressIndicator())
                 : DropdownButtonFormField<String>(
-                    value: _selectedCategoryId,
+                    initialValue: _selectedCategoryId,
                     items: [
                       const DropdownMenuItem(
                         value: null,

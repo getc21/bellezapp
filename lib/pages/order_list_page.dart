@@ -44,40 +44,49 @@ class OrderListPageState extends State<OrderListPage> {
     if (searchText.isEmpty) {
       return orderController.orders;
     }
-    
+
     return orderController.orders.where((order) {
       final total = order['totalOrden'].toString().toLowerCase();
-      final paymentMethod = (order['paymentMethod'] ?? '').toString().toLowerCase();
-      
+      final paymentMethod = (order['paymentMethod'] ?? '')
+          .toString()
+          .toLowerCase();
+
       // Número de orden (últimos 6 dígitos del ID)
       final orderId = order['_id'] ?? order['id'] ?? '';
-      final orderNumber = orderId.length >= 6 ? orderId.substring(orderId.length - 6) : orderId;
-      
+      final orderNumber = orderId.length >= 6
+          ? orderId.substring(orderId.length - 6)
+          : orderId;
+
       // Nombre del cliente
       final customer = order['customerId'] as Map<String, dynamic>?;
       final customerName = (customer?['name']?.toString() ?? '').toLowerCase();
-      
-      return total.contains(searchText) || 
-             paymentMethod.contains(searchText) ||
-             orderNumber.toLowerCase().contains(searchText) ||
-             customerName.contains(searchText);
+
+      return total.contains(searchText) ||
+          paymentMethod.contains(searchText) ||
+          orderNumber.toLowerCase().contains(searchText) ||
+          customerName.contains(searchText);
     }).toList();
   }
 
   double get _totalSum {
-    return _filteredOrders.fold(0.0, (sum, order) => 
-      sum + (double.tryParse(order['totalOrden'].toString()) ?? 0.0));
+    return _filteredOrders.fold(
+      0.0,
+      (sum, order) =>
+          sum + (double.tryParse(order['totalOrden'].toString()) ?? 0.0),
+    );
   }
 
   String _formatCurrency(double amount) {
-    final formatter = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
+    final formatter = NumberFormat.currency(symbol: '\Bs.', decimalDigits: 2);
     return formatter.format(amount);
   }
 
   String _formatDate(dynamic date) {
     try {
       if (date == null) return 'Sin fecha';
-      final dateTime = date is DateTime ? date : DateTime.parse(date.toString());
+      final dateTime = date is DateTime
+          ? date
+          : DateTime.parse(date.toString());
       return DateFormat('dd/MM/yyyy HH:mm').format(dateTime);
     } catch (e) {
       return 'Fecha inválida';
@@ -106,22 +115,9 @@ class OrderListPageState extends State<OrderListPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Título de la sección
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      padding: EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Utils.colorBotones.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.receipt_long_rounded,
-                        color: Utils.colorBotones,
-                        size: 24,
-                      ),
-                    ),
-                    SizedBox(width: 12),
                     Text(
                       'Ventas',
                       style: TextStyle(
@@ -130,10 +126,74 @@ class OrderListPageState extends State<OrderListPage> {
                         color: Colors.grey[800],
                       ),
                     ),
+                    Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Utils.colorBotones.withValues(alpha: 0.1),
+                            Utils.colorBotones.withValues(alpha: 0.05),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Utils.colorBotones.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.monetization_on_rounded,
+                                color: Utils.colorBotones,
+                                size: 20,
+                              ),
+                              SizedBox(width: 8),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Total ventas',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey[600],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  Obx(
+                                    () => Text(
+                                      '${_filteredOrders.length} ventas',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Utils.colorBotones,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          SizedBox(width: 12),
+                          Obx(
+                            () => Text(
+                              _formatCurrency(_totalSum),
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Utils.colorBotones,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-                SizedBox(height: 16),
-                
+                SizedBox(height: 8),
+
                 // Campo de búsqueda prominente
                 Container(
                   height: 40,
@@ -148,11 +208,22 @@ class OrderListPageState extends State<OrderListPage> {
                     style: TextStyle(fontSize: 13),
                     decoration: InputDecoration(
                       hintText: 'Buscar por venta, cliente, monto o método...',
-                      hintStyle: TextStyle(color: Colors.grey[500], fontSize: 12),
-                      prefixIcon: Icon(Icons.search, color: Utils.colorBotones, size: 20),
+                      hintStyle: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 12,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.search,
+                        color: Utils.colorBotones,
+                        size: 20,
+                      ),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
-                              icon: Icon(Icons.clear, color: Colors.grey, size: 18),
+                              icon: Icon(
+                                Icons.clear,
+                                color: Colors.grey,
+                                size: 18,
+                              ),
                               onPressed: () {
                                 _searchController.clear();
                                 setState(() {});
@@ -160,73 +231,13 @@ class OrderListPageState extends State<OrderListPage> {
                             )
                           : null,
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 12),
-                
-                // Total de órdenes con diseño mejorado
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Utils.colorBotones.withValues(alpha: 0.1),
-                        Utils.colorBotones.withValues(alpha: 0.05),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Utils.colorBotones.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.monetization_on_rounded,
-                            color: Utils.colorBotones,
-                            size: 20,
-                          ),
-                          SizedBox(width: 8),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Total ventas',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey[600],
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              Obx(() => Text(
-                                '${_filteredOrders.length} ventas',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Utils.colorBotones,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              )),
-                            ],
-                          ),
-                        ],
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
                       ),
-                      Obx(() => Text(
-                        _formatCurrency(_totalSum),
-                        style: TextStyle(
-                          fontSize: 20,
-                          color: Utils.colorBotones,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )),
-                    ],
+                    ),
                   ),
                 ),
-                SizedBox(height: 6),
               ],
             ),
           ),
@@ -304,10 +315,7 @@ class OrderListPageState extends State<OrderListPage> {
             _searchController.text.isEmpty
                 ? 'Las ventas aparecerán aquí'
                 : 'Intenta con otros términos de búsqueda',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
           ),
         ],
       ),
@@ -319,11 +327,13 @@ class OrderListPageState extends State<OrderListPage> {
     final paymentMethod = order['paymentMethod'] ?? 'efectivo';
     final orderDate = order['orderDate'] ?? order['createdAt'];
     final items = order['items'] as List<dynamic>? ?? [];
-    
+
     // Obtener número de orden (últimos 6 dígitos del ID)
     final orderId = order['_id'] ?? order['id'] ?? '';
-    final orderNumber = orderId.length >= 6 ? orderId.substring(orderId.length - 6) : orderId;
-    
+    final orderNumber = orderId.length >= 6
+        ? orderId.substring(orderId.length - 6)
+        : orderId;
+
     // Obtener información del cliente
     final customer = order['customerId'] as Map<String, dynamic>?;
     final customerName = customer?['name']?.toString() ?? 'Cliente General';
@@ -348,8 +358,8 @@ class OrderListPageState extends State<OrderListPage> {
           tilePadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           childrenPadding: EdgeInsets.zero,
           leading: Container(
-            width: 54,
-            height: 54,
+            width: 45,
+            height: 45,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
@@ -374,12 +384,6 @@ class OrderListPageState extends State<OrderListPage> {
             children: [
               Row(
                 children: [
-                  Icon(
-                    Icons.receipt_long_rounded,
-                    size: 16,
-                    color: Utils.colorBotones,
-                  ),
-                  SizedBox(width: 4),
                   Text(
                     'Venta #$orderNumber',
                     style: TextStyle(
@@ -388,17 +392,11 @@ class OrderListPageState extends State<OrderListPage> {
                       color: Utils.colorBotones,
                     ),
                   ),
-                  Spacer(),
-                  Icon(
-                    Icons.attach_money_rounded,
-                    size: 18,
-                    color: Colors.green[700],
-                  ),
-                  SizedBox(width: 2),
+                  SizedBox(width: 10),
                   Text(
                     _formatCurrency(total),
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: Colors.grey[800],
                     ),
@@ -408,11 +406,7 @@ class OrderListPageState extends State<OrderListPage> {
               SizedBox(height: 4),
               Row(
                 children: [
-                  Icon(
-                    Icons.person_outline,
-                    size: 14,
-                    color: Colors.grey[600],
-                  ),
+                  Icon(Icons.person_outline, size: 14, color: Colors.grey[600]),
                   SizedBox(width: 4),
                   Expanded(
                     child: Text(
@@ -444,10 +438,7 @@ class OrderListPageState extends State<OrderListPage> {
                     const SizedBox(width: 4),
                     Text(
                       _formatDate(orderDate),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                     ),
                   ],
                 ),
@@ -457,10 +448,14 @@ class OrderListPageState extends State<OrderListPage> {
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: _getPaymentColor(paymentMethod).withValues(alpha: 0.15),
+                        color: _getPaymentColor(
+                          paymentMethod,
+                        ).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: _getPaymentColor(paymentMethod).withValues(alpha: 0.3),
+                          color: _getPaymentColor(
+                            paymentMethod,
+                          ).withValues(alpha: 0.3),
                         ),
                       ),
                       child: Row(
@@ -493,7 +488,11 @@ class OrderListPageState extends State<OrderListPage> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.shopping_bag_rounded, size: 12, color: Colors.blue[700]),
+                          Icon(
+                            Icons.shopping_bag_rounded,
+                            size: 12,
+                            color: Colors.blue[700],
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             '${items.length}',
@@ -512,59 +511,57 @@ class OrderListPageState extends State<OrderListPage> {
             ),
           ),
           children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(12),
-                bottomRight: Radius.circular(12),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(12),
+                  bottomRight: Radius.circular(12),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Productos:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  const SizedBox(height: 8),
+                  ...items.map((item) {
+                    final quantity = item['quantity'] ?? 0;
+                    final price =
+                        double.tryParse(item['price'].toString()) ?? 0.0;
+                    final productId = item['productId'];
+                    final productName = productId is Map
+                        ? (productId['name'] ?? 'Producto sin nombre')
+                        : 'Producto #$productId';
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '$quantity x $productName',
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                          Text(
+                            _formatCurrency(price * quantity),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Productos:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ...items.map((item) {
-                  final quantity = item['quantity'] ?? 0;
-                  final price = double.tryParse(item['price'].toString()) ?? 0.0;
-                  final productId = item['productId'];
-                  final productName = productId is Map 
-                      ? (productId['name'] ?? 'Producto sin nombre')
-                      : 'Producto #$productId';
-                  
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '$quantity x $productName',
-                            style: const TextStyle(fontSize: 13),
-                          ),
-                        ),
-                        Text(
-                          _formatCurrency(price * quantity),
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-              ],
-            ),
-          ),
           ],
         ),
       ),

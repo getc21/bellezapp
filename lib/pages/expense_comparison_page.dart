@@ -306,7 +306,7 @@ class ExpenseComparisonPageState extends State<ExpenseComparisonPage> {
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: _getChangeColor(_comparison!.percentageChange).withOpacity(0.1),
+                                  color: _getChangeColor(_comparison!.percentageChange).withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Row(
@@ -457,7 +457,7 @@ class ExpenseComparisonPageState extends State<ExpenseComparisonPage> {
                               ),
                             ),
                           );
-                        }).toList(),
+                        }),
                       ] else
                         Padding(
                           padding: const EdgeInsets.all(16),

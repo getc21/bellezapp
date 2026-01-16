@@ -330,7 +330,7 @@ class SupplierListPageState extends State<SupplierListPage> {
                     color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(Icons.chat, color: Colors.white, size: 24),
+                  child: Icon(Icons.message, color: Colors.white, size: 24),
                 ),
                 title: Text(
                   'Enviar WhatsApp',
@@ -429,20 +429,8 @@ class SupplierListPageState extends State<SupplierListPage> {
               children: [
                 // Título de la sección
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      padding: EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Utils.colorBotones.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.business_rounded,
-                        color: Utils.colorBotones,
-                        size: 24,
-                      ),
-                    ),
-                    SizedBox(width: 12),
                     Text(
                       'Proveedores',
                       style: TextStyle(
@@ -451,6 +439,21 @@ class SupplierListPageState extends State<SupplierListPage> {
                         color: Colors.grey[800],
                       ),
                     ),
+                    Obx(() => Container(
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Utils.colorBotones.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${_filteredSuppliers.length} proveedores',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Utils.colorBotones,
+                        ),
+                      ),
+                    )),
                   ],
                 ),
                 SizedBox(height: 16),
@@ -485,38 +488,6 @@ class SupplierListPageState extends State<SupplierListPage> {
                     ),
                   ),
                 ),
-                SizedBox(height: 12),
-                
-                // Contador de proveedores
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Todos los proveedores',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                    Obx(() => Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Utils.colorBotones.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '${_filteredSuppliers.length} proveedores',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Utils.colorBotones,
-                        ),
-                      ),
-                    )),
-                  ],
-                ),
-                SizedBox(height: 6),
               ],
             ),
           ),

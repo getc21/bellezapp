@@ -5,6 +5,7 @@ import 'package:bellezapp/controllers/product_controller.dart';
 import 'package:bellezapp/controllers/auth_controller.dart';
 import 'package:bellezapp/pages/add_product_page.dart';
 import 'package:bellezapp/pages/edit_product_page.dart';
+import 'package:bellezapp/services/permissions_service.dart';
 import 'package:bellezapp/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -13,6 +14,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:barcode_widget/barcode_widget.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:open_filex/open_filex.dart';
 
 class ProductListPage extends StatefulWidget {
   const ProductListPage({super.key});
@@ -27,23 +29,27 @@ class ProductListPageState extends State<ProductListPage> {
   final AuthController authController = Get.find<AuthController>();
   final TextEditingController _searchController = TextEditingController();
   late FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
-  
+
   String _activeFilter = 'todos';
-  final Map<String, bool> _expandedBadges = {}; // Para controlar qué badges están expandidos
+  final Map<String, bool> _expandedBadges =
+      {}; // Para controlar qué badges están expandidos
 
   @override
   void initState() {
     super.initState();
     // Inicializar notificaciones
     _initializeNotifications();
-    
+
+    // ⭐ PEDIR PERMISOS DE NOTIFICACIÓN EN ANDROID 13+
+    _requestNotificationPermissions();
+
     // Intentar obtener una instancia existente, o crear una nueva si no existe
     try {
       productController = Get.find<ProductController>();
     } catch (e) {
       productController = Get.put(ProductController());
     }
-    
+
     // Ejecutar después del primer frame para evitar setState durante build
     // Solo cargar si la lista está vacía
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -58,6 +64,24 @@ class ProductListPageState extends State<ProductListPage> {
     productController.loadProductsForCurrentStore();
   }
 
+  /// ⭐ Pedir permisos de notificación en Android 13+ (API 33+)
+  Future<void> _requestNotificationPermissions() async {
+    if (Platform.isAndroid) {
+      final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+          flutterLocalNotificationsPlugin
+              .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin
+              >();
+
+      final bool? grantedNotificationPermission = await androidImplementation
+          ?.requestNotificationsPermission();
+
+      log(
+        '[NOTIF] Permiso de notificación otorgado: $grantedNotificationPermission',
+      );
+    }
+  }
+
   List<Map<String, dynamic>> get _filteredProducts {
     final searchText = _searchController.text.toLowerCase();
     var products = productController.products;
@@ -66,15 +90,23 @@ class ProductListPageState extends State<ProductListPage> {
     if (searchText.isNotEmpty) {
       products = products.where((product) {
         final name = (product['name'] ?? '').toString().toLowerCase();
-        final description = (product['description'] ?? '').toString().toLowerCase();
-        final category = (product['categoryId']?['name'] ?? '').toString().toLowerCase();
-        final supplier = (product['supplierId']?['name'] ?? '').toString().toLowerCase();
-        final location = (product['locationId']?['name'] ?? '').toString().toLowerCase();
-        return name.contains(searchText) || 
-               description.contains(searchText) ||
-               category.contains(searchText) ||
-               supplier.contains(searchText) ||
-               location.contains(searchText);
+        final description = (product['description'] ?? '')
+            .toString()
+            .toLowerCase();
+        final category = (product['categoryId']?['name'] ?? '')
+            .toString()
+            .toLowerCase();
+        final supplier = (product['supplierId']?['name'] ?? '')
+            .toString()
+            .toLowerCase();
+        final location = (product['locationId']?['name'] ?? '')
+            .toString()
+            .toLowerCase();
+        return name.contains(searchText) ||
+            description.contains(searchText) ||
+            category.contains(searchText) ||
+            supplier.contains(searchText) ||
+            location.contains(searchText);
       }).toList();
     }
 
@@ -89,9 +121,11 @@ class ProductListPageState extends State<ProductListPage> {
     // Aplicar filtro de próximo a vencer (<60 días, como en web)
     if (_activeFilter == 'expiry') {
       products = products.where((product) {
-        final expiryDate = DateTime.tryParse(product['expiryDate']?.toString() ?? '');
-        return expiryDate != null && 
-               expiryDate.difference(DateTime.now()).inDays < 60;
+        final expiryDate = DateTime.tryParse(
+          product['expiryDate']?.toString() ?? '',
+        );
+        return expiryDate != null &&
+            expiryDate.difference(DateTime.now()).inDays < 60;
       }).toList();
     }
 
@@ -116,12 +150,14 @@ class ProductListPageState extends State<ProductListPage> {
       barrierDismissible: false,
       builder: (context) {
         return Dialog(
-          insetPadding: EdgeInsets.symmetric(horizontal: MediaQuery.of(context).size.width * 0.05),
+          insetPadding: EdgeInsets.symmetric(
+            horizontal: MediaQuery.of(context).size.width * 0.05,
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
           elevation: 8,
-          child: Container(  
+          child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -167,7 +203,7 @@ class ProductListPageState extends State<ProductListPage> {
                         ),
                       ),
                       SizedBox(height: 24),
-                      
+
                       // Título
                       Text(
                         'Añadir Stock',
@@ -179,10 +215,13 @@ class ProductListPageState extends State<ProductListPage> {
                         ),
                       ),
                       SizedBox(height: 8),
-                      
+
                       // Nombre del producto
                       Container(
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: Utils.colorBotones.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
@@ -213,7 +252,7 @@ class ProductListPageState extends State<ProductListPage> {
                         ),
                       ),
                       SizedBox(height: 24),
-                      
+
                       // Campo de cantidad con diseño moderno
                       Container(
                         decoration: BoxDecoration(
@@ -268,12 +307,16 @@ class ProductListPageState extends State<ProductListPage> {
                         ),
                       ),
                       SizedBox(height: 8),
-                      
+
                       // Texto de ayuda
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.info_outline, size: 16, color: Colors.grey[500]),
+                          Icon(
+                            Icons.info_outline,
+                            size: 16,
+                            color: Colors.grey[500],
+                          ),
                           SizedBox(width: 6),
                           Text(
                             'Ingresa la cantidad a agregar al inventario',
@@ -285,7 +328,7 @@ class ProductListPageState extends State<ProductListPage> {
                         ],
                       ),
                       SizedBox(height: 32),
-                      
+
                       // Botones con diseño moderno
                       Row(
                         children: [
@@ -294,46 +337,51 @@ class ProductListPageState extends State<ProductListPage> {
                             child: SizedBox(
                               height: 44,
                               child: OutlinedButton(
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                              },
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(color: Colors.grey[300]!, width: 2),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(
+                                    color: Colors.grey[300]!,
+                                    width: 2,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  padding: EdgeInsets.symmetric(horizontal: 8),
                                 ),
-                                padding: EdgeInsets.symmetric(horizontal: 8),
-                              ),
-                              child: Text(
-                                'Cancelar',
-                                style: TextStyle(
-                                  color: Colors.grey[700],
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
+                                child: Text(
+                                  'Cancelar',
+                                  style: TextStyle(
+                                    color: Colors.grey[700],
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                        SizedBox(width: 12),
-                        
-                        // Botón Añadir
-                        Expanded(
-                          flex: 2,
-                          child: Container(
-                            height: 44,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(14),
-                              gradient: LinearGradient(
-                                colors: [
-                                  Utils.colorBotones,
-                                  Utils.colorBotones.withValues(alpha: 0.8),
-                                ],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Utils.colorBotones.withValues(alpha: 0.4),
-                                  blurRadius: 12,
+                          SizedBox(width: 12),
+
+                          // Botón Añadir
+                          Expanded(
+                            flex: 2,
+                            child: Container(
+                              height: 44,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(14),
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Utils.colorBotones,
+                                    Utils.colorBotones.withValues(alpha: 0.8),
+                                  ],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Utils.colorBotones.withValues(
+                                      alpha: 0.4,
+                                    ),
+                                    blurRadius: 12,
                                     offset: Offset(0, 6),
                                   ),
                                 ],
@@ -341,15 +389,18 @@ class ProductListPageState extends State<ProductListPage> {
                               child: ElevatedButton.icon(
                                 onPressed: () async {
                                   if (formKey.currentState!.validate()) {
-                                    final stockToAdd = int.parse(stockController.text);
-                                    Navigator.of(context).pop();
-                                    
-                                    final success = await productController.updateStock(
-                                      id: productId,
-                                      quantity: stockToAdd,
-                                      operation: 'add',
+                                    final stockToAdd = int.parse(
+                                      stockController.text,
                                     );
-                                    
+                                    Navigator.of(context).pop();
+
+                                    final success = await productController
+                                        .updateStock(
+                                          id: productId,
+                                          quantity: stockToAdd,
+                                          operation: 'add',
+                                        );
+
                                     if (success) {
                                       _loadProducts();
                                       // Mostrar snackbar de éxito
@@ -359,7 +410,10 @@ class ProductListPageState extends State<ProductListPage> {
                                         snackPosition: SnackPosition.TOP,
                                         backgroundColor: Colors.green,
                                         colorText: Colors.white,
-                                        icon: Icon(Icons.check_circle, color: Colors.white),
+                                        icon: Icon(
+                                          Icons.check_circle,
+                                          color: Colors.white,
+                                        ),
                                         duration: Duration(seconds: 2),
                                       );
                                     }
@@ -399,14 +453,17 @@ class ProductListPageState extends State<ProductListPage> {
     );
   }
 
-  Future<void> _generateAndShowPdf(BuildContext context, String productName) async {
+  Future<void> _generateAndShowPdf(
+    BuildContext context,
+    String productName,
+  ) async {
     try {
       // Crear un widget con el QR
       final qrKey = GlobalKey<State<StatefulWidget>>();
-      
+
       // Mostrar diálogo con el QR mientras se genera
       if (!mounted) return;
-      
+
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -416,10 +473,7 @@ class ProductListPageState extends State<ProductListPage> {
             width: 250,
             height: 250,
             child: Center(
-              child: _QRCodeWidget(
-                key: qrKey,
-                data: productName,
-              ),
+              child: _QRCodeWidget(key: qrKey, data: productName),
             ),
           ),
           actions: [
@@ -455,8 +509,39 @@ class ProductListPageState extends State<ProductListPage> {
 
   Future<void> _saveQRAsImage(GlobalKey key, String productName) async {
     try {
+      log('🟡 [QR] Verificando permisos de almacenamiento...');
+      
+      // Verificar y solicitar permisos
+      final hasPermission = await PermissionsService.hasStoragePermissions();
+      if (!hasPermission) {
+        log('🟡 [QR] Solicitando permisos...');
+        final granted = await PermissionsService.requestStoragePermissions();
+        
+        if (!granted) {
+          log('❌ [QR] Permisos denegados');
+          Get.snackbar(
+            'Permisos Requeridos',
+            'Se necesitan permisos de almacenamiento para guardar el QR.\nVe a Configuración > Permisos > Almacenamiento',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.orange,
+            colorText: Colors.white,
+            duration: const Duration(seconds: 5),
+            mainButton: TextButton(
+              onPressed: () {
+                PermissionsService.openAppSettings();
+              },
+              child: const Text('Abrir Configuración'),
+            ),
+          );
+          return;
+        }
+        log('✅ [QR] Permisos otorgados');
+      }
+
+      log('🟡 [QR] Obteniendo RenderRepaintBoundary...');
       // Obtener el RenderRepaintBoundary
-      final boundary = key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      final boundary =
+          key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) {
         Get.snackbar(
           'Error',
@@ -468,55 +553,91 @@ class ProductListPageState extends State<ProductListPage> {
         return;
       }
 
+      log('🟡 [QR] Renderizando imagen...');
       // Renderizar la imagen
       final image = await boundary.toImage(pixelRatio: 3.0);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      
+
       if (byteData == null) {
         throw Exception('No se pudo convertir a bytes');
       }
 
-      // Obtener directorio de Descargas pública
-      // /storage/emulated/0/Download o /storage/emulated/0/Downloads
-      final externalDir = await getExternalStorageDirectory();
-      if (externalDir == null) {
-        throw Exception('No se pudo acceder al almacenamiento externo');
+      log('🟡 [QR] Obteniendo directorio de descargas...');
+      // Obtener directorio de Descargas
+      Directory? downloadDir;
+      
+      if (Platform.isAndroid) {
+        try {
+          // Usar getDownloadsDirectory() para obtener el directorio de descargas
+          downloadDir = await getDownloadsDirectory();
+          if (downloadDir == null) {
+            log('⚠️ [QR] getDownloadsDirectory retornó null, usando fallback');
+            // Fallback a app-specific directory
+            final appDocDir = await getApplicationDocumentsDirectory();
+            downloadDir = Directory('${appDocDir.path}/QR_Codes');
+          }
+          log('✅ [QR] Usando directorio: ${downloadDir!.path}');
+        } catch (e) {
+          log('❌ [QR] Error obteniendo directorio de descargas: $e');
+          // Fallback: usar app-specific directory
+          final appDocDir = await getApplicationDocumentsDirectory();
+          downloadDir = Directory('${appDocDir.path}/QR_Codes');
+          log('🟡 [QR] Usando fallback app-specific: ${downloadDir.path}');
+        }
+      } else {
+        // iOS
+        final appDocDir = await getApplicationDocumentsDirectory();
+        downloadDir = Directory('${appDocDir.path}/QR_Codes');
       }
-      
-      // Construir ruta a carpeta Downloads pública
-      final downloadsPath = externalDir.path.replaceAll('/Android/data/com.example.bellezapp/files', '');
-      final downloadDir = Directory('$downloadsPath/Download');
-      
+
       // Crear carpeta si no existe
       if (!await downloadDir.exists()) {
+        log('🟡 [QR] Creando directorio: ${downloadDir.path}');
         await downloadDir.create(recursive: true);
       }
-      
-      // Crear nombre de archivo con timestamp para evitar conflictos
+
+      // Crear nombre de archivo con timestamp
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final fileName = '${productName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}_$timestamp.png';
+      final fileName =
+          '${productName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}_$timestamp.png';
       final filePath = '${downloadDir.path}/$fileName';
 
+      log('🟡 [QR] Guardando archivo en: $filePath');
       // Guardar archivo
       final file = File(filePath);
-      await file.writeAsBytes(byteData.buffer.asUint8List());
+      String finalPath = filePath;
+      try {
+        await file.writeAsBytes(byteData.buffer.asUint8List());
+      } on FileSystemException catch (e) {
+        log('⚠️ [QR] Error escribiendo en $filePath: ${e.message}');
+        // Fallback a app-specific directory si falla el acceso directo
+        final appDocDir = await getApplicationDocumentsDirectory();
+        final fallbackDir = Directory('${appDocDir.path}/QR_Codes');
+        await fallbackDir.create(recursive: true);
+        
+        final fallbackPath = '${fallbackDir.path}/$fileName';
+        log('🟡 [QR] Reintentando en fallback: $fallbackPath');
+        final fallbackFile = File(fallbackPath);
+        await fallbackFile.writeAsBytes(byteData.buffer.asUint8List());
+        finalPath = fallbackPath;
+      }
 
-      log('QR guardado en: $filePath');
+      log('✅ [QR] QR guardado en: $finalPath');
 
-      // Mostrar notificación de Android
-      await _showQRNotification(fileName);
+      // Mostrar notificación de Android con la ruta completa
+      await _showQRNotification(fileName, finalPath);
 
       // Mostrar mensaje de éxito
       Get.snackbar(
         '✅ Éxito',
-        'QR guardado en Descargas\n$fileName',
+        'QR guardado en ${Platform.isAndroid ? 'Descargas' : 'Documentos'}\n$fileName',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.green,
         colorText: Colors.white,
         duration: const Duration(seconds: 3),
       );
     } catch (e) {
-      log('Error saving QR: $e');
+      log('❌ [QR] Error guardando QR: $e');
       Get.snackbar(
         'Error',
         'No se pudo guardar el QR: $e',
@@ -530,18 +651,25 @@ class ProductListPageState extends State<ProductListPage> {
   Future<void> _initializeNotifications() async {
     try {
       log('[NOTIF] Iniciando inicialización de notificaciones...');
-      
+
       flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
       const AndroidInitializationSettings androidInitSettings =
           AndroidInitializationSettings('@mipmap/launcher_icon');
-      const InitializationSettings initSettings =
-          InitializationSettings(android: androidInitSettings);
+
+      const InitializationSettings initSettings = InitializationSettings(
+        android: androidInitSettings,
+      );
 
       log('[NOTIF] Inicializando plugin de notificaciones...');
-      await flutterLocalNotificationsPlugin.initialize(initSettings);
+      await flutterLocalNotificationsPlugin.initialize(
+        initSettings,
+        // ⭐ AGREGAR HANDLER PARA CUANDO EL USUARIO TOCA LA NOTIFICACIÓN
+        onDidReceiveNotificationResponse: _handleNotificationTap,
+      );
       log('[NOTIF] Plugin inicializado correctamente');
 
-      // Crear canal para Android 8.0+
+      // ⭐ Crear canal para Android 8.0+ (IMPORTANTE para Android 13+)
       log('[NOTIF] Creando canal Android para QR...');
       const AndroidNotificationChannel channel = AndroidNotificationChannel(
         'qr_downloads',
@@ -553,10 +681,11 @@ class ProductListPageState extends State<ProductListPage> {
         playSound: true,
       );
 
-      final android =
-          flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>();
-      
+      final android = flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+
       if (android != null) {
         log('[NOTIF] Creando canal: qr_downloads');
         await android.createNotificationChannel(channel);
@@ -564,7 +693,7 @@ class ProductListPageState extends State<ProductListPage> {
       } else {
         log('[NOTIF] ERROR: No se pudo resolver implementación Android');
       }
-      
+
       log('[NOTIF] ✅ Notificaciones inicializadas correctamente');
     } catch (e, stack) {
       log('[NOTIF] ❌ Error inicializando notificaciones: $e');
@@ -572,26 +701,28 @@ class ProductListPageState extends State<ProductListPage> {
     }
   }
 
-  Future<void> _showQRNotification(String fileName) async {
+  Future<void> _showQRNotification(String fileName, String filePath) async {
     try {
       log('[NOTIF] Intentando mostrar notificación para: $fileName');
-      
+
+      // ⭐ Usar AndroidNotificationChannel (requerido para Android 8.0+)
       const AndroidNotificationDetails androidDetails =
           AndroidNotificationDetails(
-        'qr_downloads',
-        'Descargas de QR',
-        channelDescription: 'Notificaciones cuando se guarda un QR',
-        importance: Importance.high,
-        priority: Priority.high,
-        showWhen: true,
-        enableLights: true,
-        enableVibration: true,
-        playSound: true,
-        autoCancel: true,
-      );
+            'qr_downloads', // Mismo ID del canal creado
+            'Descargas de QR',
+            channelDescription: 'Notificaciones cuando se guarda un QR',
+            importance: Importance.high,
+            priority: Priority.high,
+            showWhen: true,
+            enableLights: true,
+            enableVibration: true,
+            playSound: true,
+            autoCancel: true,
+          );
 
-      const NotificationDetails notificationDetails =
-          NotificationDetails(android: androidDetails);
+      const NotificationDetails notificationDetails = NotificationDetails(
+        android: androidDetails,
+      );
 
       log('[NOTIF] Llamando a flutterLocalNotificationsPlugin.show()...');
       await flutterLocalNotificationsPlugin.show(
@@ -599,12 +730,43 @@ class ProductListPageState extends State<ProductListPage> {
         '📥 QR Descargado',
         'Archivo: $fileName',
         notificationDetails,
-        payload: fileName,
+        payload: filePath, // Pasar la ruta completa como payload
       );
       log('[NOTIF] ✅ Notificación mostrada exitosamente');
     } catch (e, stack) {
       log('[NOTIF] ❌ Error mostrando notificación: $e');
       log('[NOTIF] Stack trace: $stack');
+    }
+  }
+
+  // ⭐ NUEVO: Handler para cuando el usuario toca la notificación
+  void _handleNotificationTap(NotificationResponse response) async {
+    try {
+      log('[NOTIF] Notificación tocada, payload: ${response.payload}');
+
+      final filePath = response.payload;
+      if (filePath == null || filePath.isEmpty) {
+        log('[NOTIF] ❌ Payload vacío');
+        return;
+      }
+
+      log('[NOTIF] Abriendo archivo: $filePath');
+
+      // Verificar que el archivo existe
+      final file = File(filePath);
+      if (!await file.exists()) {
+        log('[NOTIF] ❌ Archivo no existe: $filePath');
+        Get.snackbar('Error', 'El archivo QR no existe (puede haber sido eliminado)');
+        return;
+      }
+
+      // ⭐ Abrir el archivo con la app de galería/visualizador de imágenes
+      await OpenFilex.open(filePath);
+      log('[NOTIF] ✅ Abriendo archivo: $filePath');
+    } catch (e, stack) {
+      log('[NOTIF] ❌ Error manejando notificación: $e');
+      log('[NOTIF] Stack trace: $stack');
+      Get.snackbar('Error', 'Error al abrir el archivo: $e');
     }
   }
 
@@ -629,118 +791,37 @@ class ProductListPageState extends State<ProductListPage> {
     }
   }
 
-  Widget _buildCompactActionButton({
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-    required String tooltip,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 28,
-          height: 28,
-          decoration: BoxDecoration(
+  Widget _buildInfoItem(
+    String label,
+    String value,
+    Color color,
+    IconData icon,
+  ) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 16),
+        SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 9,
+            color: Colors.grey[600],
+            fontWeight: FontWeight.w500,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 10,
             color: color,
-            borderRadius: BorderRadius.circular(6),
-            boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: 0.4),
-                blurRadius: 3,
-                offset: Offset(0, 2),
-              ),
-            ],
+            fontWeight: FontWeight.bold,
           ),
-          child: Icon(
-            icon,
-            color: Colors.white,
-            size: 14,
-          ),
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
-      ),
-    );
-  }
-
-  Widget _buildInfoItem(String label, String value, Color color, IconData icon) {
-    return Expanded(
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 16),
-          SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 9,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 10,
-              color: color,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildImprovedFilterChip(String label, String value, IconData icon, Color color) {
-    final isActive = _activeFilter == value;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _activeFilter = value;
-        });
-      },
-      child: AnimatedContainer(
-        duration: Duration(milliseconds: 200),
-        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isActive ? color : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: color,
-            width: 1.5,
-          ),
-          boxShadow: isActive ? [
-            BoxShadow(
-              color: color.withValues(alpha: 0.3),
-              spreadRadius: 1,
-              blurRadius: 4,
-              offset: Offset(0, 2),
-            ),
-          ] : [],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 14,
-              color: isActive ? Colors.white : color,
-            ),
-            SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: isActive ? Colors.white : color,
-                fontWeight: FontWeight.w600,
-                fontSize: 11,
-              ),
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 
@@ -766,110 +847,35 @@ class ProductListPageState extends State<ProductListPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Campo de búsqueda prominente
-                Container(
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.grey[300]!),
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (value) => setState(() {}),
-                    style: TextStyle(fontSize: 13),
-                    decoration: InputDecoration(
-                      hintText: 'Buscar productos por nombre, categoría, proveedor...',
-                      hintStyle: TextStyle(color: Colors.grey[500], fontSize: 12),
-                      prefixIcon: Icon(Icons.search, color: Utils.colorBotones, size: 20),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: Icon(Icons.clear, color: Colors.grey, size: 18),
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() {});
-                              },
-                            )
-                          : null,
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 12),
-                // Filtros rápidos con contador
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Filtros rápidos',
+                      'Productos',
                       style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[700],
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
                       ),
                     ),
                     Row(
                       children: [
-                        Obx(() => Container(
-                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Utils.colorBotones.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            '${_filteredProducts.length} productos',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Utils.colorBotones,
+                        Obx(
+                          () => Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
                             ),
-                          ),
-                        )),
-                        SizedBox(width: 8),
-                        // Botón Stock crítico
-                        Tooltip(
-                          message: _activeFilter == 'stock' ? 'Ver todos' : 'Stock crítico',
-                          child: GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _activeFilter = _activeFilter == 'stock' ? 'todos' : 'stock';
-                              });
-                            },
-                            child: Container(
-                              padding: EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: _activeFilter == 'stock' ? Colors.red : Colors.grey[200],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                Icons.warning_amber_outlined,
-                                color: _activeFilter == 'stock' ? Colors.white : Colors.red,
-                                size: 18,
-                              ),
+                            decoration: BoxDecoration(
+                              color: Utils.colorBotones.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(20),
                             ),
-                          ),
-                        ),
-                        SizedBox(width: 6),
-                        // Botón Vence pronto
-                        Tooltip(
-                          message: _activeFilter == 'expiry' ? 'Ver todos' : 'Vence pronto',
-                          child: GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _activeFilter = _activeFilter == 'expiry' ? 'todos' : 'expiry';
-                              });
-                            },
-                            child: Container(
-                              padding: EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: _activeFilter == 'expiry' ? Colors.orange : Colors.grey[200],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                Icons.schedule_outlined,
-                                color: _activeFilter == 'expiry' ? Colors.white : Colors.orange,
-                                size: 18,
+                            child: Text(
+                              '${_filteredProducts.length} productos',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Utils.colorBotones,
                               ),
                             ),
                           ),
@@ -878,11 +884,143 @@ class ProductListPageState extends State<ProductListPage> {
                     ),
                   ],
                 ),
-                SizedBox(height: 12),
+                SizedBox(height: 8),
+
+                Row(
+                  children: [
+                    // Buscador expandible
+                    Expanded(
+                      child: Container(
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: TextField(
+                          controller: _searchController,
+                          onChanged: (value) => setState(() {}),
+                          style: TextStyle(fontSize: 13),
+                          decoration: InputDecoration(
+                            hintText:
+                                'Buscar productos por nombre, categoría, proveedor...',
+                            hintStyle: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 12,
+                            ),
+                            prefixIcon: Icon(
+                              Icons.search,
+                              color: Utils.colorBotones,
+                              size: 20,
+                            ),
+                            suffixIcon: _searchController.text.isNotEmpty
+                                ? IconButton(
+                                    icon: Icon(
+                                      Icons.clear,
+                                      color: Colors.grey,
+                                      size: 18,
+                                    ),
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      setState(() {});
+                                    },
+                                  )
+                                : null,
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 10),
+                    // Botón Stock crítico con Tooltip
+                    Tooltip(
+                      message: _activeFilter == 'stock'
+                          ? 'Ver todos'
+                          : 'Stock crítico (≤3)',
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _activeFilter = _activeFilter == 'stock'
+                                ? 'todos'
+                                : 'stock';
+                          });
+                        },
+                        child: Container(
+                          padding: EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: _activeFilter == 'stock'
+                                ? Colors.red
+                                : Colors.grey[200],
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              if (_activeFilter == 'stock')
+                                BoxShadow(
+                                  color: Colors.red.withValues(alpha: 0.3),
+                                  blurRadius: 4,
+                                  offset: Offset(0, 2),
+                                ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.warning_amber_outlined,
+                            color: _activeFilter == 'stock'
+                                ? Colors.white
+                                : Colors.red,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    // Botón Vence pronto con Tooltip
+                    Tooltip(
+                      message: _activeFilter == 'expiry'
+                          ? 'Ver todos'
+                          : 'Vence pronto (<60 días)',
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _activeFilter = _activeFilter == 'expiry'
+                                ? 'todos'
+                                : 'expiry';
+                          });
+                        },
+                        child: Container(
+                          padding: EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: _activeFilter == 'expiry'
+                                ? Colors.orange
+                                : Colors.grey[200],
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              if (_activeFilter == 'expiry')
+                                BoxShadow(
+                                  color: Colors.orange.withValues(alpha: 0.3),
+                                  blurRadius: 4,
+                                  offset: Offset(0, 2),
+                                ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.schedule_outlined,
+                            color: _activeFilter == 'expiry'
+                                ? Colors.white
+                                : Colors.orange,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
-          
+
           // Lista de productos
           Expanded(
             child: Obx(() {
@@ -902,7 +1040,7 @@ class ProductListPageState extends State<ProductListPage> {
                 itemBuilder: (context, rowIndex) {
                   final leftIndex = rowIndex * 2;
                   final rightIndex = leftIndex + 1;
-                  
+
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: IntrinsicHeight(
@@ -910,12 +1048,18 @@ class ProductListPageState extends State<ProductListPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
-                            child: _buildProductCard(products[leftIndex], authController),
+                            child: _buildProductCard(
+                              products[leftIndex],
+                              authController,
+                            ),
                           ),
                           if (rightIndex < products.length) ...[
                             const SizedBox(width: 12),
                             Expanded(
-                              child: _buildProductCard(products[rightIndex], authController),
+                              child: _buildProductCard(
+                                products[rightIndex],
+                                authController,
+                              ),
                             ),
                           ] else
                             const Expanded(child: SizedBox()),
@@ -938,15 +1082,15 @@ class ProductListPageState extends State<ProductListPage> {
             _loadProducts();
           }
         },
-        child: const Icon(
-          Icons.add,
-          color: Colors.white,
-        ),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 
-  Widget _buildProductCard(Map<String, dynamic> product, AuthController authController) {
+  Widget _buildProductCard(
+    Map<String, dynamic> product,
+    AuthController authController,
+  ) {
     final productId = product['_id'] ?? '';
     final name = product['name'] ?? 'Sin nombre';
     final description = product['description'] ?? '';
@@ -955,21 +1099,21 @@ class ProductListPageState extends State<ProductListPage> {
     final purchasePrice = product['purchasePrice'] ?? 0.0;
     final weight = product['weight'] ?? '';
     final imageUrl = _getImageUrl(product);
-    
+
     // Stock levels (matching web logic: ≤3 is critical)
     final isOutOfStock = stock <= 3;
     final isLowStock = stock > 3 && stock < 10;
-    
+
     // Extraer nombres de relaciones
-    final locationName = product['locationId'] is Map 
+    final locationName = product['locationId'] is Map
         ? product['locationId']['name'] ?? 'Sin ubicación'
         : 'Sin ubicación';
-    
+
     // Verificar fecha de vencimiento (matching web logic: <60 días es crítico)
-    final expiryDate = DateTime.tryParse(product['expiryDate']?.toString() ?? '');
-    final daysToExpiry = expiryDate != null 
-        ? expiryDate.difference(DateTime.now()).inDays
-        : null;
+    final expiryDate = DateTime.tryParse(
+      product['expiryDate']?.toString() ?? '',
+    );
+    final daysToExpiry = expiryDate?.difference(DateTime.now()).inDays;
     final isNearExpiry = daysToExpiry != null && daysToExpiry < 60;
 
     return Container(
@@ -1036,7 +1180,8 @@ class ProductListPageState extends State<ProductListPage> {
                         onTap: () {
                           setState(() {
                             final key = '${productId}_stock';
-                            _expandedBadges[key] = !(_expandedBadges[key] ?? false);
+                            _expandedBadges[key] =
+                                !(_expandedBadges[key] ?? false);
                           });
                         },
                         child: AnimatedContainer(
@@ -1052,8 +1197,13 @@ class ProductListPageState extends State<ProductListPage> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.warning, color: Colors.white, size: 10),
-                              if (_expandedBadges['${productId}_stock'] ?? false) ...[
+                              Icon(
+                                Icons.warning,
+                                color: Colors.white,
+                                size: 10,
+                              ),
+                              if (_expandedBadges['${productId}_stock'] ??
+                                  false) ...[
                                 SizedBox(width: 3),
                                 Text(
                                   'Stock crítico',
@@ -1074,7 +1224,8 @@ class ProductListPageState extends State<ProductListPage> {
                         onTap: () {
                           setState(() {
                             final key = '${productId}_lowstock';
-                            _expandedBadges[key] = !(_expandedBadges[key] ?? false);
+                            _expandedBadges[key] =
+                                !(_expandedBadges[key] ?? false);
                           });
                         },
                         child: AnimatedContainer(
@@ -1091,7 +1242,8 @@ class ProductListPageState extends State<ProductListPage> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(Icons.info, color: Colors.white, size: 10),
-                              if (_expandedBadges['${productId}_lowstock'] ?? false) ...[
+                              if (_expandedBadges['${productId}_lowstock'] ??
+                                  false) ...[
                                 SizedBox(width: 3),
                                 Text(
                                   'Stock bajo',
@@ -1106,14 +1258,16 @@ class ProductListPageState extends State<ProductListPage> {
                           ),
                         ),
                       ),
-                    if ((isOutOfStock || isLowStock) && isNearExpiry) SizedBox(height: 3),
+                    if ((isOutOfStock || isLowStock) && isNearExpiry)
+                      SizedBox(height: 3),
                     // Badge de caducidad próxima (<60 días)
                     if (isNearExpiry)
                       GestureDetector(
                         onTap: () {
                           setState(() {
                             final key = '${productId}_expiry';
-                            _expandedBadges[key] = !(_expandedBadges[key] ?? false);
+                            _expandedBadges[key] =
+                                !(_expandedBadges[key] ?? false);
                           });
                         },
                         child: AnimatedContainer(
@@ -1123,16 +1277,25 @@ class ProductListPageState extends State<ProductListPage> {
                             vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: daysToExpiry != null && daysToExpiry < 60 && daysToExpiry >= 0
-                                ? (daysToExpiry < 30 ? Colors.red : Colors.orange)
+                            color:
+                                daysToExpiry < 60 &&
+                                    daysToExpiry >= 0
+                                ? (daysToExpiry < 30
+                                      ? Colors.red
+                                      : Colors.orange)
                                 : Colors.grey,
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.schedule, color: Colors.white, size: 10),
-                              if (_expandedBadges['${productId}_expiry'] ?? false) ...[
+                              Icon(
+                                Icons.schedule,
+                                color: Colors.white,
+                                size: 10,
+                              ),
+                              if (_expandedBadges['${productId}_expiry'] ??
+                                  false) ...[
                                 SizedBox(width: 3),
                                 Text(
                                   'Vence pronto',
@@ -1220,7 +1383,9 @@ class ProductListPageState extends State<ProductListPage> {
                   ],
                   onSelected: (value) async {
                     if (value == 'edit') {
-                      final result = await Get.to(() => EditProductPage(product: product));
+                      final result = await Get.to(
+                        () => EditProductPage(product: product),
+                      );
                       if (result == true) {
                         _loadProducts();
                       }
@@ -1243,11 +1408,7 @@ class ProductListPageState extends State<ProductListPage> {
                       ],
                     ),
                     padding: EdgeInsets.all(8),
-                    child: Icon(
-                      Icons.more_vert,
-                      color: Colors.white,
-                      size: 20,
-                    ),
+                    child: Icon(Icons.more_vert, color: Colors.white, size: 20),
                   ),
                 ),
               ),
@@ -1275,10 +1436,7 @@ class ProductListPageState extends State<ProductListPage> {
                 if (description.isNotEmpty)
                   Text(
                     description,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1300,15 +1458,26 @@ class ProductListPageState extends State<ProductListPage> {
                               onTap: () => _showMultiStoreStockDialog(product),
                               child: MouseRegion(
                                 cursor: SystemMouseCursors.click,
-                                child: _buildInfoItem('Stock', '$stock', 
-                                    isOutOfStock ? Colors.red : 
-                                    isLowStock ? Colors.orange : 
-                                    Colors.green, Icons.inventory),
+                                child: _buildInfoItem(
+                                  'Stock',
+                                  '$stock',
+                                  isOutOfStock
+                                      ? Colors.red
+                                      : isLowStock
+                                      ? Colors.orange
+                                      : Colors.green,
+                                  Icons.inventory,
+                                ),
                               ),
                             ),
                           ),
                           Expanded(
-                            child: _buildInfoItem('Ubicación', locationName, Colors.blue, Icons.location_on),
+                            child: _buildInfoItem(
+                              'Ubicación',
+                              locationName,
+                              Colors.blue,
+                              Icons.location_on,
+                            ),
                           ),
                         ],
                       ),
@@ -1317,15 +1486,24 @@ class ProductListPageState extends State<ProductListPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Expanded(
-                            child: _buildInfoItem('Vencimiento', 
-                                expiryDate != null
-                                    ? expiryDate.toLocal().toString().split(' ')[0]
-                                    : 'Sin fecha',
-                                _getExpirationColor(daysToExpiry), Icons.schedule),
+                            child: _buildInfoItem(
+                              'Vencimiento',
+                              expiryDate != null
+                                  ? expiryDate.toLocal().toString().split(
+                                      ' ',
+                                    )[0]
+                                  : 'Sin fecha',
+                              _getExpirationColor(daysToExpiry),
+                              Icons.schedule,
+                            ),
                           ),
                           Expanded(
-                            child: _buildInfoItem('Tamaño', 
-                                weight.isNotEmpty ? weight : 'Sin especificar', Colors.purple, Icons.straighten),
+                            child: _buildInfoItem(
+                              'Tamaño',
+                              weight.isNotEmpty ? weight : 'Sin especificar',
+                              Colors.purple,
+                              Icons.straighten,
+                            ),
                           ),
                         ],
                       ),
@@ -1338,12 +1516,17 @@ class ProductListPageState extends State<ProductListPage> {
                   padding: EdgeInsets.all(5),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Utils.colorBotones.withValues(alpha: 0.1), Colors.transparent],
+                      colors: [
+                        Utils.colorBotones.withValues(alpha: 0.1),
+                        Colors.transparent,
+                      ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Utils.colorBotones.withValues(alpha: 0.2)),
+                    border: Border.all(
+                      color: Utils.colorBotones.withValues(alpha: 0.2),
+                    ),
                   ),
                   child: Column(
                     children: [
@@ -1418,7 +1601,8 @@ class ProductListPageState extends State<ProductListPage> {
     } else if (_activeFilter == 'expiry') {
       mensaje = 'No hay productos próximos a vencer.';
     } else {
-      mensaje = 'No hay productos registrados. Agrega tu primer producto usando el botón "+".';
+      mensaje =
+          'No hay productos registrados. Agrega tu primer producto usando el botón "+".';
     }
 
     return Center(
@@ -1431,11 +1615,7 @@ class ProductListPageState extends State<ProductListPage> {
               color: Utils.colorBotones.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              icono,
-              size: 80,
-              color: Utils.colorBotones,
-            ),
+            child: Icon(icono, size: 80, color: Utils.colorBotones),
           ),
           const SizedBox(height: 24),
           Text(
@@ -1476,12 +1656,11 @@ class ProductListPageState extends State<ProductListPage> {
 
   /// Mostrar diálogo con stock en todas las tiendas
   void _showMultiStoreStockDialog(Map<String, dynamic> product) {
-    final productName = product['name'] ?? 'Producto';
     final productId = product['_id'];
     bool isLoading = true;
     List<Map<String, dynamic>> stocks = [];
     String? errorMessage;
-    
+
     // Verificar si el usuario es empleado (solo ve sucursal y stock)
     final userRole = authController.userRole;
     final isEmployee = userRole == 'employee' || userRole == 'empleado';
@@ -1492,20 +1671,16 @@ class ProductListPageState extends State<ProductListPage> {
         builder: (context, setState) {
           // Cargar datos solo una vez
           if (isLoading && stocks.isEmpty && errorMessage == null) {
-            _loadMultiStoreStocks(
-              productId,
-              () {},
-              (newStocks, error) {
-                setState(() {
-                  isLoading = false;
-                  if (error != null) {
-                    errorMessage = error;
-                  } else {
-                    stocks = newStocks;
-                  }
-                });
-              },
-            );
+            _loadMultiStoreStocks(productId, () {}, (newStocks, error) {
+              setState(() {
+                isLoading = false;
+                if (error != null) {
+                  errorMessage = error;
+                } else {
+                  stocks = newStocks;
+                }
+              });
+            });
           }
 
           return Dialog(
@@ -1553,121 +1728,131 @@ class ProductListPageState extends State<ProductListPage> {
                   // Contenido
                   Expanded(
                     child: isLoading
-                        ? const Center(
-                            child: CircularProgressIndicator(),
-                          )
+                        ? const Center(child: CircularProgressIndicator())
                         : errorMessage != null
-                            ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.error_outline,
-                                      color: Colors.red,
-                                      size: 48,
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                                      child: Text(
-                                        errorMessage!,
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(fontSize: 14),
-                                      ),
-                                    ),
-                                  ],
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  color: Colors.red,
+                                  size: 48,
                                 ),
-                              )
-                            : stocks.isEmpty
-                                ? const Center(
-                                    child: Text('Sin datos de stock'),
-                                  )
-                                : SingleChildScrollView(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: stocks.map((stock) {
-                                        final storeName = stock['storeName'] ?? 'Sin tienda';
-                                        final stockQty = stock['stock'] ?? 0;
-                                        final salePrice = stock['salePrice'] ?? 0.0;
-                                        final purchasePrice = stock['purchasePrice'] ?? 0.0;
+                                const SizedBox(height: 16),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                  ),
+                                  child: Text(
+                                    errorMessage!,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : stocks.isEmpty
+                        ? const Center(child: Text('Sin datos de stock'))
+                        : SingleChildScrollView(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: stocks.map((stock) {
+                                final storeName =
+                                    stock['storeName'] ?? 'Sin tienda';
+                                final stockQty = stock['stock'] ?? 0;
+                                final salePrice = stock['salePrice'] ?? 0.0;
+                                final purchasePrice =
+                                    stock['purchasePrice'] ?? 0.0;
 
-                                        return Container(
-                                          margin: const EdgeInsets.only(bottom: 12),
-                                          padding: const EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey[50],
-                                            borderRadius: BorderRadius.circular(8),
-                                            border: Border.all(color: Colors.grey[300]!),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                storeName,
-                                                style: const TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.grey,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              Row(
-                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                children: [
-                                                  const Text(
-                                                    'Stock:',
-                                                    style: TextStyle(fontSize: 13),
-                                                  ),
-                                                  Text(
-                                                    '$stockQty',
-                                                    style: TextStyle(
-                                                      fontSize: 13,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: stockQty <= 0 
-                                                          ? Colors.red 
-                                                          : Colors.green,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              // Solo mostrar precios si NO es empleado
-                                              if (!isEmployee) ...[
-                                                const SizedBox(height: 6),
-                                                Row(
-                                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                  children: [
-                                                    const Text(
-                                                      'Precio Venta:',
-                                                      style: TextStyle(fontSize: 13),
-                                                    ),
-                                                    Text(
-                                                      '${salePrice.toStringAsFixed(2)} Bs.',
-                                                      style: const TextStyle(fontSize: 13),
-                                                    ),
-                                                  ],
-                                                ),
-                                                const SizedBox(height: 6),
-                                                Row(
-                                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                  children: [
-                                                    const Text(
-                                                      'Precio Compra:',
-                                                      style: TextStyle(fontSize: 13),
-                                                    ),
-                                                    Text(
-                                                      '${purchasePrice.toStringAsFixed(2)} Bs.',
-                                                      style: const TextStyle(fontSize: 13),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ],
-                                            ],
-                                          ),
-                                        );
-                                      }).toList(),
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[50],
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.grey[300]!,
                                     ),
                                   ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        storeName,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          const Text(
+                                            'Stock:',
+                                            style: TextStyle(fontSize: 13),
+                                          ),
+                                          Text(
+                                            '$stockQty',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                              color: stockQty <= 0
+                                                  ? Colors.red
+                                                  : Colors.green,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      // Solo mostrar precios si NO es empleado
+                                      if (!isEmployee) ...[
+                                        const SizedBox(height: 6),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            const Text(
+                                              'Precio Venta:',
+                                              style: TextStyle(fontSize: 13),
+                                            ),
+                                            Text(
+                                              '${salePrice.toStringAsFixed(2)} Bs.',
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            const Text(
+                                              'Precio Compra:',
+                                              style: TextStyle(fontSize: 13),
+                                            ),
+                                            Text(
+                                              '${purchasePrice.toStringAsFixed(2)} Bs.',
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
                   ),
                 ],
               ),
@@ -1686,7 +1871,7 @@ class ProductListPageState extends State<ProductListPage> {
   ) async {
     try {
       final result = await productController.getProductStocks(productId);
-      
+
       if (result != null && result['success']) {
         final stocks = (result['data'] as List).cast<Map<String, dynamic>>();
         callback(stocks, null);
@@ -1706,7 +1891,7 @@ class ProductListPageState extends State<ProductListPage> {
   /// resto = gris
   Color _getExpirationColor(int? daysToExpiry) {
     if (daysToExpiry == null) return Colors.grey;
-    
+
     if (daysToExpiry < 60) {
       return Colors.red;
     } else if (daysToExpiry < 90) {
@@ -1727,10 +1912,7 @@ class ProductListPageState extends State<ProductListPage> {
 class _QRCodeWidget extends StatefulWidget {
   final String data;
 
-  const _QRCodeWidget({
-    Key? key,
-    required this.data,
-  }) : super(key: key);
+  const _QRCodeWidget({super.key, required this.data});
 
   @override
   State<_QRCodeWidget> createState() => _QRCodeWidgetState();

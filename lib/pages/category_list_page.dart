@@ -35,10 +35,12 @@ class CategoryListPageState extends State<CategoryListPage> {
     if (searchText.isEmpty) {
       return categoryController.categories;
     }
-    
+
     return categoryController.categories.where((category) {
       final name = (category['name'] ?? '').toString().toLowerCase();
-      final description = (category['description'] ?? '').toString().toLowerCase();
+      final description = (category['description'] ?? '')
+          .toString()
+          .toLowerCase();
       return name.contains(searchText) || description.contains(searchText);
     }).toList();
   }
@@ -49,7 +51,7 @@ class CategoryListPageState extends State<CategoryListPage> {
       'Confirmar eliminación',
       '¿Estás seguro de que deseas eliminar esta categoría?',
     );
-    
+
     if (confirmed) {
       await categoryController.deleteCategory(id);
     }
@@ -85,6 +87,40 @@ class CategoryListPageState extends State<CategoryListPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Categorías',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    Obx(
+                      () => Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Utils.colorBotones.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '${_filteredCategories.length} categorías',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Utils.colorBotones,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 // Campo de búsqueda prominente
                 Container(
                   height: 40,
@@ -99,11 +135,22 @@ class CategoryListPageState extends State<CategoryListPage> {
                     style: const TextStyle(fontSize: 13),
                     decoration: InputDecoration(
                       hintText: 'Buscar categorías por nombre o descripción...',
-                      hintStyle: TextStyle(color: Colors.grey[500], fontSize: 12),
-                      prefixIcon: Icon(Icons.search, color: Utils.colorBotones, size: 20),
+                      hintStyle: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 12,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.search,
+                        color: Utils.colorBotones,
+                        size: 20,
+                      ),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(Icons.clear, color: Colors.grey, size: 18),
+                              icon: const Icon(
+                                Icons.clear,
+                                color: Colors.grey,
+                                size: 18,
+                              ),
                               onPressed: () {
                                 _searchController.clear();
                                 setState(() {});
@@ -111,42 +158,13 @@ class CategoryListPageState extends State<CategoryListPage> {
                             )
                           : null,
                       border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
-                
-                // Contador de categorías
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Todas las categorías',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                    Obx(() => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Utils.colorBotones.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '${_filteredCategories.length} categorías',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Utils.colorBotones,
-                        ),
-                      ),
-                    )),
-                  ],
-                ),
-                const SizedBox(height: 6),
               ],
             ),
           ),
@@ -170,7 +188,7 @@ class CategoryListPageState extends State<CategoryListPage> {
                 itemBuilder: (context, rowIndex) {
                   final leftIndex = rowIndex * 2;
                   final rightIndex = leftIndex + 1;
-                  
+
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: IntrinsicHeight(
@@ -245,10 +263,7 @@ class CategoryListPageState extends State<CategoryListPage> {
             _searchController.text.isEmpty
                 ? 'Comienza agregando tu primera categoría'
                 : 'Intenta con otros términos de búsqueda',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
           ),
         ],
       ),
@@ -262,14 +277,16 @@ class CategoryListPageState extends State<CategoryListPage> {
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
-      onTap: () {        
+      onTap: () {
         // Navegar a productos filtrados por esta categoría
-        Get.to(() => FilteredProductsPage(
-          filterType: 'category',
-          filterId: category['_id'].toString(),
-          filterName: name,
-          filterImage: imageUrl,
-        ));
+        Get.to(
+          () => FilteredProductsPage(
+            filterType: 'category',
+            filterId: category['_id'].toString(),
+            filterName: name,
+            filterImage: imageUrl,
+          ),
+        );
       },
       child: Container(
         decoration: BoxDecoration(
@@ -355,7 +372,7 @@ class CategoryListPageState extends State<CategoryListPage> {
                     ),
                   ),
                 ),
-                
+
                 // Botones de acción compactos
                 Positioned(
                   top: 6,
@@ -372,7 +389,10 @@ class CategoryListPageState extends State<CategoryListPage> {
                         ),
                       ],
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 4,
+                    ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -380,7 +400,9 @@ class CategoryListPageState extends State<CategoryListPage> {
                           icon: Icons.edit_rounded,
                           color: Utils.edit,
                           onTap: () async {
-                            final result = await Get.to(() => EditCategoryPage(category: category));
+                            final result = await Get.to(
+                              () => EditCategoryPage(category: category),
+                            );
                             if (result == true || result == null) {
                               categoryController.loadCategories();
                             }
@@ -391,7 +413,8 @@ class CategoryListPageState extends State<CategoryListPage> {
                         _buildCompactActionButton(
                           icon: Icons.delete_rounded,
                           color: Utils.delete,
-                          onTap: () => _deleteCategory(category['_id'].toString()),
+                          onTap: () =>
+                              _deleteCategory(category['_id'].toString()),
                           tooltip: 'Eliminar',
                         ),
                       ],
@@ -424,7 +447,7 @@ class CategoryListPageState extends State<CategoryListPage> {
                       ),
                     ],
                   ),
-                  
+
                   if (description.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Container(
@@ -491,11 +514,7 @@ class CategoryListPageState extends State<CategoryListPage> {
               ),
             ],
           ),
-          child: Icon(
-            icon,
-            color: Colors.white,
-            size: 14,
-          ),
+          child: Icon(icon, color: Colors.white, size: 14),
         ),
       ),
     );

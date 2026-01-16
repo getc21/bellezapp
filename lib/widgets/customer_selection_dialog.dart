@@ -61,7 +61,7 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
                 Text(
                   'Seleccionar Cliente',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.grey[800],
                   ),

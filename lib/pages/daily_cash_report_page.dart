@@ -2,7 +2,6 @@ import 'package:bellezapp/controllers/cash_controller.dart';
 import 'package:bellezapp/models/cash_movement.dart';
 import 'package:bellezapp/utils/utils.dart';
 import 'package:bellezapp/widgets/store_aware_app_bar.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -62,12 +61,6 @@ class DailyCashReportPageState extends State<DailyCashReportPage> {
   }
 
   void _calculateStatistics() {
-    // Mostrar todos los movimientos para depuración
-    for (var movement in _dailyMovements) {
-      if (kDebugMode) {
-      }
-    }
-
     // Los tipos del backend son en inglés: income, expense, sale, opening, closing
     _totalIncome = _dailyMovements
         .where((m) => m.type == 'income')

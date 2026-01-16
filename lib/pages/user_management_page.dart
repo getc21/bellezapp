@@ -305,14 +305,12 @@ class _AddUserDialogState extends State<AddUserDialog> {
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Dialog(
+      insetPadding: EdgeInsets.symmetric(horizontal: screenWidth * 0.05),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Container(
+      child: SizedBox(
         width: screenWidth * 0.9,
-        constraints: BoxConstraints(
-          maxWidth: 600, // Máximo en pantallas muy grandes
-        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -526,12 +524,12 @@ class UserDetailsDialog extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Dialog(
+      insetPadding: EdgeInsets.symmetric(horizontal: screenWidth * 0.05),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Container(
+      child: SizedBox(
         width: screenWidth * 0.9,
-        constraints: const BoxConstraints(maxWidth: 600),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -596,75 +594,78 @@ class UserDetailsDialog extends StatelessWidget {
                   bottomRight: Radius.circular(16),
                 ),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cerrar'),
-                  ),
-                  if (user.id != Get.find<AuthController>().currentUser?.id) ...[
-                    const SizedBox(width: 12),
-                    if (Get.find<AuthController>().isAdmin)
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Cerrar'),
+                    ),
+                    if (user.id != Get.find<AuthController>().currentUser?.id) ...[
+                      const SizedBox(width: 12),
+                      if (Get.find<AuthController>().isAdmin)
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            Get.dialog(
+                              AlertDialog(
+                                title: const Text('Confirmar eliminación'),
+                                content: Text(
+                                  '¿Estás seguro de que deseas eliminar al usuario ${user.fullName}?\n\nEsta acción no se puede deshacer.',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Get.back(),
+                                    child: const Text('Cancelar'),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: () async {
+                                      Get.back();
+                                      final success = await Get.find<AuthController>().deleteUser(user.id!);
+                                      if (success) {
+                                        onUserUpdated();
+                                      }
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    child: const Text('Eliminar'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          ),
+                          child: const Text('Eliminar'),
+                        ),
+                      const SizedBox(width: 12),
                       ElevatedButton(
                         onPressed: () {
                           Navigator.of(context).pop();
                           Get.dialog(
-                            AlertDialog(
-                              title: const Text('Confirmar eliminación'),
-                              content: Text(
-                                '¿Estás seguro de que deseas eliminar al usuario ${user.fullName}?\n\nEsta acción no se puede deshacer.',
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Get.back(),
-                                  child: const Text('Cancelar'),
-                                ),
-                                ElevatedButton(
-                                  onPressed: () async {
-                                    Get.back();
-                                    final success = await Get.find<AuthController>().deleteUser(user.id!);
-                                    if (success) {
-                                      onUserUpdated();
-                                    }
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.red,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                  child: const Text('Eliminar'),
-                                ),
-                              ],
+                            EditUserDialog(
+                              user: user,
+                              onUserUpdated: onUserUpdated,
                             ),
                           );
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
+                          backgroundColor: colorScheme.primary,
+                          foregroundColor: colorScheme.onPrimary,
                           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                         ),
-                        child: const Text('Eliminar'),
+                        child: const Text('Editar'),
                       ),
-                    const SizedBox(width: 12),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        Get.dialog(
-                          EditUserDialog(
-                            user: user,
-                            onUserUpdated: onUserUpdated,
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colorScheme.primary,
-                        foregroundColor: colorScheme.onPrimary,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      ),
-                      child: const Text('Editar'),
-                    ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ],
@@ -779,12 +780,12 @@ class _EditUserDialogState extends State<EditUserDialog> {
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Dialog(
+      insetPadding: EdgeInsets.symmetric(horizontal: screenWidth * 0.05),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Container(
+      child: SizedBox(
         width: screenWidth * 0.9,
-        constraints: const BoxConstraints(maxWidth: 600),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

@@ -3,7 +3,6 @@ import 'package:bellezapp/controllers/store_controller.dart';
 import 'package:bellezapp/controllers/expense_controller.dart';
 import 'package:bellezapp/pages/add_expense_page.dart';
 import 'package:bellezapp/utils/icon_mapper.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -65,8 +64,10 @@ class ExpenseReportPageState extends State<ExpenseReportPage> {
     final currentStore = storeController.currentStore;
     if (currentStore == null) return;
 
+    final ctx = context; // Capture context before async operation
+
     final pickedRange = await showDateRangePicker(
-      context: context,
+      context: ctx,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
       initialDateRange: _customStartDate != null && _customEndDate != null
@@ -87,12 +88,13 @@ class ExpenseReportPageState extends State<ExpenseReportPage> {
   Future<void> _generateExpensePDF() async {
     final now = DateTime.now();
     final firstDayOfMonth = DateTime(now.year, now.month, 1);
+    final ctx = context; // Capture context before async operations
     
     debugPrint('🔴 [PDF] Iniciando generación de PDF');
     
     // Solicita fecha de inicio
     final startDatePicker = await showDatePicker(
-      context: context,
+      context: ctx,
       initialDate: firstDayOfMonth,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
@@ -106,7 +108,7 @@ class ExpenseReportPageState extends State<ExpenseReportPage> {
 
     // Solicita fecha de fin
     final endDatePicker = await showDatePicker(
-      context: context,
+      context: ctx,
       initialDate: DateTime.now(),
       firstDate: startDatePicker,
       lastDate: DateTime.now(),
@@ -121,7 +123,8 @@ class ExpenseReportPageState extends State<ExpenseReportPage> {
     final currentStore = storeController.currentStore;
     if (currentStore == null) {
       debugPrint('🔴 [PDF] No hay tienda seleccionada');
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (!mounted) return;
+      ScaffoldMessenger.of(ctx).showSnackBar(
         const SnackBar(content: Text('Por favor selecciona una tienda')),
       );
       return;
@@ -131,7 +134,7 @@ class ExpenseReportPageState extends State<ExpenseReportPage> {
     // Mostrar loading
     if (!mounted) return;
     showDialog(
-      context: context,
+      context: ctx,
       barrierDismissible: false,
       builder: (context) => const Center(child: CircularProgressIndicator()),
     );
@@ -160,7 +163,7 @@ class ExpenseReportPageState extends State<ExpenseReportPage> {
       }
       
       if (!mounted) return;
-      Navigator.pop(context); // Cerrar loading dialog
+      Navigator.pop(ctx); // Cerrar loading dialog
 
       if (report != null && report.byCategory.isNotEmpty) {
         debugPrint('✅ [PDF] Iniciando creación del PDF...');
@@ -172,7 +175,7 @@ class ExpenseReportPageState extends State<ExpenseReportPage> {
             ? 'El reporte es null' 
             : 'No hay categorías en el reporte (${report.byCategory.length} categorías)';
         debugPrint('🔴 [PDF] Error: $errorMsg');
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(ctx).showSnackBar(
           SnackBar(content: Text('No hay datos de gastos para el período seleccionado')),
         );
       }
@@ -183,8 +186,8 @@ class ExpenseReportPageState extends State<ExpenseReportPage> {
       debugPrint('   Stack trace: $stackTrace');
       
       if (!mounted) return;
-      Navigator.pop(context); // Cerrar loading dialog
-      ScaffoldMessenger.of(context).showSnackBar(
+      Navigator.pop(ctx); // Cerrar loading dialog
+      ScaffoldMessenger.of(ctx).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
     }

@@ -426,7 +426,7 @@ class CustomerListPage extends StatelessWidget {
                           Text(
                             'Total gastado',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 10,
                               color: Theme.of(Get.context!).colorScheme.onSurfaceVariant,
                             ),
                           ),
@@ -447,7 +447,7 @@ class CustomerListPage extends StatelessWidget {
                           Text(
                             'Compras',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 10,
                               color: Theme.of(Get.context!).colorScheme.onSurfaceVariant,
                             ),
                           ),
@@ -468,7 +468,7 @@ class CustomerListPage extends StatelessWidget {
                           Text(
                             'Puntos',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 10,
                               color: Theme.of(Get.context!).colorScheme.onSurfaceVariant,
                             ),
                           ),
@@ -488,9 +488,9 @@ class CustomerListPage extends StatelessWidget {
                             textAlign: TextAlign.center,
                           ),
                           Text(
-                            'Última compra',
+                            'Últ. compra',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 10,
                               color: Theme.of(Get.context!).colorScheme.onSurfaceVariant,
                             ),
                           ),
@@ -519,10 +519,11 @@ class CustomerListPage extends StatelessWidget {
           color: Theme.of(Get.context!).colorScheme.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Row(
               children: [
                 CircleAvatar(
@@ -612,6 +613,7 @@ class CustomerListPage extends StatelessWidget {
               ],
             ),
           ],
+          ),
         ),
       ),
     );

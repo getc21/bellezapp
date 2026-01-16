@@ -5,6 +5,7 @@ import 'package:bellezapp/controllers/supplier_controller.dart';
 import 'package:bellezapp/controllers/location_controller.dart';
 import 'package:bellezapp/controllers/auth_controller.dart';
 import 'package:bellezapp/controllers/store_controller.dart';
+import 'package:bellezapp/services/image_compression_service.dart';
 import 'package:bellezapp/utils/utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -391,8 +392,14 @@ class AddProductPageState extends State<AddProductPage> {
     );
 
     if (image != null) {
+      // Comprimir imagen antes de guardar
+      final compressed = await ImageCompressionService.compressImage(
+        imageFile: File(image.path),
+        quality: 85,
+      );
+
       setState(() {
-        _imageFile = File(image.path);
+        _imageFile = compressed ?? File(image.path);
       });
     }
   }

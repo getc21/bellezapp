@@ -116,15 +116,10 @@ class AddOrderPageState extends State<AddOrderPage> {
         }
 
         try {
-          print('[SCAN] QR escaneado: $code');
-          print('[SCAN] StoreId actual: ${storeController.currentStore?['_id']}');
-          print('[SCAN] Store name: ${storeController.currentStore?['name']}');
-          
           final product = await productController.searchProduct(code);
 
           if (product != null) {
             final productId = product['_id'] ?? product['id'];
-            print('[SCAN] ✅ Producto encontrado: ${product['name']} (ID: $productId)');
 
             if (!_products.any((p) => p['id'] == productId)) {
               // Producto nuevo - agregarlo
@@ -163,7 +158,6 @@ class AddOrderPageState extends State<AddOrderPage> {
             // Actualizar cooldown para evitar spam del mensaje de error
             _lastScannedCode = code;
             _lastScanTime = now;
-            print('[SCAN] ❌ Producto no encontrado para: $code');
 
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -236,7 +230,7 @@ class AddOrderPageState extends State<AddOrderPage> {
               children: [
                 Icon(Icons.person_add, color: Colors.blue),
                 SizedBox(width: 8),
-                Text('Seleccionar Cliente'),
+                Text('Seleccionar Cliente', style: TextStyle(fontSize: 16)),
               ],
             ),
             content: Column(
@@ -457,6 +451,9 @@ class AddOrderPageState extends State<AddOrderPage> {
       if (selectedCustomer != null) {
         await customerController.loadCustomers();
       }
+
+      // ⭐ Recargar productos para actualizar stock
+      await productController.loadProductsForCurrentStore();
 
       // Mensaje de éxito con información de descuento
       String message = '✅ Venta procesada exitosamente!';
@@ -699,9 +696,7 @@ class AddOrderPageState extends State<AddOrderPage> {
                                 try {
                                   scannerController.start();
                                 } catch (e) {
-                                  if (kDebugMode) {
-
-                                  }
+                                  if (kDebugMode) {}
                                 }
                               },
                               child: Text('Reintentar'),

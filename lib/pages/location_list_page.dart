@@ -91,26 +91,34 @@ class LocationListPageState extends State<LocationListPage> {
               children: [
                 // Título de la sección
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      padding: EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Utils.colorBotones.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.place_rounded,
-                        color: Utils.colorBotones,
-                        size: 24,
-                      ),
-                    ),
-                    SizedBox(width: 12),
                     Text(
                       'Ubicaciones',
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
                         color: Colors.grey[800],
+                      ),
+                    ),
+                    Obx(
+                      () => Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Utils.colorBotones.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '${_filteredLocations.length} ubicaciones',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Utils.colorBotones,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -162,43 +170,6 @@ class LocationListPageState extends State<LocationListPage> {
                     ),
                   ),
                 ),
-                SizedBox(height: 12),
-
-                // Contador de ubicaciones
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Todas las ubicaciones',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                    Obx(
-                      () => Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Utils.colorBotones.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '${_filteredLocations.length} ubicaciones',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Utils.colorBotones,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 6),
               ],
             ),
           ),

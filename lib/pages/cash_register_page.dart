@@ -293,7 +293,7 @@ class CashRegisterPageState extends State<CashRegisterPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Resumen del D�a',
+              'Resumen del Día',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,

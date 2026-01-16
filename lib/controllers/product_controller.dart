@@ -8,8 +8,9 @@ import 'store_controller.dart';
 class ProductController extends GetxController {
   final AuthController _authController = Get.find<AuthController>();
   final StoreController _storeController = Get.find<StoreController>();
-  
-  ProductProvider get _productProvider => ProductProvider(_authController.token);
+
+  ProductProvider get _productProvider =>
+      ProductProvider(_authController.token);
 
   // Estados observables
   final RxList<Map<String, dynamic>> _products = <Map<String, dynamic>>[].obs;
@@ -55,12 +56,12 @@ class ProductController extends GetxController {
     try {
       // ⭐ ASEGURAR QUE SIEMPRE SE USE EL STORE ID ACTUAL
       final currentStoreId = storeId ?? _storeController.currentStore?['_id'];
-      
+
       if (currentStoreId == null) {
         _errorMessage.value = 'No hay tienda seleccionada';
         _products.clear();
         return;
-      }      
+      }
       final result = await _productProvider.getProducts(
         storeId: currentStoreId,
         categoryId: categoryId,
@@ -74,7 +75,7 @@ class ProductController extends GetxController {
         if (data is List) {
           final newProducts = List<Map<String, dynamic>>.from(data);
           _products.value = newProducts;
-          
+
           // Verificar que todos los productos pertenezcan a la tienda correcta
           // All products loaded belong to the correct store
         } else {
@@ -176,7 +177,6 @@ class ProductController extends GetxController {
         expiryDate: expiryDate,
         imageFile: imageFile,
       );
-
 
       if (result['success']) {
         Get.snackbar(
@@ -281,7 +281,8 @@ class ProductController extends GetxController {
     } finally {
       _isLoading.value = false;
     }
-  }  // Eliminar producto
+  } // Eliminar producto
+
   Future<bool> deleteProduct(String id) async {
     _isLoading.value = true;
 
@@ -333,7 +334,7 @@ class ProductController extends GetxController {
     try {
       // Obtener el storeId actual
       final currentStoreId = _storeController.currentStore?['_id'];
-      
+
       if (currentStoreId == null) {
         Get.snackbar(
           'Error',
@@ -392,26 +393,18 @@ class ProductController extends GetxController {
     try {
       // Obtener el storeId actual
       final currentStoreId = _storeController.currentStore?['_id'];
-      
-      print('[SEARCH] Buscando producto: $query');
-      print('[SEARCH] StoreId: $currentStoreId');
-      
+
       final result = await _productProvider.searchProduct(
         query,
         storeId: currentStoreId,
       );
 
-      print('[SEARCH] Resultado: ${result['success']} - ${result['message']}');
-
       if (result['success']) {
-        print('[SEARCH] ✅ Producto encontrado: ${result['data']['name']}');
         return result['data'];
       } else {
-        print('[SEARCH] ❌ Error: ${result['message']}');
         return null;
       }
     } catch (e) {
-      print('[SEARCH] ❌ Exception: $e');
       return null;
     }
   }

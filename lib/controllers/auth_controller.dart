@@ -98,20 +98,16 @@ class AuthController extends GetxController {
               final storeController = Get.find<StoreController>();
               await storeController.loadStores();
             } catch (e) {
-              if (kDebugMode) {
-
-              }
               // Error silencioso - usuario puede continuar sin tiendas cargadas
+              if (kDebugMode) print('Store loading error: $e');
             }
             
             // Verificar token en segundo plano
             _verifyTokenInBackground();
             return;
           } catch (e) {
-            if (kDebugMode) {
-
-            }
             // Error al parsear datos guardados - continúa con carga desde API
+            if (kDebugMode) print('User data parsing error: $e');
           }
         }
         
@@ -119,9 +115,7 @@ class AuthController extends GetxController {
         await _loadUserFromAPI();
       }
     } catch (e) {
-      if (kDebugMode) {
-
-      }
+      if (kDebugMode) print('Session recovery error: $e');
       // Error recuperando sesión - limpia estado de autenticación
       await logout();
     } finally {
@@ -142,19 +136,15 @@ class AuthController extends GetxController {
           final storeController = Get.find<StoreController>();
           await storeController.loadStores();
         } catch (e) {
-          if (kDebugMode) {
-
-          }
           // Error silencioso - usuario puede continuar sin tiendas cargadas
+          if (kDebugMode) print('Store loading error: $e');
         }
       } else {
         // Token inválido, limpiar sesión
         await logout();
       }
     } catch (e) {
-      if (kDebugMode) {
-
-      }
+      if (kDebugMode) print('Profile loading error: $e');
       // Error de red o token inválido - limpia sesión
       await logout();
     }
@@ -178,9 +168,7 @@ class AuthController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_data', jsonEncode(userData));
     } catch (e) {
-      if (kDebugMode) {
-
-      }
+      if (kDebugMode) print('Error saving user data: $e');
       // Error silencioso - no afecta funcionalidad principal
     }
   }
@@ -191,9 +179,7 @@ class AuthController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('user_data');
     } catch (e) {
-      if (kDebugMode) {
-
-      }
+      if (kDebugMode) print('Error clearing user data: $e');
       // Error silencioso - no afecta funcionalidad principal
     }
   }
@@ -239,7 +225,7 @@ class AuthController extends GetxController {
             _showFirstStoreDialog();
           }
         } catch (e) {
-
+          // Store loading failed, but user can continue
         }
         
         Get.snackbar(
@@ -299,7 +285,7 @@ class AuthController extends GetxController {
         final storeController = Get.find<StoreController>();
         storeController.clearStores();
       } catch (e) {
-
+        // Store cleanup failed, continue with logout
       }
       
       Get.snackbar(
@@ -352,7 +338,7 @@ class AuthController extends GetxController {
           storesToAssign = [currentStore['_id']];
         }
       } catch (e) {
-
+        // Store not available, continue with empty list
       }
 
       final result = await _authProvider.register(

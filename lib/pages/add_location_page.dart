@@ -1,4 +1,5 @@
 import 'package:bellezapp/controllers/location_controller.dart';
+import 'package:bellezapp/controllers/store_controller.dart';
 import 'package:bellezapp/utils/utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +14,7 @@ class AddLocationPage extends StatefulWidget {
 
 class AddLocationPageState extends State<AddLocationPage> {
   late final LocationController locationController;
+  late final StoreController storeController;
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -25,6 +27,12 @@ class AddLocationPageState extends State<AddLocationPage> {
       locationController = Get.find<LocationController>();
     } catch (e) {
       locationController = Get.put(LocationController());
+    }
+
+    try {
+      storeController = Get.find<StoreController>();
+    } catch (e) {
+      storeController = Get.put(StoreController());
     }
   }
 
@@ -39,7 +47,31 @@ class AddLocationPageState extends State<AddLocationPage> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    final storeId = '000000000000000000000001'; // Temporal
+
+    // ⭐ Obtener el storeId actual de la tienda seleccionada
+    final currentStore = storeController.currentStore;
+    if (currentStore == null) {
+      Get.snackbar(
+        'Error',
+        'No hay tienda seleccionada',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    final storeId = currentStore['_id'] ?? currentStore['id'];
+    if (storeId == null) {
+      Get.snackbar(
+        'Error',
+        'ID de tienda no válido',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
 
     final success = await locationController.createLocation(
       storeId: storeId,
@@ -48,7 +80,6 @@ class AddLocationPageState extends State<AddLocationPage> {
           ? null 
           : _descriptionController.text,
     );
-
 
     if (success) {      
       // Primero navegar de regreso

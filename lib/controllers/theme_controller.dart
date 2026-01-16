@@ -114,7 +114,13 @@ class ThemeController extends GetxController {
         borderRadius: 8,
       );
     } catch (e) {
-
+      Get.snackbar(
+        'Error',
+        'No se pudo cambiar el modo del tema',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.withValues(alpha: 0.8),
+        colorText: Colors.white,
+      );
     }
   }
 
@@ -169,7 +175,13 @@ class ThemeController extends GetxController {
         borderRadius: 8,
       );
     } catch (e) {
-
+      Get.snackbar(
+        'Error',
+        'No se pudo restablecer el tema',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.withValues(alpha: 0.8),
+        colorText: Colors.white,
+      );
     }
   }
 

@@ -8,7 +8,6 @@ import 'package:bellezapp/controllers/expense_controller.dart';
 import 'package:bellezapp/pages/home_page.dart';
 import 'package:bellezapp/pages/login_page.dart';
 import 'package:bellezapp/pages/splash_screen.dart';
-import 'package:bellezapp/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -76,7 +75,7 @@ class BeautyStoreAppState extends State<BeautyStoreApp> {
 
 /// 🔐 Auth Initializer - Verifica si el usuario está autenticado
 class AuthInitializer extends StatelessWidget {
-  const AuthInitializer({Key? key}) : super(key: key);
+  const AuthInitializer({super.key});
 
   @override
   Widget build(BuildContext context) {
