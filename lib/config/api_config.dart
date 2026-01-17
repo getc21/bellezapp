@@ -5,41 +5,41 @@ class ApiConfig {
   static const String _productionUrl = 'https://naturalmarket.onrender.com/api';
 
   // Desarrollo Local
-  static const String _localIP = '192.168.0.48';
-  static const String _emulatorIP = '10.0.2.2';
-  static const String _port = '3000';
+  //static const String _localIP = '192.168.0.48';
+  //static const String _emulatorIP = '10.0.2.2';
+  //static const String _port = '3000';
 
   static String get baseUrl {
-    // EN DESARROLLO: Usar IP local
-    if (_isEmulator()) {
-      return 'http://$_emulatorIP:$_port/api';
-    } else {
-      return 'http://$_localIP:$_port/api';
-    }
+    // PRODUCCION - Usar URL remota
+    return _productionUrl;
     
-    // PARA PRODUCCION (comentar lo anterior y descomentar):
-    // return _productionUrl;
+    // EN DESARROLLO: Usar IP local (comentado)
+    // if (_isEmulator()) {
+    //   return 'http://$_emulatorIP:$_port/api';
+    // } else {
+    //   return 'http://$_localIP:$_port/api';
+    // }
   }
 
   // Detecta si estamos en un emulador
-  static bool _isEmulator() {
-    if (Platform.isAndroid) {
-      final String? androidHome = Platform.environment['ANDROID_HOME'];
-      final String? isEmulator = Platform.environment['ANDROID_EMULATOR'];
-      final bool isGenymotion = Platform.environment['USER']?.contains('genymotion') ?? false;
+  // static bool _isEmulator() {
+  //   if (Platform.isAndroid) {
+  //     final String? androidHome = Platform.environment['ANDROID_HOME'];
+  //     final String? isEmulator = Platform.environment['ANDROID_EMULATOR'];
+  //     final bool isGenymotion = Platform.environment['USER']?.contains('genymotion') ?? false;
 
-      return isEmulator == 'true' || 
-             androidHome != null || 
-             isGenymotion;
-    }
+  //     return isEmulator == 'true' || 
+  //            androidHome != null || 
+  //            isGenymotion;
+  //   }
 
-    if (Platform.isIOS) {
-      return Platform.environment['SIMULATOR_DEVICE_NAME'] != null ||
-             Platform.environment['SIMULATOR_ROOT'] != null;
-    }
+  //   if (Platform.isIOS) {
+  //     return Platform.environment['SIMULATOR_DEVICE_NAME'] != null ||
+  //            Platform.environment['SIMULATOR_ROOT'] != null;
+  //   }
 
-    return false;
-  }
+  //   return false;
+  // }
 
   // Metodo para cambiar manualmente la configuracion
   static String getUrlForMode({required bool useProduction}) {
