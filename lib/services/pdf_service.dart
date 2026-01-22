@@ -259,8 +259,7 @@ class PdfService {
                       ),
                     ],
                   ),
-                )
-                .toList(),
+                ),
           ],
         ),
       ],
@@ -315,7 +314,7 @@ class PdfService {
               ),
             ],
           );
-        }).toList(),
+        }),
       ],
     );
   }
@@ -368,7 +367,7 @@ class PdfService {
               ),
             ],
           );
-        }).toList(),
+        }),
       ],
     );
   }
@@ -421,7 +420,7 @@ class PdfService {
               ),
             ],
           );
-        }).toList(),
+        }),
       ],
     );
   }

@@ -203,8 +203,8 @@ class _ProfitabilityAnalysisPageState extends State<ProfitabilityAnalysisPage> {
       floatingActionButton: FloatingActionButton(
         onPressed: _generatePDF,
         backgroundColor: Utils.colorBotones,
-        child: const Icon(Icons.picture_as_pdf, color: Colors.white),
         tooltip: 'Generar PDF de rentabilidad',
+        child: const Icon(Icons.picture_as_pdf, color: Colors.white),
       ),
     );
   }

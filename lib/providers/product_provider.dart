@@ -301,15 +301,10 @@ class ProductProvider {
         url += '?storeId=$storeId';
       }
       
-      print('[PROVIDER] GET: $url');
-      
       final response = await http.get(
         Uri.parse(url),
         headers: _headers,
       );
-      
-      print('[PROVIDER] Status: ${response.statusCode}');
-      print('[PROVIDER] Response body: ${response.body}');
       
       final data = jsonDecode(response.body);
 
@@ -322,7 +317,6 @@ class ProductProvider {
         };
       }
     } catch (e) {
-      print('[PROVIDER] Exception: $e');
       return {'success': false, 'message': 'Error de conexión: $e'};
     }
   }

@@ -77,7 +77,7 @@ class OrderListPageState extends State<OrderListPage> {
   }
 
   String _formatCurrency(double amount) {
-    final formatter = NumberFormat.currency(symbol: '\Bs.', decimalDigits: 2);
+    final formatter = NumberFormat.currency(symbol: 'Bs.', decimalDigits: 2);
     return formatter.format(amount);
   }
 

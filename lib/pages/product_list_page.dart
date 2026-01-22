@@ -571,18 +571,14 @@ class ProductListPageState extends State<ProductListPage> {
           // Usar getDownloadsDirectory() para obtener el directorio de descargas
           downloadDir = await getDownloadsDirectory();
           if (downloadDir == null) {
-            log('⚠️ [QR] getDownloadsDirectory retornó null, usando fallback');
             // Fallback a app-specific directory
             final appDocDir = await getApplicationDocumentsDirectory();
             downloadDir = Directory('${appDocDir.path}/QR_Codes');
           }
-          log('✅ [QR] Usando directorio: ${downloadDir!.path}');
         } catch (e) {
-          log('❌ [QR] Error obteniendo directorio de descargas: $e');
           // Fallback: usar app-specific directory
           final appDocDir = await getApplicationDocumentsDirectory();
           downloadDir = Directory('${appDocDir.path}/QR_Codes');
-          log('🟡 [QR] Usando fallback app-specific: ${downloadDir.path}');
         }
       } else {
         // iOS
@@ -592,7 +588,6 @@ class ProductListPageState extends State<ProductListPage> {
 
       // Crear carpeta si no existe
       if (!await downloadDir.exists()) {
-        log('🟡 [QR] Creando directorio: ${downloadDir.path}');
         await downloadDir.create(recursive: true);
       }
 
@@ -602,27 +597,22 @@ class ProductListPageState extends State<ProductListPage> {
           '${productName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}_$timestamp.png';
       final filePath = '${downloadDir.path}/$fileName';
 
-      log('🟡 [QR] Guardando archivo en: $filePath');
       // Guardar archivo
       final file = File(filePath);
       String finalPath = filePath;
       try {
         await file.writeAsBytes(byteData.buffer.asUint8List());
-      } on FileSystemException catch (e) {
-        log('⚠️ [QR] Error escribiendo en $filePath: ${e.message}');
+      } on FileSystemException {
         // Fallback a app-specific directory si falla el acceso directo
         final appDocDir = await getApplicationDocumentsDirectory();
         final fallbackDir = Directory('${appDocDir.path}/QR_Codes');
         await fallbackDir.create(recursive: true);
         
         final fallbackPath = '${fallbackDir.path}/$fileName';
-        log('🟡 [QR] Reintentando en fallback: $fallbackPath');
         final fallbackFile = File(fallbackPath);
         await fallbackFile.writeAsBytes(byteData.buffer.asUint8List());
         finalPath = fallbackPath;
       }
-
-      log('✅ [QR] QR guardado en: $finalPath');
 
       // Mostrar notificación de Android con la ruta completa
       await _showQRNotification(fileName, finalPath);
@@ -637,7 +627,6 @@ class ProductListPageState extends State<ProductListPage> {
         duration: const Duration(seconds: 3),
       );
     } catch (e) {
-      log('❌ [QR] Error guardando QR: $e');
       Get.snackbar(
         'Error',
         'No se pudo guardar el QR: $e',
@@ -650,7 +639,6 @@ class ProductListPageState extends State<ProductListPage> {
 
   Future<void> _initializeNotifications() async {
     try {
-      log('[NOTIF] Iniciando inicialización de notificaciones...');
 
       flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
@@ -661,16 +649,13 @@ class ProductListPageState extends State<ProductListPage> {
         android: androidInitSettings,
       );
 
-      log('[NOTIF] Inicializando plugin de notificaciones...');
       await flutterLocalNotificationsPlugin.initialize(
         initSettings,
         // ⭐ AGREGAR HANDLER PARA CUANDO EL USUARIO TOCA LA NOTIFICACIÓN
         onDidReceiveNotificationResponse: _handleNotificationTap,
       );
-      log('[NOTIF] Plugin inicializado correctamente');
 
       // ⭐ Crear canal para Android 8.0+ (IMPORTANTE para Android 13+)
-      log('[NOTIF] Creando canal Android para QR...');
       const AndroidNotificationChannel channel = AndroidNotificationChannel(
         'qr_downloads',
         'Descargas de QR',
@@ -687,14 +672,10 @@ class ProductListPageState extends State<ProductListPage> {
           >();
 
       if (android != null) {
-        log('[NOTIF] Creando canal: qr_downloads');
         await android.createNotificationChannel(channel);
-        log('[NOTIF] Canal creado exitosamente');
       } else {
-        log('[NOTIF] ERROR: No se pudo resolver implementación Android');
       }
 
-      log('[NOTIF] ✅ Notificaciones inicializadas correctamente');
     } catch (e, stack) {
       log('[NOTIF] ❌ Error inicializando notificaciones: $e');
       log('[NOTIF] Stack trace: $stack');
@@ -724,7 +705,6 @@ class ProductListPageState extends State<ProductListPage> {
         android: androidDetails,
       );
 
-      log('[NOTIF] Llamando a flutterLocalNotificationsPlugin.show()...');
       await flutterLocalNotificationsPlugin.show(
         DateTime.now().millisecond,
         '📥 QR Descargado',
@@ -732,7 +712,6 @@ class ProductListPageState extends State<ProductListPage> {
         notificationDetails,
         payload: filePath, // Pasar la ruta completa como payload
       );
-      log('[NOTIF] ✅ Notificación mostrada exitosamente');
     } catch (e, stack) {
       log('[NOTIF] ❌ Error mostrando notificación: $e');
       log('[NOTIF] Stack trace: $stack');
@@ -742,27 +721,21 @@ class ProductListPageState extends State<ProductListPage> {
   // ⭐ NUEVO: Handler para cuando el usuario toca la notificación
   void _handleNotificationTap(NotificationResponse response) async {
     try {
-      log('[NOTIF] Notificación tocada, payload: ${response.payload}');
 
       final filePath = response.payload;
       if (filePath == null || filePath.isEmpty) {
-        log('[NOTIF] ❌ Payload vacío');
         return;
       }
-
-      log('[NOTIF] Abriendo archivo: $filePath');
 
       // Verificar que el archivo existe
       final file = File(filePath);
       if (!await file.exists()) {
-        log('[NOTIF] ❌ Archivo no existe: $filePath');
         Get.snackbar('Error', 'El archivo QR no existe (puede haber sido eliminado)');
         return;
       }
 
       // ⭐ Abrir el archivo con la app de galería/visualizador de imágenes
       await OpenFilex.open(filePath);
-      log('[NOTIF] ✅ Abriendo archivo: $filePath');
     } catch (e, stack) {
       log('[NOTIF] ❌ Error manejando notificación: $e');
       log('[NOTIF] Stack trace: $stack');

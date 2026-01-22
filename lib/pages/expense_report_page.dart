@@ -64,16 +64,16 @@ class ExpenseReportPageState extends State<ExpenseReportPage> {
     final currentStore = storeController.currentStore;
     if (currentStore == null) return;
 
-    final ctx = context; // Capture context before async operation
-
     final pickedRange = await showDateRangePicker(
-      context: ctx,
+      context: context,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
       initialDateRange: _customStartDate != null && _customEndDate != null
           ? DateTimeRange(start: _customStartDate!, end: _customEndDate!)
           : null,
     );
+
+    if (!mounted) return;
 
     if (pickedRange != null) {
       setState(() {
@@ -88,13 +88,12 @@ class ExpenseReportPageState extends State<ExpenseReportPage> {
   Future<void> _generateExpensePDF() async {
     final now = DateTime.now();
     final firstDayOfMonth = DateTime(now.year, now.month, 1);
-    final ctx = context; // Capture context before async operations
     
     debugPrint('🔴 [PDF] Iniciando generación de PDF');
     
     // Solicita fecha de inicio
     final startDatePicker = await showDatePicker(
-      context: ctx,
+      context: context,
       initialDate: firstDayOfMonth,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
@@ -106,9 +105,11 @@ class ExpenseReportPageState extends State<ExpenseReportPage> {
     }
     debugPrint('🟡 [PDF] Fecha inicial seleccionada: $startDatePicker');
 
+    if (!mounted) return;
+
     // Solicita fecha de fin
     final endDatePicker = await showDatePicker(
-      context: ctx,
+      context: context,
       initialDate: DateTime.now(),
       firstDate: startDatePicker,
       lastDate: DateTime.now(),
@@ -120,11 +121,12 @@ class ExpenseReportPageState extends State<ExpenseReportPage> {
     }
     debugPrint('🟡 [PDF] Fecha final seleccionada: $endDatePicker');
 
+    if (!mounted) return;
+
     final currentStore = storeController.currentStore;
     if (currentStore == null) {
       debugPrint('🔴 [PDF] No hay tienda seleccionada');
-      if (!mounted) return;
-      ScaffoldMessenger.of(ctx).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor selecciona una tienda')),
       );
       return;
@@ -132,9 +134,8 @@ class ExpenseReportPageState extends State<ExpenseReportPage> {
     debugPrint('🟡 [PDF] Tienda seleccionada: ${currentStore['name']}');
 
     // Mostrar loading
-    if (!mounted) return;
     showDialog(
-      context: ctx,
+      context: context,
       barrierDismissible: false,
       builder: (context) => const Center(child: CircularProgressIndicator()),
     );
@@ -163,7 +164,7 @@ class ExpenseReportPageState extends State<ExpenseReportPage> {
       }
       
       if (!mounted) return;
-      Navigator.pop(ctx); // Cerrar loading dialog
+      Navigator.pop(context); // Cerrar loading dialog
 
       if (report != null && report.byCategory.isNotEmpty) {
         debugPrint('✅ [PDF] Iniciando creación del PDF...');
@@ -175,7 +176,7 @@ class ExpenseReportPageState extends State<ExpenseReportPage> {
             ? 'El reporte es null' 
             : 'No hay categorías en el reporte (${report.byCategory.length} categorías)';
         debugPrint('🔴 [PDF] Error: $errorMsg');
-        ScaffoldMessenger.of(ctx).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('No hay datos de gastos para el período seleccionado')),
         );
       }
@@ -186,8 +187,8 @@ class ExpenseReportPageState extends State<ExpenseReportPage> {
       debugPrint('   Stack trace: $stackTrace');
       
       if (!mounted) return;
-      Navigator.pop(ctx); // Cerrar loading dialog
-      ScaffoldMessenger.of(ctx).showSnackBar(
+      Navigator.pop(context); // Cerrar loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
     }

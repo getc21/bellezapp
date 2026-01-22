@@ -205,8 +205,8 @@ class _InventoryRotationPageState extends State<InventoryRotationPage> {
       floatingActionButton: FloatingActionButton(
         onPressed: _generatePDF,
         backgroundColor: Utils.colorBotones,
-        child: const Icon(Icons.picture_as_pdf, color: Colors.white),
         tooltip: 'Generar PDF de rotación',
+        child: const Icon(Icons.picture_as_pdf, color: Colors.white),
       ),
     );
   }

@@ -275,8 +275,8 @@ class _PeriodsComparisonPageState extends State<PeriodsComparisonPage> {
       floatingActionButton: FloatingActionButton(
         onPressed: _generatePDF,
         backgroundColor: Utils.colorBotones,
-        child: const Icon(Icons.picture_as_pdf, color: Colors.white),
         tooltip: 'Generar PDF de comparación',
+        child: const Icon(Icons.picture_as_pdf, color: Colors.white),
       ),
     );
   }

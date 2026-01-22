@@ -206,8 +206,8 @@ class _SalesTrendsPageState extends State<SalesTrendsPage> {
       floatingActionButton: FloatingActionButton(
         onPressed: _generatePDF,
         backgroundColor: Utils.colorBotones,
-        child: const Icon(Icons.picture_as_pdf, color: Colors.white),
         tooltip: 'Generar PDF de tendencias',
+        child: const Icon(Icons.picture_as_pdf, color: Colors.white),
       ),
     );
   }
